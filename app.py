@@ -1,6 +1,7 @@
+import os
 from flask import Flask, render_template, jsonify, request
 import chess
-from engine import search
+from engine import search  # Change to chess_engine if your file is named that
 import requests
 import chess.pgn
 import io
@@ -11,30 +12,27 @@ app = Flask(__name__)
 # ========== CHESS GAME ==========
 games = {}
 
-
 @app.route("/play")
 def play():
     return render_template("chess.html")
-
 
 @app.route("/api/chess/new", methods=["POST"])
 def new_chess_game():
     session_id = request.remote_addr
     data = request.get_json() or {}
     player_color = data.get("color", "white")
-
+    
     board = chess.Board()
     games[session_id] = {
         "board": board,
         "color": player_color
     }
-
+    
     return jsonify({
         "fen": board.fen(),
         "legal_moves": [str(m) for m in board.legal_moves],
         "game_over": False
     })
-
 
 @app.route("/api/chess/move", methods=["POST"])
 def chess_move():
@@ -42,24 +40,23 @@ def chess_move():
     data = request.get_json() or {}
     player_move = data.get("move")
     difficulty = data.get("difficulty", "Medium")
-
+    
     if session_id not in games:
         return jsonify({"error": "No game found"}), 400
-
+    
     game_data = games[session_id]
     board = game_data["board"]
     player_color = game_data.get("color", "white")
-
+    
     depth_map = {"Easy": 1, "Medium": 3, "Hard": 5}
     depth = depth_map.get(difficulty, 3)
-
-    # Engine first move (when player is black)
+    
     if player_move == "engine":
         if board.turn == chess.WHITE:
             _, engine_move = search(board, depth)
             if engine_move:
                 board.push(engine_move)
-
+            
             game_over = board.is_game_over()
             return jsonify({
                 "fen": board.fen(),
@@ -69,11 +66,10 @@ def chess_move():
                 "result": board.result() if game_over else None,
                 "legal_moves": [str(m) for m in board.legal_moves] if not game_over else []
             })
-
+    
     if not player_move:
         return jsonify({"error": "No move provided"}), 400
-
-    # Apply player move
+    
     try:
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:
@@ -81,8 +77,7 @@ def chess_move():
         board.push(move)
     except Exception as e:
         return jsonify({"error": str(e), "fen": board.fen()}), 400
-
-    # Check game over after player move
+    
     if board.is_game_over():
         return jsonify({
             "fen": board.fen(),
@@ -92,17 +87,15 @@ def chess_move():
             "result": board.result(),
             "legal_moves": []
         })
-
-    # Engine move
+    
     engine_move = None
-    if (player_color == "white" and board.turn == chess.BLACK) or (
-            player_color == "black" and board.turn == chess.WHITE):
+    if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
         _, engine_move = search(board, depth)
         if engine_move:
             board.push(engine_move)
-
+    
     game_over = board.is_game_over()
-
+    
     return jsonify({
         "fen": board.fen(),
         "player_move": player_move,
@@ -112,15 +105,12 @@ def chess_move():
         "legal_moves": [str(m) for m in board.legal_moves] if not game_over else []
     })
 
-
-# ========== CHESS.COM STATS (your existing code) ==========
+# ========== CHESS.COM STATS ==========
 headers = {"User-Agent": "Mozilla/5.0"}
-
 
 @app.route("/")
 def index():
     return render_template("index.html")
-
 
 @app.route("/stats/<username>")
 def get_stats(username):
@@ -153,7 +143,6 @@ def get_stats(username):
 
     return jsonify({"stats": result, "avatar": avatar})
 
-
 @app.route("/history/<username>/<int:months>")
 def get_history(username, months):
     archives_url = f"https://api.chess.com/pub/player/{username}/games/archives"
@@ -183,7 +172,6 @@ def get_history(username, months):
                     bullet.append(rating)
 
     return jsonify({"rapid": rapid, "blitz": blitz, "bullet": bullet})
-
 
 @app.route("/openings/<username>/<int:months>")
 def get_openings(username, months):
@@ -238,6 +226,5 @@ def get_openings(username, months):
 
     return jsonify(openings_list)
 
-
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False)
