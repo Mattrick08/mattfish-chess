@@ -30,7 +30,7 @@
             align-items: center;
             font-size: 15px;
         }
-        .diff-btn, .color-btn, .undo-btn {
+        .diff-btn, .color-btn, .undo-btn, .sound-btn {
             padding: 10px;
             border: 2px solid #444;
             background: transparent;
@@ -58,6 +58,19 @@
             background: transparent;
             color: #666;
             cursor: not-allowed;
+        }
+        .sound-btn {
+            border-color: #2196F3;
+            background: rgba(33,150,243,0.1);
+        }
+        .sound-btn:hover {
+            border-color: #2196F3;
+            background: rgba(33,150,243,0.2);
+        }
+        .sound-btn.off {
+            border-color: #555;
+            background: transparent;
+            color: #666;
         }
         .new-game-btn {
             padding: 15px;
@@ -128,6 +141,13 @@
         .square:hover { filter: brightness(1.15); }
         .selected { background: #f7ec5f !important; }
         .last-move { box-shadow: inset 0 0 0 4px rgba(255, 107, 107, 0.7); }
+        .check {
+            animation: check-pulse 0.5s infinite alternate;
+        }
+        @keyframes check-pulse {
+            from { box-shadow: inset 0 0 0 4px rgba(231, 76, 60, 0.5); }
+            to { box-shadow: inset 0 0 0 8px rgba(231, 76, 60, 0.8); }
+        }
         .legal::after {
             content: '';
             position: absolute;
@@ -226,6 +246,7 @@
         </div>
 
         <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
+        <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
@@ -281,8 +302,76 @@
         let playerColor = 'white';
         let pendingPromo = null;
         let moveHistory = [];
-        // Store board states for undo
         let boardHistory = [];
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        // Sound effects using Web Audio API
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playTone(freq, duration, type, volume) {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playMoveSound() {
+            playTone(800, 0.08, 'sine', 0.15);
+            setTimeout(() => playTone(600, 0.06, 'sine', 0.1), 30);
+        }
+
+        function playCaptureSound() {
+            playTone(200, 0.15, 'square', 0.2);
+            setTimeout(() => playTone(150, 0.1, 'square', 0.15), 50);
+            setTimeout(() => playTone(100, 0.2, 'sawtooth', 0.1), 100);
+        }
+
+        function playCheckSound() {
+            playTone(880, 0.15, 'square', 0.2);
+            setTimeout(() => playTone(880, 0.15, 'square', 0.2), 200);
+            setTimeout(() => playTone(880, 0.3, 'square', 0.2), 400);
+        }
+
+        function playGameOverSound(won) {
+            if (won) {
+                playTone(523, 0.2, 'sine', 0.3);
+                setTimeout(() => playTone(659, 0.2, 'sine', 0.3), 200);
+                setTimeout(() => playTone(784, 0.2, 'sine', 0.3), 400);
+                setTimeout(() => playTone(1047, 0.4, 'sine', 0.3), 600);
+            } else {
+                playTone(400, 0.3, 'sine', 0.2);
+                setTimeout(() => playTone(350, 0.3, 'sine', 0.2), 300);
+                setTimeout(() => playTone(300, 0.5, 'sine', 0.2), 600);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            if (soundEnabled) {
+                btn.textContent = '🔊 Sound On';
+                btn.classList.remove('off');
+            } else {
+                btn.textContent = '🔇 Sound Off';
+                btn.classList.add('off');
+            }
+        }
 
         window.onload = function() {
             newGame();
@@ -326,8 +415,6 @@
 
         function updateUndoButton() {
             const btn = document.getElementById('undoBtn');
-            // Can undo if there's at least one full move (player + engine) in history
-            // Or if player is black and engine made first move
             const canUndo = boardHistory.length > 1 || 
                 (playerColor === 'black' && boardHistory.length > 0 && moveHistory.length > 0);
             btn.disabled = !canUndo || isThinking || document.getElementById('gameOver').classList.contains('active');
@@ -340,7 +427,7 @@
             lastMove = null;
             pendingPromo = null;
             moveHistory = [];
-            boardHistory = []; // Clear undo history
+            boardHistory = [];
             updateMoves();
             updatePromoImages();
             updateCoords();
@@ -362,7 +449,6 @@
 
                 currentFEN = data.fen;
                 legalMoves = data.legal_moves;
-                // Save initial state
                 boardHistory.push({
                     fen: currentFEN,
                     legalMoves: [...legalMoves],
@@ -403,13 +489,13 @@
                     moveHistory.push({ white: data.engine_move, black: null });
                     updateMoves();
                     legalMoves = data.legal_moves || [];
-                    // Save state after engine move
                     boardHistory.push({
                         fen: currentFEN,
                         legalMoves: [...legalMoves],
                         lastMove: {...lastMove},
                         moveHistory: JSON.parse(JSON.stringify(moveHistory))
                     });
+                    playMoveSound();
                     drawBoard();
                     updateUndoButton();
                     setStatus('Engine played ' + data.engine_move + '. Your turn!');
@@ -428,10 +514,7 @@
             updateUndoButton();
             setStatus('Undoing...');
 
-            // Remove the last state (current position after engine move)
             boardHistory.pop();
-
-            // Go back to previous state (before player's move)
             const prevState = boardHistory[boardHistory.length - 1];
 
             currentFEN = prevState.fen;
@@ -439,27 +522,12 @@
             lastMove = prevState.lastMove ? {...prevState.lastMove} : null;
             moveHistory = JSON.parse(JSON.stringify(prevState.moveHistory));
 
-            // Remove last move from history if it was a pair
-            if (moveHistory.length > 0) {
-                const last = moveHistory[moveHistory.length - 1];
-                if (last.black) {
-                    // Both moves made, remove the whole pair
-                    moveHistory.pop();
-                } else {
-                    // Only engine move (first move as black), remove it
-                    moveHistory.pop();
-                }
-            }
-
-            // Update server - send undo request
             try {
                 await fetch('/api/chess/undo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
-            } catch(e) {
-                // Server might not have undo endpoint, that's ok
-            }
+            } catch(e) {}
 
             isThinking = false;
             updateMoves();
@@ -486,6 +554,9 @@
                 grid.push(row);
             }
 
+            // Check if king is in check
+            const isCheck = currentFEN.split(' ')[2] !== '-';
+
             if (playerColor === 'black') {
                 for (let vRow = 0; vRow < 8; vRow++) {
                     for (let vCol = 0; vCol < 8; vCol++) {
@@ -493,7 +564,7 @@
                         const stdFile = 7 - vCol;
                         const piece = grid[stdRank][stdFile];
                         const squareName = 'hgfedcba'[vCol] + (vRow + 1);
-                        createSquare(board, vRow, vCol, squareName, piece);
+                        createSquare(board, vRow, vCol, squareName, piece, isCheck);
                     }
                 }
             } else {
@@ -501,18 +572,23 @@
                     for (let vCol = 0; vCol < 8; vCol++) {
                         const piece = grid[vRow][vCol];
                         const squareName = 'abcdefgh'[vCol] + (8 - vRow);
-                        createSquare(board, vRow, vCol, squareName, piece);
+                        createSquare(board, vRow, vCol, squareName, piece, isCheck);
                     }
                 }
             }
         }
 
-        function createSquare(boardEl, vRow, vCol, squareName, piece) {
+        function createSquare(boardEl, vRow, vCol, squareName, piece, isCheck) {
             const square = document.createElement('div');
             const isLight = (vRow + vCol) % 2 === 0;
 
             square.className = 'square ' + (isLight ? 'light' : 'dark');
             square.dataset.square = squareName;
+
+            // Check if this square has the king in check
+            if (isCheck && piece && (piece === 'K' || piece === 'k')) {
+                square.classList.add('check');
+            }
 
             if (piece && PIECE_IMAGES[piece]) {
                 const img = document.createElement('img');
@@ -656,7 +732,14 @@
 
                 legalMoves = data.legal_moves || [];
 
-                // Save state after engine responds
+                // Play sounds
+                const isCheck = data.fen.split(' ')[2] !== '-';
+                if (isCheck) {
+                    playCheckSound();
+                } else {
+                    playMoveSound();
+                }
+
                 boardHistory.push({
                     fen: currentFEN,
                     legalMoves: [...legalMoves],
@@ -668,6 +751,8 @@
                 updateUndoButton();
 
                 if (data.game_over) {
+                    const playerWon = (playerColor === 'white' && data.result === '1-0') || (playerColor === 'black' && data.result === '0-1');
+                    playGameOverSound(playerWon);
                     showGameOver(data.result);
                 } else {
                     setStatus(data.engine_move ? 
