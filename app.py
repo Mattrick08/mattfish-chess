@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, jsonify, request
 import chess
-from engine import search  # Change to chess_engine if your file is named that
+from engine import search
 import requests
 import chess.pgn
 import io
@@ -21,17 +21,18 @@ def new_chess_game():
     session_id = request.remote_addr
     data = request.get_json() or {}
     player_color = data.get("color", "white")
-    
+
     board = chess.Board()
     games[session_id] = {
         "board": board,
         "color": player_color
     }
-    
+
     return jsonify({
         "fen": board.fen(),
         "legal_moves": [str(m) for m in board.legal_moves],
-        "game_over": False
+        "game_over": False,
+        "check": False
     })
 
 @app.route("/api/chess/move", methods=["POST"])
@@ -40,23 +41,23 @@ def chess_move():
     data = request.get_json() or {}
     player_move = data.get("move")
     difficulty = data.get("difficulty", "Medium")
-    
+
     if session_id not in games:
         return jsonify({"error": "No game found"}), 400
-    
+
     game_data = games[session_id]
     board = game_data["board"]
     player_color = game_data.get("color", "white")
-    
+
     depth_map = {"Easy": 1, "Medium": 3, "Hard": 5}
     depth = depth_map.get(difficulty, 3)
-    
+
     if player_move == "engine":
         if board.turn == chess.WHITE:
             _, engine_move = search(board, depth)
             if engine_move:
                 board.push(engine_move)
-            
+
             game_over = board.is_game_over()
             return jsonify({
                 "fen": board.fen(),
@@ -64,20 +65,21 @@ def chess_move():
                 "engine_move": str(engine_move) if engine_move else None,
                 "game_over": game_over,
                 "result": board.result() if game_over else None,
-                "legal_moves": [str(m) for m in board.legal_moves] if not game_over else []
+                "legal_moves": [str(m) for m in board.legal_moves] if not game_over else [],
+                "check": board.is_check()
             })
-    
+
     if not player_move:
         return jsonify({"error": "No move provided"}), 400
-    
+
     try:
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:
-            return jsonify({"error": "Illegal move", "fen": board.fen()}), 400
+            return jsonify({"error": "Illegal move", "fen": board.fen(), "check": board.is_check()}), 400
         board.push(move)
     except Exception as e:
-        return jsonify({"error": str(e), "fen": board.fen()}), 400
-    
+        return jsonify({"error": str(e), "fen": board.fen(), "check": board.is_check()}), 400
+
     if board.is_game_over():
         return jsonify({
             "fen": board.fen(),
@@ -85,24 +87,26 @@ def chess_move():
             "engine_move": None,
             "game_over": True,
             "result": board.result(),
-            "legal_moves": []
+            "legal_moves": [],
+            "check": False
         })
-    
+
     engine_move = None
     if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
         _, engine_move = search(board, depth)
         if engine_move:
             board.push(engine_move)
-    
+
     game_over = board.is_game_over()
-    
+
     return jsonify({
         "fen": board.fen(),
         "player_move": player_move,
         "engine_move": str(engine_move) if engine_move else None,
         "game_over": game_over,
         "result": board.result() if game_over else None,
-        "legal_moves": [str(m) for m in board.legal_moves] if not game_over else []
+        "legal_moves": [str(m) for m in board.legal_moves] if not game_over else [],
+        "check": board.is_check()
     })
 
 # ========== CHESS.COM STATS ==========
