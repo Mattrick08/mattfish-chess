@@ -305,6 +305,7 @@
         let boardHistory = [];
         let soundEnabled = true;
         let audioCtx = null;
+        let isCheck = false;
 
         // Sound effects using Web Audio API
         function getAudioContext() {
@@ -428,6 +429,7 @@
             pendingPromo = null;
             moveHistory = [];
             boardHistory = [];
+            isCheck = false;
             updateMoves();
             updatePromoImages();
             updateCoords();
@@ -482,6 +484,7 @@
 
                 if (!data.error) {
                     currentFEN = data.fen;
+                    isCheck = data.check || false;
                     lastMove = {
                         from: data.engine_move.substring(0, 2),
                         to: data.engine_move.substring(2, 4)
@@ -554,8 +557,7 @@
                 grid.push(row);
             }
 
-            // Check if king is in check
-            const isCheck = currentFEN.split(' ')[2] !== '-';
+            // Check state is tracked from server responses (isCheck global variable)
 
             if (playerColor === 'black') {
                 for (let vRow = 0; vRow < 8; vRow++) {
@@ -733,7 +735,6 @@
                 legalMoves = data.legal_moves || [];
 
                 // Play sounds
-                const isCheck = data.fen.split(' ')[2] !== '-';
                 if (isCheck) {
                     playCheckSound();
                 } else {
