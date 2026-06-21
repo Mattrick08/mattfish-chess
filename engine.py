@@ -88,20 +88,37 @@ PIECE_VALUES = {
 def get_position_bonus(piece_type, square, color):
     table = PIECE_TABLES[piece_type]
     if color == chess.WHITE:
-        # Flip the table for white so it reads from white's perspective
         index = (7 - chess.square_rank(square)) * 8 + chess.square_file(square)
     else:
         index = chess.square_rank(square) * 8 + chess.square_file(square)
     return table[index]
 
 def evaluate(board):
+    # Check for checkmate
     if board.is_checkmate():
         if board.turn == chess.WHITE:
             return -9999
         else:
             return 9999
 
-    if board.is_stalemate() or board.is_insufficient_material():
+    # Check for stalemate (no legal moves but not in check)
+    if board.is_stalemate():
+        return 0
+
+    # Check for insufficient material
+    if board.is_insufficient_material():
+        return 0
+
+    # Check for 50-move rule (100 half-moves = 50 full moves)
+    if board.halfmove_clock >= 100:
+        return 0
+
+    # Check for threefold repetition
+    if board.is_repetition(3):
+        return 0
+
+    # Check for fivefold repetition (automatic draw)
+    if board.is_repetition(5):
         return 0
 
     score = 0
@@ -117,8 +134,13 @@ def evaluate(board):
     return score
 
 def search(board, depth, alpha=-99999, beta=99999):
+    # Check for draw conditions at the root
     if depth == 0 or board.is_game_over():
         return evaluate(board), None
+
+    # Check for 50-move rule and repetition during search
+    if board.halfmove_clock >= 100 or board.is_repetition(3):
+        return 0, None
 
     best_move = None
 
@@ -133,7 +155,7 @@ def search(board, depth, alpha=-99999, beta=99999):
                 best_move = move
             alpha = max(alpha, best_score)
             if beta <= alpha:
-                break  # Beta cutoff - stop searching this branch
+                break  # Beta cutoff
     else:
         best_score = 99999
         for move in board.legal_moves:
@@ -145,6 +167,6 @@ def search(board, depth, alpha=-99999, beta=99999):
                 best_move = move
             beta = min(beta, best_score)
             if beta <= alpha:
-                break  # Alpha cutoff - stop searching this branch
+                break  # Alpha cutoff
 
     return best_score, best_move
