@@ -141,14 +141,6 @@
         .square:hover { filter: brightness(1.15); }
         .selected { background: #f7ec5f !important; }
         .last-move { box-shadow: inset 0 0 0 4px rgba(255, 107, 107, 0.7); }
-        .check {
-            background-color: #e74c3c !important;
-            animation: check-pulse 0.6s infinite alternate;
-        }
-        @keyframes check-pulse {
-            from { background-color: #e74c3c; }
-            to { background-color: #ff6b6b; }
-        }
         .legal::after {
             content: '';
             position: absolute;
@@ -394,12 +386,6 @@
             setTimeout(() => playTone(600, 0.06, 'sine', 0.1), 30);
         }
 
-        function playCaptureSound() {
-            playTone(200, 0.15, 'square', 0.2);
-            setTimeout(() => playTone(150, 0.1, 'square', 0.15), 50);
-            setTimeout(() => playTone(100, 0.2, 'sawtooth', 0.1), 100);
-        }
-
         function playCheckSound() {
             playTone(880, 0.15, 'square', 0.2);
             setTimeout(() => playTone(880, 0.15, 'square', 0.2), 200);
@@ -581,6 +567,7 @@
             legalMoves = [...prevState.legalMoves];
             lastMove = prevState.lastMove ? {...prevState.lastMove} : null;
             moveHistory = JSON.parse(JSON.stringify(prevState.moveHistory));
+            isCheck = false;
 
             try {
                 await fetch('/api/chess/undo', {
@@ -602,7 +589,7 @@
 
             const fenParts = currentFEN.split(' ');
             const fenRows = fenParts[0].split('/');
-            const activeColor = fenParts[1] || 'w'; // 'w' = White to move, 'b' = Black to move
+            const activeColor = fenParts[1] || 'w';
             const grid = [];
             for (let r = 0; r < 8; r++) {
                 const row = [];
@@ -616,8 +603,6 @@
                 grid.push(row);
             }
 
-            // Check state is tracked from server responses (isCheck global variable)
-
             if (playerColor === 'black') {
                 for (let vRow = 0; vRow < 8; vRow++) {
                     for (let vCol = 0; vCol < 8; vCol++) {
@@ -625,7 +610,7 @@
                         const stdFile = 7 - vCol;
                         const piece = grid[stdRank][stdFile];
                         const squareName = 'hgfedcba'[vCol] + (vRow + 1);
-                        createSquare(board, vRow, vCol, squareName, piece, isCheck, activeColor);
+                        createSquare(board, vRow, vCol, squareName, piece, activeColor);
                     }
                 }
             } else {
@@ -633,20 +618,19 @@
                     for (let vCol = 0; vCol < 8; vCol++) {
                         const piece = grid[vRow][vCol];
                         const squareName = 'abcdefgh'[vCol] + (8 - vRow);
-                        createSquare(board, vRow, vCol, squareName, piece, isCheck, activeColor);
+                        createSquare(board, vRow, vCol, squareName, piece, activeColor);
                     }
                 }
             }
         }
 
-        function createSquare(boardEl, vRow, vCol, squareName, piece, isCheck, activeColor) {
+        function createSquare(boardEl, vRow, vCol, squareName, piece, activeColor) {
             const square = document.createElement('div');
             const isLight = (vRow + vCol) % 2 === 0;
 
             square.className = 'square ' + (isLight ? 'light' : 'dark');
             square.dataset.square = squareName;
 
-            // Highlight king in check - only the side whose turn it is
             if (isCheck && piece) {
                 if ((activeColor === 'w' && piece === 'K') || (activeColor === 'b' && piece === 'k')) {
                     square.classList.add('check');
@@ -779,6 +763,7 @@
                 }
 
                 currentFEN = data.fen;
+                isCheck = data.check || false;
 
                 if (data.engine_move) {
                     lastMove = {
@@ -803,7 +788,6 @@
 
                 legalMoves = data.legal_moves || [];
 
-                // Play sounds
                 if (isCheck) {
                     playCheckSound();
                 } else {
