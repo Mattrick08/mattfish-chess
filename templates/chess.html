@@ -30,7 +30,7 @@
             align-items: center;
             font-size: 15px;
         }
-        .diff-btn, .color-btn {
+        .diff-btn, .color-btn, .undo-btn {
             padding: 10px;
             border: 2px solid #444;
             background: transparent;
@@ -41,9 +41,23 @@
             transition: 0.2s;
         }
         .diff-btn:hover, .color-btn:hover { border-color: #666; }
-        .diff-btn.active, .color-btn.active {
-            border-color: #4CAF50;
-            background: rgba(76,175,80,0.2);
+        .diff-btn.active, .color-btn.active { 
+            border-color: #4CAF50; 
+            background: rgba(76,175,80,0.2); 
+        }
+        .undo-btn {
+            border-color: #f39c12;
+            background: rgba(243,156,18,0.1);
+        }
+        .undo-btn:hover {
+            border-color: #f39c12;
+            background: rgba(243,156,18,0.2);
+        }
+        .undo-btn:disabled {
+            border-color: #555;
+            background: transparent;
+            color: #666;
+            cursor: not-allowed;
         }
         .new-game-btn {
             padding: 15px;
@@ -191,6 +205,7 @@
             margin-top: 5px;
         }
     </style>
+<base target="_blank">
 </head>
 <body>
     <div class="sidebar">
@@ -210,6 +225,7 @@
             <button class="color-btn" onclick="setColor('black')">Black</button>
         </div>
 
+        <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
@@ -265,6 +281,8 @@
         let playerColor = 'white';
         let pendingPromo = null;
         let moveHistory = [];
+        // Store board states for undo
+        let boardHistory = [];
 
         window.onload = function() {
             newGame();
@@ -306,6 +324,15 @@
             }
         }
 
+        function updateUndoButton() {
+            const btn = document.getElementById('undoBtn');
+            // Can undo if there's at least one full move (player + engine) in history
+            // Or if player is black and engine made first move
+            const canUndo = boardHistory.length > 1 || 
+                (playerColor === 'black' && boardHistory.length > 0 && moveHistory.length > 0);
+            btn.disabled = !canUndo || isThinking || document.getElementById('gameOver').classList.contains('active');
+        }
+
         async function newGame() {
             document.getElementById('promoModal').classList.remove('active');
             document.getElementById('gameOver').classList.remove('active');
@@ -313,13 +340,15 @@
             lastMove = null;
             pendingPromo = null;
             moveHistory = [];
+            boardHistory = []; // Clear undo history
             updateMoves();
             updatePromoImages();
             updateCoords();
+            updateUndoButton();
             setStatus('Starting...');
 
             try {
-                const response = await fetch('/api/chess/new', {
+                const response = await fetch('/api/chess/new', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ color: playerColor })
@@ -333,6 +362,13 @@
 
                 currentFEN = data.fen;
                 legalMoves = data.legal_moves;
+                // Save initial state
+                boardHistory.push({
+                    fen: currentFEN,
+                    legalMoves: [...legalMoves],
+                    lastMove: null,
+                    moveHistory: []
+                });
                 drawBoard();
 
                 if (playerColor === 'black') {
@@ -348,6 +384,7 @@
 
         async function engineFirstMove() {
             isThinking = true;
+            updateUndoButton();
             try {
                 const response = await fetch('/api/chess/move', {
                     method: 'POST',
@@ -366,13 +403,69 @@
                     moveHistory.push({ white: data.engine_move, black: null });
                     updateMoves();
                     legalMoves = data.legal_moves || [];
+                    // Save state after engine move
+                    boardHistory.push({
+                        fen: currentFEN,
+                        legalMoves: [...legalMoves],
+                        lastMove: {...lastMove},
+                        moveHistory: JSON.parse(JSON.stringify(moveHistory))
+                    });
                     drawBoard();
+                    updateUndoButton();
                     setStatus('Engine played ' + data.engine_move + '. Your turn!');
                 }
             } catch(err) {
                 isThinking = false;
+                updateUndoButton();
                 setStatus('Error: ' + err.message);
             }
+        }
+
+        async function undoMove() {
+            if (boardHistory.length < 2) return;
+
+            isThinking = true;
+            updateUndoButton();
+            setStatus('Undoing...');
+
+            // Remove the last state (current position after engine move)
+            boardHistory.pop();
+
+            // Go back to previous state (before player's move)
+            const prevState = boardHistory[boardHistory.length - 1];
+
+            currentFEN = prevState.fen;
+            legalMoves = [...prevState.legalMoves];
+            lastMove = prevState.lastMove ? {...prevState.lastMove} : null;
+            moveHistory = JSON.parse(JSON.stringify(prevState.moveHistory));
+
+            // Remove last move from history if it was a pair
+            if (moveHistory.length > 0) {
+                const last = moveHistory[moveHistory.length - 1];
+                if (last.black) {
+                    // Both moves made, remove the whole pair
+                    moveHistory.pop();
+                } else {
+                    // Only engine move (first move as black), remove it
+                    moveHistory.pop();
+                }
+            }
+
+            // Update server - send undo request
+            try {
+                await fetch('/api/chess/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch(e) {
+                // Server might not have undo endpoint, that's ok
+            }
+
+            isThinking = false;
+            updateMoves();
+            drawBoard();
+            updateUndoButton();
+            setStatus('Undone. Your turn!');
         }
 
         function drawBoard() {
@@ -439,8 +532,8 @@
             }
 
             if (selectedSquare) {
-                const isLegalDest = legalMoves.some(m =>
-                    m.substring(0, 2) === selectedSquare &&
+                const isLegalDest = legalMoves.some(m => 
+                    m.substring(0, 2) === selectedSquare && 
                     m.substring(2, 4) === square.dataset.square
                 );
                 if (isLegalDest) {
@@ -476,8 +569,8 @@
                 return;
             }
 
-            const matchingMove = legalMoves.find(m =>
-                m.substring(0, 2) === selectedSquare &&
+            const matchingMove = legalMoves.find(m => 
+                m.substring(0, 2) === selectedSquare && 
                 m.substring(2, 4) === sq
             );
 
@@ -515,6 +608,7 @@
         async function sendMove(move) {
             isThinking = true;
             selectedSquare = null;
+            updateUndoButton();
             setStatus('MattFish is thinking...');
 
             try {
@@ -533,6 +627,7 @@
                         currentFEN = data.fen;
                         drawBoard();
                     }
+                    updateUndoButton();
                     return;
                 }
 
@@ -560,17 +655,28 @@
                 }
 
                 legalMoves = data.legal_moves || [];
+
+                // Save state after engine responds
+                boardHistory.push({
+                    fen: currentFEN,
+                    legalMoves: [...legalMoves],
+                    lastMove: lastMove ? {...lastMove} : null,
+                    moveHistory: JSON.parse(JSON.stringify(moveHistory))
+                });
+
                 drawBoard();
+                updateUndoButton();
 
                 if (data.game_over) {
                     showGameOver(data.result);
                 } else {
-                    setStatus(data.engine_move ?
-                        'Engine played ' + data.engine_move + '. Your turn!' :
+                    setStatus(data.engine_move ? 
+                        'Engine played ' + data.engine_move + '. Your turn!' : 
                         'Your turn!');
                 }
             } catch(err) {
                 isThinking = false;
+                updateUndoButton();
                 setStatus('Error: ' + err.message);
             }
         }
@@ -606,6 +712,7 @@
             text.style.color = color;
             overlay.classList.add('active');
             setStatus('Game Over: ' + result);
+            updateUndoButton();
         }
 
         function setStatus(text) {
