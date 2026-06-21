@@ -162,69 +162,20 @@
             z-index: 1000;
         }
         .promotion-modal.active { display: flex; }
-        .promo-dropdown-container {
-            background: #2e2e2e;
-            padding: 30px 40px;
-            border-radius: 12px;
-            text-align: center;
-            border: 2px solid #4CAF50;
-            min-width: 250px;
-        }
-        .promo-dropdown-container h3 {
-            color: #fff;
-            margin-bottom: 20px;
-            font-size: 20px;
-        }
-        .promo-select {
-            width: 100%;
-            padding: 12px 15px;
-            font-size: 18px;
-            background: #1e1e1e;
-            color: white;
-            border: 2px solid #555;
-            border-radius: 8px;
+        .promo-piece {
+            width: 80px;
+            height: 80px;
             cursor: pointer;
-            margin-bottom: 20px;
-            outline: none;
-        }
-        .promo-select:hover, .promo-select:focus {
-            border-color: #4CAF50;
-        }
-        .promo-select option {
-            background: #1e1e1e;
-            color: white;
-            font-size: 18px;
-            padding: 10px;
-        }
-        .promo-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-        .promo-confirm, .promo-cancel {
-            padding: 12px 25px;
-            font-size: 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
+            background: #f0d9b5;
+            border-radius: 10px;
+            margin: 10px;
             transition: 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        .promo-confirm {
-            background: #4CAF50;
-            color: white;
-        }
-        .promo-confirm:hover {
-            background: #45a049;
-            transform: scale(1.05);
-        }
-        .promo-cancel {
-            background: #555;
-            color: white;
-        }
-        .promo-cancel:hover {
-            background: #666;
-            transform: scale(1.05);
-        }
+        .promo-piece:hover { transform: scale(1.1); background: #fff; }
+        .promo-piece img { width: 70px; height: 70px; }
         .game-over-overlay {
             display: none;
             position: fixed;
@@ -306,18 +257,11 @@
     </div>
 
     <div class="promotion-modal" id="promoModal">
-        <div class="promo-dropdown-container">
-            <h3>Promote Pawn To:</h3>
-            <select id="promoSelect" class="promo-select">
-                <option value="q">♕ Queen</option>
-                <option value="r">♖ Rook</option>
-                <option value="b">♗ Bishop</option>
-                <option value="n">♘ Knight</option>
-            </select>
-            <div class="promo-buttons">
-                <button class="promo-confirm" onclick="confirmPromo()">Promote</button>
-                <button class="promo-cancel" onclick="cancelPromo()">Cancel</button>
-            </div>
+        <div>
+            <span class="promo-piece" onclick="doPromo('q')"><img id="promoQ" src="/static/pieces/wQ (1).png" alt="Queen"></span>
+            <span class="promo-piece" onclick="doPromo('r')"><img id="promoR" src="/static/pieces/wR (1).png" alt="Rook"></span>
+            <span class="promo-piece" onclick="doPromo('b')"><img id="promoB" src="/static/pieces/wB (1).png" alt="Bishop"></span>
+            <span class="promo-piece" onclick="doPromo('n')"><img id="promoN" src="/static/pieces/wN (1).png" alt="Knight"></span>
         </div>
     </div>
 
@@ -720,20 +664,12 @@
             }
         }
 
-        function confirmPromo() {
-            const piece = document.getElementById('promoSelect').value;
+        function doPromo(piece) {
             document.getElementById('promoModal').classList.remove('active');
             if (pendingPromo) {
                 sendMove(pendingPromo + piece);
                 pendingPromo = null;
             }
-        }
-
-        function cancelPromo() {
-            document.getElementById('promoModal').classList.remove('active');
-            pendingPromo = null;
-            selectedSquare = null;
-            drawBoard();
         }
 
         async function sendMove(move) {
