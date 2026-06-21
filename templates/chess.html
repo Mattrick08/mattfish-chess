@@ -543,7 +543,9 @@
             const board = document.getElementById('board');
             board.innerHTML = '';
 
-            const fenRows = currentFEN.split(' ')[0].split('/');
+            const fenParts = currentFEN.split(' ');
+            const fenRows = fenParts[0].split('/');
+            const activeColor = fenParts[1] || 'w'; // 'w' = White to move, 'b' = Black to move
             const grid = [];
             for (let r = 0; r < 8; r++) {
                 const row = [];
@@ -566,7 +568,7 @@
                         const stdFile = 7 - vCol;
                         const piece = grid[stdRank][stdFile];
                         const squareName = 'hgfedcba'[vCol] + (vRow + 1);
-                        createSquare(board, vRow, vCol, squareName, piece, isCheck);
+                        createSquare(board, vRow, vCol, squareName, piece, isCheck, activeColor);
                     }
                 }
             } else {
@@ -574,22 +576,24 @@
                     for (let vCol = 0; vCol < 8; vCol++) {
                         const piece = grid[vRow][vCol];
                         const squareName = 'abcdefgh'[vCol] + (8 - vRow);
-                        createSquare(board, vRow, vCol, squareName, piece, isCheck);
+                        createSquare(board, vRow, vCol, squareName, piece, isCheck, activeColor);
                     }
                 }
             }
         }
 
-        function createSquare(boardEl, vRow, vCol, squareName, piece, isCheck) {
+        function createSquare(boardEl, vRow, vCol, squareName, piece, isCheck, activeColor) {
             const square = document.createElement('div');
             const isLight = (vRow + vCol) % 2 === 0;
 
             square.className = 'square ' + (isLight ? 'light' : 'dark');
             square.dataset.square = squareName;
 
-            // Check if this square has the king in check
-            if (isCheck && piece && (piece === 'K' || piece === 'k')) {
-                square.classList.add('check');
+            // Highlight king in check - only the side whose turn it is
+            if (isCheck && piece) {
+                if ((activeColor === 'w' && piece === 'K') || (activeColor === 'b' && piece === 'k')) {
+                    square.classList.add('check');
+                }
             }
 
             if (piece && PIECE_IMAGES[piece]) {
