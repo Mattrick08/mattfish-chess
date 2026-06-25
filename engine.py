@@ -133,6 +133,32 @@ def evaluate(board):
 
     return score
 
+def order_moves(board):
+    """Order moves to improve alpha-beta pruning - captures and checks first."""
+    moves = list(board.legal_moves)
+    def move_score(move):
+        score = 0
+        # Prioritize captures (MVV-LVA: Most Valuable Victim - Least Valuable Attacker)
+        if board.is_capture(move):
+            victim = board.piece_at(move.to_square)
+            attacker = board.piece_at(move.from_square)
+            if victim:
+                victim_val = PIECE_VALUES.get(victim.piece_type, 0)
+                attacker_val = PIECE_VALUES.get(attacker.piece_type, 0) if attacker else 0
+                score += 10000 + victim_val - attacker_val
+            else:
+                score += 5000  # En passant
+        # Prioritize checks
+        board.push(move)
+        if board.is_check():
+            score += 2000
+        board.pop()
+        # Prioritize promotions
+        if move.promotion:
+            score += 8000
+        return score
+    return sorted(moves, key=move_score, reverse=True)
+
 def search(board, depth, alpha=-99999, beta=99999):
     # Check for draw conditions at the root
     if depth == 0 or board.is_game_over():
@@ -143,10 +169,11 @@ def search(board, depth, alpha=-99999, beta=99999):
         return 0, None
 
     best_move = None
+    moves = order_moves(board)
 
     if board.turn == chess.WHITE:
         best_score = -99999
-        for move in board.legal_moves:
+        for move in moves:
             board.push(move)
             score, _ = search(board, depth - 1, alpha, beta)
             board.pop()
@@ -158,7 +185,7 @@ def search(board, depth, alpha=-99999, beta=99999):
                 break  # Beta cutoff
     else:
         best_score = 99999
-        for move in board.legal_moves:
+        for move in moves:
             board.push(move)
             score, _ = search(board, depth - 1, alpha, beta)
             board.pop()
