@@ -219,6 +219,7 @@
         }
     </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
     <div class="sidebar">
@@ -299,6 +300,7 @@
         let soundEnabled = true;
         let audioCtx = null;
         let isCheck = false;
+        let sessionId = null;
 
         // Sound effects using Web Audio API
         function getAudioContext() {
@@ -427,7 +429,7 @@
                 const response = await fetch('/api/chess/new', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ color: playerColor })
+                    body: JSON.stringify({ color: playerColor, session_id: sessionId })
                 });
                 const data = await response.json();
 
@@ -436,6 +438,7 @@
                     return;
                 }
 
+                sessionId = data.session_id || sessionId;
                 currentFEN = data.fen;
                 legalMoves = data.legal_moves;
                 boardHistory.push({
@@ -464,7 +467,7 @@
                 const response = await fetch('/api/chess/move', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ move: 'engine', difficulty: difficulty })
+                    body: JSON.stringify({ move: 'engine', difficulty: difficulty, session_id: sessionId })
                 });
                 const data = await response.json();
                 isThinking = false;
@@ -516,7 +519,8 @@
             try {
                 await fetch('/api/chess/undo', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
                 });
             } catch(e) {}
 
@@ -682,7 +686,7 @@
                 const response = await fetch('/api/chess/move', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ move: move, difficulty: difficulty })
+                    body: JSON.stringify({ move: move, difficulty: difficulty, session_id: sessionId })
                 });
 
                 const data = await response.json();
