@@ -55,13 +55,17 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    depth_map = {"Easy": 2, "Medium": 4, "Hard": 6}
-    time_limit_map = {"Easy": 0.5, "Medium": 1.5, "Hard": 3.0}
-    depth = depth_map.get(difficulty, 3)
+    # IMPROVED DIFFICULTY SETTINGS
+    # Easy: depth 3, 1 second - beginner level
+    # Medium: depth 5, 3 seconds - intermediate level  
+    # Hard: depth 8, 8 seconds - strong club player level
+    depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
+    time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
+    depth = depth_map.get(difficulty, 5)
 
     if player_move == "engine":
         if board.turn == chess.WHITE:
-            _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 1.5))
+            _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
             if engine_move:
                 board.push(engine_move)
 
@@ -100,7 +104,7 @@ def chess_move():
 
     engine_move = None
     if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
-        _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 1.5))
+        _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
         if engine_move:
             board.push(engine_move)
 
