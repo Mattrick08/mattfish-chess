@@ -222,6 +222,7 @@
             margin-top: 10px;
         }
     </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -400,9 +401,9 @@
             data: {
                 labels: data.blitz.map((_, i) => i + 1),
                 datasets: [
-                    { label: "Rapid", data: data.rapid, borderColor: "green", backgroundColor: "transparent", tension: 0.3 },
-                    { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3 },
-                    { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3 }
+                    { label: "Rapid", data: data.rapid, borderColor: "green", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointHoverRadius: 4 },
+                    { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointHoverRadius: 4 },
+                    { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointHoverRadius: 4 }
                 ]
             },
             options: {
