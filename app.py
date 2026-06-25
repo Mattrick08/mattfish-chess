@@ -2,13 +2,26 @@ import os
 from flask import Flask, render_template, jsonify, request, session
 import secrets
 import chess
-from engine import search
 import requests
 import chess.pgn
 import io
 from collections import defaultdict
 
 app = Flask(__name__)
+
+# ========== ENGINE SELECTION ==========
+# Set to "original" to use your simple engine
+# Set to "new" to use your advanced engine (default)
+ENGINE_MODE = os.environ.get("ENGINE_MODE", "new")
+
+if ENGINE_MODE == "original":
+    from engine_original import search as original_search
+
+    def search(board, depth, time_limit=0):
+        # Original engine doesn't use time_limit, only depth
+        return original_search(board, depth)
+else:
+    from engine import search
 
 # ========== CHESS GAME ==========
 games = {}
@@ -55,19 +68,22 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    # ============================================================
-    # NEW DIFFICULTY SETTINGS - STRONGER ENGINE
-    # ============================================================
-    # Easy: depth 3, 1 second - beginner level
-    # Medium: depth 5, 3 seconds - intermediate level
-    # Hard: depth 8, 8 seconds - strong club player level
-    depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
-    time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
-    depth = depth_map.get(difficulty, 5)
+    # Difficulty settings
+    if ENGINE_MODE == "original":
+        # Original engine: simpler depth mapping
+        depth_map = {"Easy": 2, "Medium": 3, "Hard": 4}
+        depth = depth_map.get(difficulty, 3)
+        time_limit = 0  # Original engine doesn't use time limits
+    else:
+        # New engine: deeper search with time limits
+        depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
+        time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
+        depth = depth_map.get(difficulty, 5)
+        time_limit = time_limit_map.get(difficulty, 3.0)
 
     if player_move == "engine":
         if board.turn == chess.WHITE:
-            _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
+            _, engine_move = search(board, depth, time_limit=time_limit)
             if engine_move:
                 board.push(engine_move)
 
@@ -106,7 +122,7 @@ def chess_move():
 
     engine_move = None
     if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
-        _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
+        _, engine_move = search(board, depth, time_limit=time_limit)
         if engine_move:
             board.push(engine_move)
 
@@ -134,10 +150,9 @@ def chess_undo():
     game_data = games[session_id]
     board = game_data["board"]
 
-    # Undo both player and engine moves (go back 2 half-moves or 1 full move)
     if len(board.move_stack) >= 2:
-        board.pop()  # undo engine move
-        board.pop()  # undo player move
+        board.pop()
+        board.pop()
     elif len(board.move_stack) == 1:
         board.pop()
 
