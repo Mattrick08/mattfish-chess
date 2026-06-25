@@ -1,5 +1,6 @@
 import os
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session
+import secrets
 import chess
 from engine import search
 import requests
@@ -18,8 +19,10 @@ def play():
 
 @app.route("/api/chess/new", methods=["POST"])
 def new_chess_game():
-    session_id = request.remote_addr
     data = request.get_json() or {}
+    session_id = data.get("session_id")
+    if not session_id:
+        session_id = secrets.token_hex(16)
     player_color = data.get("color", "white")
 
     board = chess.Board()
@@ -32,13 +35,16 @@ def new_chess_game():
         "fen": board.fen(),
         "legal_moves": [str(m) for m in board.legal_moves],
         "game_over": False,
-        "check": False
+        "check": False,
+        "session_id": session_id
     })
 
 @app.route("/api/chess/move", methods=["POST"])
 def chess_move():
-    session_id = request.remote_addr
     data = request.get_json() or {}
+    session_id = data.get("session_id")
+    if not session_id:
+        return jsonify({"error": "No session ID provided"}), 400
     player_move = data.get("move")
     difficulty = data.get("difficulty", "Medium")
 
@@ -49,7 +55,7 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    depth_map = {"Easy": 1, "Medium": 3, "Hard": 5}
+    depth_map = {"Easy": 1, "Medium": 3, "Hard": 4}
     depth = depth_map.get(difficulty, 3)
 
     if player_move == "engine":
@@ -106,6 +112,32 @@ def chess_move():
         "game_over": game_over,
         "result": board.result() if game_over else None,
         "legal_moves": [str(m) for m in board.legal_moves] if not game_over else [],
+        "check": board.is_check()
+    })
+
+
+
+@app.route("/api/chess/undo", methods=["POST"])
+def chess_undo():
+    data = request.get_json() or {}
+    session_id = data.get("session_id")
+    if not session_id or session_id not in games:
+        return jsonify({"error": "No game found"}), 400
+
+    game_data = games[session_id]
+    board = game_data["board"]
+
+    # Undo both player and engine moves (go back 2 half-moves or 1 full move)
+    if len(board.move_stack) >= 2:
+        board.pop()  # undo engine move
+        board.pop()  # undo player move
+    elif len(board.move_stack) == 1:
+        board.pop()
+
+    return jsonify({
+        "fen": board.fen(),
+        "legal_moves": [str(m) for m in board.legal_moves],
+        "game_over": False,
         "check": board.is_check()
     })
 
