@@ -55,9 +55,11 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    # IMPROVED DIFFICULTY SETTINGS
+    # ============================================================
+    # NEW DIFFICULTY SETTINGS - STRONGER ENGINE
+    # ============================================================
     # Easy: depth 3, 1 second - beginner level
-    # Medium: depth 5, 3 seconds - intermediate level  
+    # Medium: depth 5, 3 seconds - intermediate level
     # Hard: depth 8, 8 seconds - strong club player level
     depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
     time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
