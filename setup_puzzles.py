@@ -8,11 +8,11 @@ from engine import evaluate
 def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"):
     """
     Filter Lichess puzzle database:
-    - Rating: 1900-3000
+    - Rating: ALL ranges (500-3000)
     - Minimum 3 full moves (6 half-moves in UCI)
     - At least one puzzle per theme category
     - ONLY puzzles where the side to move is WINNING (positive eval)
-    - Store ~500 puzzles max for memory efficiency
+    - Mix of difficulty levels for variety
     """
     puzzles_by_theme = {}
     all_themes = set()
@@ -23,8 +23,8 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
         print("Then decompress with: zstd -d lichess_db_puzzle.csv.zst")
         return []
 
-    print("Filtering puzzles... This may take a few minutes.")
-    print("Evaluating each position to ensure side to move is winning...")
+    print("Filtering puzzles from ALL rating ranges...")
+    print("Evaluating positions to ensure side to move is winning...")
 
     with open(input_file, 'r') as f:
         reader = csv.DictReader(f)
@@ -33,8 +33,8 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
             moves = row['Moves'].split()
             themes = row['Themes'].split()
 
-            # Filter: 1900-3000 rating, 3+ full moves (6+ half-moves)
-            if rating < 1900 or rating > 3000:
+            # Filter: ALL ratings up to 3000, 3+ full moves (6+ half-moves)
+            if rating > 3000:
                 continue
             if len(moves) < 6:
                 continue
@@ -69,22 +69,34 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
                     puzzles_by_theme[theme] = []
                 puzzles_by_theme[theme].append(puzzle)
 
-    # Select puzzles: hardest from each theme, up to 3 per theme
+    # Select puzzles: mix of difficulties from each theme
     final_puzzles = []
     for theme in sorted(all_themes):
         puzzles = puzzles_by_theme[theme]
-        # Sort by rating descending (hardest first)
-        puzzles.sort(key=lambda x: x['rating'], reverse=True)
-        # Take top 3 from each theme
-        count = min(3, len(puzzles))
-        selected = puzzles[:count]
+        # Sort by rating
+        puzzles.sort(key=lambda x: x['rating'])
+
+        # Pick a mix: easy, medium, hard from each theme
+        count = min(5, len(puzzles))
+        if count >= 5:
+            # Pick 5 puzzles spread across difficulty range
+            selected = [
+                puzzles[0],                    # Easiest
+                puzzles[len(puzzles)//4],      # Easy-Medium
+                puzzles[len(puzzles)//2],      # Medium
+                puzzles[3*len(puzzles)//4],    # Medium-Hard
+                puzzles[-1]                     # Hardest
+            ]
+        else:
+            selected = puzzles[:count]
+
         final_puzzles.extend(selected)
 
     # Shuffle for randomness
     random.shuffle(final_puzzles)
 
-    # Cap at 1000 puzzles to keep file size reasonable
-    final_puzzles = final_puzzles[:1000]
+    # Cap at 1500 puzzles to keep file size reasonable
+    final_puzzles = final_puzzles[:1500]
 
     with open(output_file, 'w') as f:
         json.dump(final_puzzles, f)
