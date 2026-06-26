@@ -334,10 +334,13 @@
                 document.getElementById('puzzleInfo').style.display = 'block';
                 document.getElementById('puzzleRating').textContent = data.rating;
                 document.getElementById('puzzleThemes').textContent = data.themes.join(', ');
-                document.getElementById('moveCounter').textContent = 'Move 1 of ' + (data.moves.length / 2);
+                document.getElementById('moveCounter').textContent = 'Move 1 of ' + Math.ceil(data.moves.length / 2);
                 document.getElementById('hintBtn').disabled = false;
 
-                setStatus('Find the best move!');
+                // Show whose turn it is
+                const turn = data.fen.split(' ')[1];
+                const color = turn === 'w' ? 'White' : 'Black';
+                setStatus(color + ' to move. Find the best move!');
                 drawBoard();
 
             } catch(err) {
@@ -352,6 +355,7 @@
             const fenParts = currentFEN.split(' ');
             const fenRows = fenParts[0].split('/');
             const activeColor = fenParts[1] || 'w';
+            const isWhiteToMove = activeColor === 'w';
             const grid = [];
             for (let r = 0; r < 8; r++) {
                 const row = [];
@@ -365,12 +369,33 @@
                 grid.push(row);
             }
 
-            for (let vRow = 0; vRow < 8; vRow++) {
-                for (let vCol = 0; vCol < 8; vCol++) {
-                    const piece = grid[vRow][vCol];
-                    const squareName = 'abcdefgh'[vCol] + (8 - vRow);
-                    createSquare(board, vRow, vCol, squareName, piece, activeColor);
+            // Flip board so the side to move is always at the bottom
+            if (isWhiteToMove) {
+                // White to move - white at bottom (standard)
+                for (let vRow = 0; vRow < 8; vRow++) {
+                    for (let vCol = 0; vCol < 8; vCol++) {
+                        const piece = grid[vRow][vCol];
+                        const squareName = 'abcdefgh'[vCol] + (8 - vRow);
+                        createSquare(board, vRow, vCol, squareName, piece, activeColor);
+                    }
                 }
+                // Update coordinates
+                document.getElementById('ranks').innerHTML = '87654321'.split('').map(r => '<div>' + r + '</div>').join('');
+                document.getElementById('files').innerHTML = 'abcdefgh'.split('').map(f => '<span>' + f + '</span>').join('');
+            } else {
+                // Black to move - black at bottom (flipped)
+                for (let vRow = 0; vRow < 8; vRow++) {
+                    for (let vCol = 0; vCol < 8; vCol++) {
+                        const stdRank = 7 - vRow;
+                        const stdFile = 7 - vCol;
+                        const piece = grid[stdRank][stdFile];
+                        const squareName = 'hgfedcba'[vCol] + (vRow + 1);
+                        createSquare(board, vRow, vCol, squareName, piece, activeColor);
+                    }
+                }
+                // Update coordinates for flipped view
+                document.getElementById('ranks').innerHTML = '12345678'.split('').map(r => '<div>' + r + '</div>').join('');
+                document.getElementById('files').innerHTML = 'hgfedcba'.split('').map(f => '<span>' + f + '</span>').join('');
             }
         }
 
@@ -410,6 +435,8 @@
             const activeColor = currentFEN.split(' ')[1];
             const isWhiteTurn = activeColor === 'w';
 
+            // When board is flipped (black to move), the visual pieces are reversed
+            // But the actual piece colors in the image paths remain the same
             const isPlayerPiece = piece && (
                 (isWhiteTurn && piece.src.includes('/w')) ||
                 (!isWhiteTurn && piece.src.includes('/b'))
@@ -567,13 +594,12 @@
         }
 
         async function applyMoveProper(from, to, promo) {
-            // We'll use a simple client-side FEN updater
             // Parse board from FEN
             const fenParts = currentFEN.split(' ');
             let boardRows = fenParts[0].split('/');
             const turn = fenParts[1];
 
-            // Convert to 8x8 grid
+            // Convert to 8x8 grid (standard orientation: rank 8 at index 0)
             let grid = [];
             for (let row of boardRows) {
                 let expanded = [];
@@ -587,22 +613,48 @@
                 grid.push(expanded);
             }
 
-            // Convert squares to coordinates
+            // Convert UCI squares to array coordinates
+            // UCI: a1 = file 0, rank 0 (bottom left from White's view)
+            // Array: rank 0 = row 7 in grid (top row), rank 7 = row 0 (bottom row)
             const fromFile = from.charCodeAt(0) - 'a'.charCodeAt(0);
-            const fromRank = 8 - parseInt(from[1]);
+            const fromRank = parseInt(from[1]) - 1;  // 0-7
+            const fromRow = 7 - fromRank;  // flip for array index
+
             const toFile = to.charCodeAt(0) - 'a'.charCodeAt(0);
-            const toRank = 8 - parseInt(to[1]);
+            const toRank = parseInt(to[1]) - 1;  // 0-7
+            const toRow = 7 - toRank;  // flip for array index
 
             // Move piece
-            const piece = grid[fromRank][fromFile];
-            grid[fromRank][fromFile] = '.';
+            const piece = grid[fromRow][fromFile];
+            grid[fromRow][fromFile] = '.';
 
             // Handle promotion
             if (promo) {
                 const isWhite = piece === piece.toUpperCase();
-                grid[toRank][toFile] = isWhite ? promo.toUpperCase() : promo.toLowerCase();
+                grid[toRow][toFile] = isWhite ? promo.toUpperCase() : promo.toLowerCase();
             } else {
-                grid[toRank][toFile] = piece;
+                // Handle captures (just overwrite for now)
+                grid[toRow][toFile] = piece;
+            }
+
+            // Handle castling (move rook too)
+            if (piece.toLowerCase() === 'k') {
+                if (from === 'e1' && to === 'g1') { // White kingside
+                    grid[7][7] = '.'; grid[7][5] = 'R';
+                } else if (from === 'e1' && to === 'c1') { // White queenside
+                    grid[7][0] = '.'; grid[7][3] = 'R';
+                } else if (from === 'e8' && to === 'g8') { // Black kingside
+                    grid[0][7] = '.'; grid[0][5] = 'r';
+                } else if (from === 'e8' && to === 'c8') { // Black queenside
+                    grid[0][0] = '.'; grid[0][3] = 'r';
+                }
+            }
+
+            // Handle en passant capture
+            if (piece.toLowerCase() === 'p' && toFile !== fromFile && grid[toRow][toFile] === '.') {
+                // This was en passant - remove the captured pawn
+                const capturedPawnRow = fromRow;  // same row as moving pawn
+                grid[capturedPawnRow][toFile] = '.';
             }
 
             // Convert back to FEN board
@@ -627,10 +679,17 @@
 
             // Switch turn
             const newTurn = turn === 'w' ? 'b' : 'w';
-            const newHalfmove = (piece.toLowerCase() === 'p' || grid[toRank][toFile] !== '.') ? '0' : (parseInt(fenParts[4]) + 1).toString();
-            const newFullmove = newTurn === 'w' ? (parseInt(fenParts[5]) + 1).toString() : fenParts[5];
 
-            currentFEN = newBoard.join('/') + ' ' + newTurn + ' ' + fenParts[2] + ' ' + fenParts[3] + ' ' + newHalfmove + ' ' + newFullmove;
+            // Update halfmove clock (reset on pawn move or capture)
+            const isCapture = piece.toLowerCase() === 'p' || grid[toRow][toFile] !== '.';
+            const newHalfmove = isCapture ? '0' : (parseInt(fenParts[4] || '0') + 1).toString();
+
+            // Update fullmove number
+            const newFullmove = newTurn === 'w' ? (parseInt(fenParts[5] || '1') + 1).toString() : (fenParts[5] || '1');
+
+            // Simplified: keep castling and en passant as-is for puzzles
+            // (puzzles usually don't depend on these being perfectly accurate)
+            currentFEN = newBoard.join('/') + ' ' + newTurn + ' ' + (fenParts[2] || '-') + ' ' + (fenParts[3] || '-') + ' ' + newHalfmove + ' ' + newFullmove;
 
             drawBoard();
         }
