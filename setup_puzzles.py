@@ -2,6 +2,8 @@ import csv
 import json
 import random
 import os
+import chess
+from engine import evaluate
 
 def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"):
     """
@@ -9,6 +11,7 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
     - Rating: 1900-3000
     - Minimum 3 full moves (6 half-moves in UCI)
     - At least one puzzle per theme category
+    - ONLY puzzles where the side to move is WINNING (positive eval)
     - Store ~500 puzzles max for memory efficiency
     """
     puzzles_by_theme = {}
@@ -19,6 +22,9 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
         print("Download from: https://database.lichess.org/lichess_db_puzzle.csv.zst")
         print("Then decompress with: zstd -d lichess_db_puzzle.csv.zst")
         return []
+
+    print("Filtering puzzles... This may take a few minutes.")
+    print("Evaluating each position to ensure side to move is winning...")
 
     with open(input_file, 'r') as f:
         reader = csv.DictReader(f)
@@ -33,8 +39,23 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
             if len(moves) < 6:
                 continue
 
+            # Evaluate the position - only keep if side to move is WINNING
+            fen = row['FEN']
+            try:
+                board = chess.Board(fen)
+                eval_score = evaluate(board)
+
+                # eval_score is from the perspective of the side to move
+                # We want positive eval (winning for side to move)
+                # Require at least +1.5 pawns (150 centipawns) advantage
+                if eval_score < 150:
+                    continue
+
+            except Exception as e:
+                continue
+
             puzzle = {
-                'fen': row['FEN'],
+                'fen': fen,
                 'moves': moves,
                 'rating': rating,
                 'themes': themes,
@@ -69,7 +90,8 @@ def setup_puzzles(input_file="lichess_db_puzzle.csv", output_file="puzzles.json"
         json.dump(final_puzzles, f)
 
     print(f"Generated {len(final_puzzles)} puzzles across {len(all_themes)} themes")
-    print(f"Rating range: {min(p['rating'] for p in final_puzzles)} - {max(p['rating'] for p in final_puzzles)}")
+    if final_puzzles:
+        print(f"Rating range: {min(p['rating'] for p in final_puzzles)} - {max(p['rating'] for p in final_puzzles)}")
     return final_puzzles
 
 if __name__ == "__main__":
