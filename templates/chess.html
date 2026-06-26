@@ -253,7 +253,6 @@
         }
         .eval-bar-white {
             position: absolute;
-            bottom: 0;
             left: 0;
             right: 0;
             background: #f0d9b5;
@@ -261,11 +260,26 @@
         }
         .eval-bar-black {
             position: absolute;
-            top: 0;
             left: 0;
             right: 0;
             background: #b58863;
             transition: height 0.5s ease;
+        }
+        /* White at bottom (default) */
+        .eval-bar-white {
+            bottom: 0;
+        }
+        .eval-bar-black {
+            top: 0;
+        }
+        /* When playing black, flip it */
+        .eval-bar-wrapper.flipped .eval-bar-white {
+            bottom: auto;
+            top: 0;
+        }
+        .eval-bar-wrapper.flipped .eval-bar-black {
+            top: auto;
+            bottom: 0;
         }
         .eval-center-line {
             position: absolute;
@@ -287,6 +301,10 @@
             font-size: 10px;
             color: #888;
             text-align: center;
+        }
+        .eval-label-player {
+            color: #4CAF50;
+            font-weight: bold;
         }
     </style>
 <base target="_blank">
@@ -322,13 +340,13 @@
             <div id="board"></div>
             <!-- Evaluation Bar -->
             <div class="eval-container" id="evalContainer">
-                <div class="eval-label">White</div>
-                <div class="eval-bar-wrapper">
+                <div class="eval-label" id="evalLabelTop">White</div>
+                <div class="eval-bar-wrapper" id="evalBarWrapper">
                     <div class="eval-bar-black" id="evalBarBlack"></div>
                     <div class="eval-bar-white" id="evalBarWhite"></div>
                     <div class="eval-center-line"></div>
                 </div>
-                <div class="eval-label">Black</div>
+                <div class="eval-label" id="evalLabelBottom">Black</div>
                 <div class="eval-number" id="evalNumber">0.0</div>
             </div>
         </div>
@@ -401,6 +419,26 @@
             }
         }
 
+        function updateEvalBarOrientation() {
+            const wrapper = document.getElementById('evalBarWrapper');
+            const topLabel = document.getElementById('evalLabelTop');
+            const bottomLabel = document.getElementById('evalLabelBottom');
+
+            if (playerColor === 'black') {
+                wrapper.classList.add('flipped');
+                topLabel.textContent = 'White';
+                bottomLabel.textContent = 'Black (You)';
+                bottomLabel.classList.add('eval-label-player');
+                topLabel.classList.remove('eval-label-player');
+            } else {
+                wrapper.classList.remove('flipped');
+                topLabel.textContent = 'Black';
+                bottomLabel.textContent = 'White (You)';
+                bottomLabel.classList.add('eval-label-player');
+                topLabel.classList.remove('eval-label-player');
+            }
+        }
+
         async function updateEvalBar() {
             if (!evalBarEnabled || !sessionId) return;
 
@@ -445,23 +483,48 @@
                     }
 
                     // Map evaluation to percentage (clamped between 0 and 100)
-                    // Using a sigmoid-like curve: +5 pawns = ~95%, -5 pawns = ~5%
                     const clamped = Math.max(-1000, Math.min(1000, evalCp));
-                    whitePercent = 50 + (clamped / 20); // roughly: 100cp = 5% shift
+                    whitePercent = 50 + (clamped / 20);
                     whitePercent = Math.max(5, Math.min(95, whitePercent));
                 }
 
+                // If playing black, we flip the visual so black is at bottom
+                // But the bar heights are always whitePercent for white
+                // When flipped via CSS, white will be at top and black at bottom
                 whiteBar.style.height = whitePercent + '%';
                 blackBar.style.height = (100 - whitePercent) + '%';
-                evalNumber.textContent = displayText;
 
-                // Color the number based on who's better
-                if (displayText.startsWith('+')) {
-                    evalNumber.style.color = '#f0d9b5';
-                } else if (displayText.startsWith('-')) {
-                    evalNumber.style.color = '#b58863';
+                // Show evaluation from the player's perspective
+                let playerEval = displayText;
+                if (playerColor === 'black') {
+                    // Flip the sign for black's perspective
+                    if (displayText.startsWith('+')) {
+                        playerEval = '-' + displayText.substring(1);
+                    } else if (displayText.startsWith('-')) {
+                        playerEval = '+' + displayText.substring(1);
+                    }
+                }
+
+                evalNumber.textContent = playerEval;
+
+                // Color based on who's better from player's perspective
+                if (playerColor === 'white') {
+                    if (displayText.startsWith('+')) {
+                        evalNumber.style.color = '#4CAF50'; // Green = good for player
+                    } else if (displayText.startsWith('-')) {
+                        evalNumber.style.color = '#e74c3c'; // Red = bad for player
+                    } else {
+                        evalNumber.style.color = '#888';
+                    }
                 } else {
-                    evalNumber.style.color = '#888';
+                    // For black, flipped
+                    if (displayText.startsWith('-')) {
+                        evalNumber.style.color = '#4CAF50'; // Green = good for black
+                    } else if (displayText.startsWith('+')) {
+                        evalNumber.style.color = '#e74c3c'; // Red = bad for black
+                    } else {
+                        evalNumber.style.color = '#888';
+                    }
                 }
 
             } catch(e) {}
@@ -544,6 +607,7 @@
             document.querySelectorAll('.color-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent.toLowerCase() === c);
             });
+            updateEvalBarOrientation();
             newGame();
         }
 
@@ -613,6 +677,7 @@
                     moveHistory: []
                 });
                 drawBoard();
+                updateEvalBarOrientation();
                 updateEvalBar();
 
                 if (playerColor === 'black') {
