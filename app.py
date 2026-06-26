@@ -7,8 +7,25 @@ import requests
 import chess.pgn
 import io
 from collections import defaultdict
+import json
+import random
 
 app = Flask(__name__)
+
+# ========== PUZZLES ==========
+PUZZLES = []
+
+def load_puzzles():
+    global PUZZLES
+    try:
+        with open("puzzles.json", "r") as f:
+            PUZZLES = json.load(f)
+        print(f"Loaded {len(PUZZLES)} puzzles")
+    except FileNotFoundError:
+        print("Warning: puzzles.json not found. Run setup_puzzles.py first.")
+        PUZZLES = []
+
+load_puzzles()
 
 # ========== CHESS GAME ==========
 games = {}
@@ -17,6 +34,107 @@ games = {}
 def play():
     return render_template("chess.html")
 
+@app.route("/puzzles")
+def puzzles_page():
+    return render_template("puzzles.html")
+
+# ========== PUZZLE API ==========
+@app.route("/api/puzzle/random", methods=["GET"])
+def get_random_puzzle():
+    if not PUZZLES:
+        return jsonify({"error": "No puzzles loaded"}), 500
+    puzzle = random.choice(PUZZLES)
+    return jsonify({
+        "id": puzzle["id"],
+        "fen": puzzle["fen"],
+        "rating": puzzle["rating"],
+        "themes": puzzle["themes"],
+        "moves": puzzle["moves"]
+    })
+
+@app.route("/api/puzzle/verify", methods=["POST"])
+def verify_puzzle_move():
+    data = request.get_json() or {}
+    puzzle_id = data.get("puzzle_id")
+    move_index = data.get("move_index", 0)
+    player_move = data.get("move")
+
+    if not puzzle_id or not player_move:
+        return jsonify({"error": "Missing data"}), 400
+
+    # Find puzzle
+    puzzle = None
+    for p in PUZZLES:
+        if p["id"] == puzzle_id:
+            puzzle = p
+            break
+
+    if not puzzle:
+        return jsonify({"error": "Puzzle not found"}), 404
+
+    correct_moves = puzzle["moves"]
+
+    if move_index >= len(correct_moves):
+        return jsonify({"error": "Invalid move index"}), 400
+
+    expected_move = correct_moves[move_index]
+    is_correct = player_move == expected_move
+
+    response = {
+        "correct": is_correct,
+        "expected": expected_move,
+        "completed": False,
+        "next_move": None
+    }
+
+    if is_correct:
+        # Check if puzzle is completed
+        if move_index + 1 >= len(correct_moves):
+            response["completed"] = True
+        else:
+            # Return opponent's response move
+            response["next_move"] = correct_moves[move_index + 1]
+            # Check if that's the last move
+            if move_index + 2 >= len(correct_moves):
+                response["completed_after_response"] = True
+
+    return jsonify(response)
+
+# ========== EVALUATION ==========
+@app.route("/api/chess/eval", methods=["POST"])
+def chess_eval():
+    data = request.get_json() or {}
+    session_id = data.get("session_id")
+
+    if not session_id or session_id not in games:
+        return jsonify({"error": "No game found"}), 400
+
+    game_data = games[session_id]
+    board = game_data["board"]
+
+    if board.is_game_over():
+        if board.is_checkmate():
+            if board.turn == chess.WHITE:
+                return jsonify({"eval": -9999, "mate": -1})
+            else:
+                return jsonify({"eval": 9999, "mate": 1})
+        return jsonify({"eval": 0, "mate": 0})
+
+    score, _ = search(board, 3, time_limit=1.0)
+
+    if board.turn == chess.BLACK:
+        score = -score
+
+    if abs(score) > 90000:
+        mate_in = (99999 - abs(score)) // 2 + 1
+        if score > 0:
+            return jsonify({"eval": None, "mate": mate_in})
+        else:
+            return jsonify({"eval": None, "mate": -mate_in})
+
+    return jsonify({"eval": score, "mate": 0})
+
+# ========== CHESS GAME API ==========
 @app.route("/api/chess/new", methods=["POST"])
 def new_chess_game():
     data = request.get_json() or {}
@@ -39,45 +157,6 @@ def new_chess_game():
         "session_id": session_id
     })
 
-@app.route("/api/chess/eval", methods=["POST"])
-def chess_eval():
-    """Evaluate current position and return centipawn score from White's perspective."""
-    data = request.get_json() or {}
-    session_id = data.get("session_id")
-
-    if not session_id or session_id not in games:
-        return jsonify({"error": "No game found"}), 400
-
-    game_data = games[session_id]
-    board = game_data["board"]
-
-    if board.is_game_over():
-        if board.is_checkmate():
-            # If checkmate, return extreme value
-            if board.turn == chess.WHITE:
-                return jsonify({"eval": -9999, "mate": -1})
-            else:
-                return jsonify({"eval": 9999, "mate": 1})
-        return jsonify({"eval": 0, "mate": 0})
-
-    # Use a quick shallow search for evaluation
-    score, _ = search(board, 3, time_limit=1.0)
-
-    # score is from the perspective of the side to move
-    # Convert to White's perspective
-    if board.turn == chess.BLACK:
-        score = -score
-
-    # Check if it's a forced mate
-    if abs(score) > 90000:
-        mate_in = (99999 - abs(score)) // 2 + 1
-        if score > 0:
-            return jsonify({"eval": None, "mate": mate_in})
-        else:
-            return jsonify({"eval": None, "mate": -mate_in})
-
-    return jsonify({"eval": score, "mate": 0})
-
 @app.route("/api/chess/move", methods=["POST"])
 def chess_move():
     data = request.get_json() or {}
@@ -94,12 +173,6 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    # ============================================================
-    # NEW DIFFICULTY SETTINGS - STRONGER ENGINE
-    # ============================================================
-    # Easy: depth 3, 1 second - beginner level
-    # Medium: depth 5, 3 seconds - intermediate level
-    # Hard: depth 8, 8 seconds - strong club player level
     depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
     time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
     depth = depth_map.get(difficulty, 5)
@@ -161,8 +234,6 @@ def chess_move():
         "check": board.is_check()
     })
 
-
-
 @app.route("/api/chess/undo", methods=["POST"])
 def chess_undo():
     data = request.get_json() or {}
@@ -173,10 +244,9 @@ def chess_undo():
     game_data = games[session_id]
     board = game_data["board"]
 
-    # Undo both player and engine moves (go back 2 half-moves or 1 full move)
     if len(board.move_stack) >= 2:
-        board.pop()  # undo engine move
-        board.pop()  # undo player move
+        board.pop()
+        board.pop()
     elif len(board.move_stack) == 1:
         board.pop()
 
