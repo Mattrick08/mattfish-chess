@@ -30,7 +30,7 @@
             align-items: center;
             font-size: 15px;
         }
-        .diff-btn, .color-btn, .undo-btn, .sound-btn {
+        .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn {
             padding: 10px;
             border: 2px solid #444;
             background: transparent;
@@ -72,6 +72,18 @@
             background: transparent;
             color: #666;
         }
+        .eval-btn {
+            border-color: #9C27B0;
+            background: rgba(156,39,176,0.1);
+        }
+        .eval-btn:hover {
+            border-color: #9C27B0;
+            background: rgba(156,39,176,0.2);
+        }
+        .eval-btn.active {
+            border-color: #9C27B0;
+            background: rgba(156,39,176,0.3);
+        }
         .new-game-btn {
             padding: 15px;
             background: #e74c3c;
@@ -91,6 +103,9 @@
         }
         .board-wrapper {
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .coords-ranks {
             position: absolute;
@@ -217,8 +232,63 @@
             text-transform: uppercase;
             margin-top: 5px;
         }
+        /* ========== EVALUATION BAR ========== */
+        .eval-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .eval-container.active {
+            display: flex;
+        }
+        .eval-bar-wrapper {
+            width: 30px;
+            height: 560px;
+            background: #2e2e2e;
+            border: 2px solid #555;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .eval-bar-white {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #f0d9b5;
+            transition: height 0.5s ease;
+        }
+        .eval-bar-black {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #b58863;
+            transition: height 0.5s ease;
+        }
+        .eval-center-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background: #e74c3c;
+            z-index: 2;
+        }
+        .eval-number {
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            min-width: 50px;
+        }
+        .eval-label {
+            font-size: 10px;
+            color: #888;
+            text-align: center;
+        }
     </style>
-<base target="_blank">
 <base target="_blank">
 </head>
 <body>
@@ -241,6 +311,7 @@
 
         <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
+        <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
@@ -249,6 +320,17 @@
         <div class="board-wrapper">
             <div class="coords-ranks" id="ranks"></div>
             <div id="board"></div>
+            <!-- Evaluation Bar -->
+            <div class="eval-container" id="evalContainer">
+                <div class="eval-label">White</div>
+                <div class="eval-bar-wrapper">
+                    <div class="eval-bar-black" id="evalBarBlack"></div>
+                    <div class="eval-bar-white" id="evalBarWhite"></div>
+                    <div class="eval-center-line"></div>
+                </div>
+                <div class="eval-label">Black</div>
+                <div class="eval-number" id="evalNumber">0.0</div>
+            </div>
         </div>
         <div class="coords-files" id="files"></div>
         <div class="move-history">
@@ -301,6 +383,89 @@
         let audioCtx = null;
         let isCheck = false;
         let sessionId = null;
+        let evalBarEnabled = false;
+
+        // ========== EVALUATION BAR ==========
+        function toggleEvalBar() {
+            evalBarEnabled = !evalBarEnabled;
+            const btn = document.getElementById('evalBtn');
+            const container = document.getElementById('evalContainer');
+
+            if (evalBarEnabled) {
+                btn.classList.add('active');
+                container.classList.add('active');
+                updateEvalBar();
+            } else {
+                btn.classList.remove('active');
+                container.classList.remove('active');
+            }
+        }
+
+        async function updateEvalBar() {
+            if (!evalBarEnabled || !sessionId) return;
+
+            try {
+                const response = await fetch('/api/chess/eval', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                const data = await response.json();
+
+                if (data.error) return;
+
+                const whiteBar = document.getElementById('evalBarWhite');
+                const blackBar = document.getElementById('evalBarBlack');
+                const evalNumber = document.getElementById('evalNumber');
+
+                let displayText = '';
+                let whitePercent = 50;
+
+                if (data.mate !== 0) {
+                    // Mate situation
+                    if (data.mate > 0) {
+                        displayText = '+' + data.mate + 'M';
+                        whitePercent = 100;
+                    } else {
+                        displayText = data.mate + 'M';
+                        whitePercent = 0;
+                    }
+                } else {
+                    // Centipawn evaluation
+                    const evalCp = data.eval;
+                    // Convert to pawns
+                    const evalPawns = evalCp / 100;
+
+                    if (evalPawns > 0) {
+                        displayText = '+' + evalPawns.toFixed(1);
+                    } else if (evalPawns < 0) {
+                        displayText = evalPawns.toFixed(1);
+                    } else {
+                        displayText = '0.0';
+                    }
+
+                    // Map evaluation to percentage (clamped between 0 and 100)
+                    // Using a sigmoid-like curve: +5 pawns = ~95%, -5 pawns = ~5%
+                    const clamped = Math.max(-1000, Math.min(1000, evalCp));
+                    whitePercent = 50 + (clamped / 20); // roughly: 100cp = 5% shift
+                    whitePercent = Math.max(5, Math.min(95, whitePercent));
+                }
+
+                whiteBar.style.height = whitePercent + '%';
+                blackBar.style.height = (100 - whitePercent) + '%';
+                evalNumber.textContent = displayText;
+
+                // Color the number based on who's better
+                if (displayText.startsWith('+')) {
+                    evalNumber.style.color = '#f0d9b5';
+                } else if (displayText.startsWith('-')) {
+                    evalNumber.style.color = '#b58863';
+                } else {
+                    evalNumber.style.color = '#888';
+                }
+
+            } catch(e) {}
+        }
 
         // Sound effects using Web Audio API
         function getAudioContext() {
@@ -448,6 +613,7 @@
                     moveHistory: []
                 });
                 drawBoard();
+                updateEvalBar();
 
                 if (playerColor === 'black') {
                     setStatus('MattFish is thinking...');
@@ -490,6 +656,7 @@
                     });
                     playMoveSound();
                     drawBoard();
+                    updateEvalBar();
                     updateUndoButton();
                     setStatus('Engine played ' + data.engine_move + '. Your turn!');
                 }
@@ -527,6 +694,7 @@
             isThinking = false;
             updateMoves();
             drawBoard();
+            updateEvalBar();
             updateUndoButton();
             setStatus('Undone. Your turn!');
         }
@@ -742,6 +910,7 @@
                 });
 
                 drawBoard();
+                updateEvalBar();
                 updateUndoButton();
 
                 if (data.game_over) {
