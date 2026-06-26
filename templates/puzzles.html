@@ -458,11 +458,12 @@
                     highlightSquare(moveUCI.substring(0, 2), 'correct-move');
                     highlightSquare(moveUCI.substring(2, 4), 'correct-move');
 
-                    // Update FEN locally (simple approach)
+                    // Apply player's move
                     await applyMove(moveUCI);
 
+                    // Check if this was the LAST move of the puzzle (no opponent response needed)
                     if (data.completed) {
-                        // Puzzle solved!
+                        // Puzzle solved - this was the final move!
                         puzzleStats.wins++;
                         saveStats();
                         setTimeout(() => {
@@ -472,18 +473,27 @@
                         return;
                     }
 
-                    // Play opponent's response
+                    // Play opponent's response, then check if puzzle is complete
                     if (data.next_move) {
                         setTimeout(async () => {
                             await applyMove(data.next_move);
-                            moveIndex += 2;
-                            document.getElementById('moveCounter').textContent = 
-                                'Move ' + (moveIndex / 2 + 1) + ' of ' + (currentPuzzle.moves.length / 2);
+                            moveIndex += 2; // Advance past both moves
+
+                            // Check if puzzle is now complete after opponent's response
+                            if (moveIndex >= currentPuzzle.moves.length || data.completed_after_response) {
+                                puzzleStats.wins++;
+                                saveStats();
+                                setTimeout(() => {
+                                    document.getElementById('successOverlay').classList.add('active');
+                                }, 300);
+                            } else {
+                                // Update move counter for next player move
+                                document.getElementById('moveCounter').textContent = 
+                                    'Move ' + (Math.floor(moveIndex / 2) + 1) + ' of ' + Math.ceil(currentPuzzle.moves.length / 2);
+                                setStatus('Find the best move!');
+                            }
                             isAnimating = false;
                         }, 600);
-                    } else {
-                        moveIndex += 2;
-                        isAnimating = false;
                     }
 
                 } else {
