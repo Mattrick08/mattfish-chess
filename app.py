@@ -2,26 +2,13 @@ import os
 from flask import Flask, render_template, jsonify, request, session
 import secrets
 import chess
+from engine import search
 import requests
 import chess.pgn
 import io
 from collections import defaultdict
 
 app = Flask(__name__)
-
-# ========== ENGINE SELECTION ==========
-# Set to "original" to use your simple engine
-# Set to "new" to use your advanced engine (default)
-ENGINE_MODE = os.environ.get("ENGINE_MODE", "new")
-
-if ENGINE_MODE == "original":
-    from engine_original import search as original_search
-
-    def search(board, depth, time_limit=0):
-        # Original engine doesn't use time_limit, only depth
-        return original_search(board, depth)
-else:
-    from engine import search
 
 # ========== CHESS GAME ==========
 games = {}
@@ -52,6 +39,45 @@ def new_chess_game():
         "session_id": session_id
     })
 
+@app.route("/api/chess/eval", methods=["POST"])
+def chess_eval():
+    """Evaluate current position and return centipawn score from White's perspective."""
+    data = request.get_json() or {}
+    session_id = data.get("session_id")
+
+    if not session_id or session_id not in games:
+        return jsonify({"error": "No game found"}), 400
+
+    game_data = games[session_id]
+    board = game_data["board"]
+
+    if board.is_game_over():
+        if board.is_checkmate():
+            # If checkmate, return extreme value
+            if board.turn == chess.WHITE:
+                return jsonify({"eval": -9999, "mate": -1})
+            else:
+                return jsonify({"eval": 9999, "mate": 1})
+        return jsonify({"eval": 0, "mate": 0})
+
+    # Use a quick shallow search for evaluation
+    score, _ = search(board, 3, time_limit=1.0)
+
+    # score is from the perspective of the side to move
+    # Convert to White's perspective
+    if board.turn == chess.BLACK:
+        score = -score
+
+    # Check if it's a forced mate
+    if abs(score) > 90000:
+        mate_in = (99999 - abs(score)) // 2 + 1
+        if score > 0:
+            return jsonify({"eval": None, "mate": mate_in})
+        else:
+            return jsonify({"eval": None, "mate": -mate_in})
+
+    return jsonify({"eval": score, "mate": 0})
+
 @app.route("/api/chess/move", methods=["POST"])
 def chess_move():
     data = request.get_json() or {}
@@ -68,22 +94,19 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    # Difficulty settings
-    if ENGINE_MODE == "original":
-        # Original engine: simpler depth mapping
-        depth_map = {"Easy": 2, "Medium": 3, "Hard": 4}
-        depth = depth_map.get(difficulty, 3)
-        time_limit = 0  # Original engine doesn't use time limits
-    else:
-        # New engine: deeper search with time limits
-        depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
-        time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
-        depth = depth_map.get(difficulty, 5)
-        time_limit = time_limit_map.get(difficulty, 3.0)
+    # ============================================================
+    # NEW DIFFICULTY SETTINGS - STRONGER ENGINE
+    # ============================================================
+    # Easy: depth 3, 1 second - beginner level
+    # Medium: depth 5, 3 seconds - intermediate level
+    # Hard: depth 8, 8 seconds - strong club player level
+    depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
+    time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
+    depth = depth_map.get(difficulty, 5)
 
     if player_move == "engine":
         if board.turn == chess.WHITE:
-            _, engine_move = search(board, depth, time_limit=time_limit)
+            _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
             if engine_move:
                 board.push(engine_move)
 
@@ -122,7 +145,7 @@ def chess_move():
 
     engine_move = None
     if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
-        _, engine_move = search(board, depth, time_limit=time_limit)
+        _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
         if engine_move:
             board.push(engine_move)
 
@@ -150,9 +173,10 @@ def chess_undo():
     game_data = games[session_id]
     board = game_data["board"]
 
+    # Undo both player and engine moves (go back 2 half-moves or 1 full move)
     if len(board.move_stack) >= 2:
-        board.pop()
-        board.pop()
+        board.pop()  # undo engine move
+        board.pop()  # undo player move
     elif len(board.move_stack) == 1:
         board.pop()
 
