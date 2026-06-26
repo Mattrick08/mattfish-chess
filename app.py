@@ -88,13 +88,13 @@ def verify_puzzle_move():
     }
 
     if is_correct:
-        # Check if puzzle is completed
+        # Check if this is the very last move (no opponent response)
         if move_index + 1 >= len(correct_moves):
             response["completed"] = True
         else:
             # Return opponent's response move
             response["next_move"] = correct_moves[move_index + 1]
-            # Check if that's the last move
+            # Check if opponent's response is the last move
             if move_index + 2 >= len(correct_moves):
                 response["completed_after_response"] = True
 
