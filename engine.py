@@ -98,95 +98,6 @@ PIECE_VALUES = {
     chess.KING: 20000
 }
 
-# Opening book
-OPENING_BOOK = {
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -": ["e2e4", "d2d4", "c2c4", "g1f3"],
-    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -": ["e7e5", "c7c5", "e7e6", "c7c6", "d7d6", "g7g6"],
-    "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -": ["g1f3", "f1c4", "b1c3"],
-    "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -": ["b8c6", "g8f6", "d7d6"],
-    "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -": ["f1b5", "f1c4", "b1c3", "d2d4"],
-    "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq -": ["a7a6", "g8f6", "f7f5"],
-    "r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq -": ["b5a4", "b5c6", "b5c4"],
-    "r1bqkbnr/1ppp1ppp/p1n5/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R b KQkq -": ["g8f6", "b7b5", "f7f5"],
-    "r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R w KQkq -": ["e1g1", "d2d3", "b1c3"],
-    "r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQ1RK1 b - -": ["b7b5", "f8e7", "d7d6"],
-    "r1bqk2r/pppp1ppp/2n2n2/4p3/1PB1P3/5N2/P1PP1PPP/RNBQ1RK1 b - -": ["c6a5", "c6e7", "d7d6"],
-    "rnbqkb1r/ppp2ppp/5n2/3pp3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -": ["d2d4", "e4d5", "b1c3"],
-    "rnbqkb1r/ppp2ppp/2n2n2/3pp3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -": ["d2d4", "e4d5", "b1c3"],
-    "r1bqkb1r/pppp1ppp/2n5/8/3Pp3/5N2/PPP2PPP/RNBQK1NR w KQkq -": ["f3d4", "c2c3"],
-    "r1bqkb1r/pppp1ppp/2n2n2/8/2BpP3/8/PPP2PPP/RNBQK1NR w KQkq -": ["g1f3", "c2c3", "f2f4"],
-    "rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -": ["f3e5", "d2d4", "b1c3"],
-    "rnbqkb1r/pppp1ppp/5n2/4N3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq -": ["d7d6", "f6e4", "b8c6"],
-    "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -": ["g1f3", "b1c3", "f2f4", "c2c3"],
-    "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -": ["d7d6", "e7e6", "b8c6", "g7g6"],
-    "rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -": ["d2d4", "c2c3", "b1c3"],
-    "rnbqkbnr/pp2pppp/3p4/2p5/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq -": ["c5d4", "g7g6", "b8c6"],
-    "rnbqkbnr/pp2pppp/3p4/8/3Pp3/5N2/PPP2PPP/RNBQKB1R w KQkq -": ["f3d4", "c2c3"],
-    "rnbqkb1r/pp2pppp/3p1n2/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq -": ["g8f6", "f8f5", "b8d7"],
-    "r1bqkb1r/pp2pppp/2p2n2/8/3PN3/8/PPP2PPP/R1BQKBNR b KQkq -": ["g8f6", "f8f5", "b8d7"],
-    "r1bqkb1r/pp2pppp/2p2n2/8/3PN3/5N2/PPP2PPP/R1BQKB1R b KQkq -": ["e7e6", "f8e7", "d7f6"],
-    "rn1qkb1r/pp2pppp/2p2n2/5b2/3PN3/5N2/PPP2PPP/R1BQKB1R w KQkq -": ["f3d4", "f3g5", "f1d3"],
-    "rn1qkb1r/pp2pppp/2p3b1/8/3P4/6N1/PPP2PPP/R1BQKB1R w KQkq -": ["f1c4", "h2h4", "g1f3"],
-    "rnbqkb1r/pp2pppp/2p2n2/8/3PN3/8/PPP2PPP/R1BQKBNR w KQkq -": ["e4f6", "e4g3", "f1d3"],
-    "rnbqkbnr/pp2pppp/2p5/3P4/3P4/8/PPP2PPP/RNBQKBNR b KQkq -": ["c6d5", "d8d5", "e6e6"],
-    "rnbqkbnr/pp2pppp/2p5/3p4/3P4/8/PPP2PPP/RNBQKBNR w KQkq -": ["g1f3", "b1c3", "f1d3"],
-    "rnbqkbnr/pp2pppp/2p5/3pP3/3P4/8/PPP2PPP/RNBQKBNR b KQkq -": ["c8f5", "g8f6", "e7e6"],
-    "rnbqkbnr/pp2pppp/2p5/3pP3/3P1b2/8/PPP2PPP/RNBQKBNR w KQkq -": ["b1c3", "f1e2", "g1f3"],
-    "rnbqkbnr/pp2pppp/2p5/3pP3/3P1b2/2N5/PPP2PPP/R1BQKBNR b KQkq -": ["e7e6", "g8f6", "b8d7"],
-    "rnbqkbnr/pp3ppp/2p1p3/3pP3/3P1b2/2N5/PPP2PPP/R1BQKBNR w KQkq -": ["g1e2", "f1e2", "c1e3"],
-    "rnbqkb1r/pppn1ppp/4p3/3pP3/3P4/2N5/PPP2PPP/R1BQKBNR w KQkq -": ["f1d3", "g1f3", "c2c4"],
-    "rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -": ["d2d4", "d2d3", "g1f3"],
-    "rnbqkbnr/ppp1pppp/3p4/8/3PP3/8/PPP2PPP/RNBQKBNR b KQkq -": ["g8f6", "g7g6", "e7e5"],
-    "rnbqkb1r/ppp1pppp/3p1n2/8/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -": ["b1c3", "g1f3", "f1d3"],
-    "rnbqkb1r/ppp1pppp/3p1n2/8/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq -": ["g7g6", "e7e5", "b8d7"],
-    "rnbqkb1r/ppp1pp1p/3p1np1/8/3PP3/2N5/PPP2PPP/R1BQKBNR w KQkq -": ["f1e2", "f1c4", "g1f3"],
-    "rnbqk2r/ppp1ppbp/3p1np1/8/3PPP2/2N5/PPP3PP/R1BQKBNR w KQkq -": ["f1c4", "g1f3", "f4f5"],
-    "rnbqk2r/ppp1ppbp/3p1np1/8/2BPPP2/2N5/PPP3PP/R1BQK1NR b KQkq -": ["e8g8", "b8c6", "c7c5"],
-    "rnbqkbnr/ppp1pp1p/3p2p1/8/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -": ["b1c3", "g1f3", "f1c4"],
-    "rnbqkbnr/ppp1pp1p/3p2p1/8/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq -": ["f8g7", "g8f6", "c7c5"],
-    "rnbqk2r/ppp1ppbp/3p2p1/8/3PP3/2N5/PPP2PPP/R1BQKBNR w KQkq -": ["f1c4", "g1f3", "c1e3"],
-    "rnbqk2r/ppp1ppbp/3p2p1/8/2BPP3/2N5/PPP2PPP/R1BQK1NR b KQkq -": ["g8f6", "c7c5", "b8c6"],
-    "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -": ["e4e5", "b1c3", "d2d4"],
-    "rnbqkb1r/pppppppp/5n2/4P3/8/8/PPPP1PPP/RNBQKBNR b KQkq -": ["f6d5", "f6g8", "d7d6"],
-    "rnbqkb1r/pppppppp/8/3nP3/8/8/PPPP1PPP/RNBQKBNR w KQkq -": ["d2d4", "c2c4", "g1f3"],
-    "rnbqkb1r/pppppppp/8/3nP3/3P4/8/PPP2PPP/RNBQKBNR b KQkq -": ["d7d6", "g7g6", "e7e6"],
-    "rnbqkb1r/ppp1pppp/3p4/3nP3/3P4/8/PPP2PPP/RNBQKBNR w KQkq -": ["c2c4", "g1f3", "b1c3"],
-    "rnbqkb1r/pppppppp/1n6/4P3/2P5/8/PP1P1PPP/RNBQKBNR b KQkq -": ["d7d6", "e7e6", "g7g6"],
-    "rnbqkbnr/pppppppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -": ["e4d5", "b1c3", "g1f3"],
-    "rnbqkbnr/pppppppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq -": ["d8d5", "g8f6", "f8g4"],
-    "rnb1kbnr/pppppppp/8/3q4/8/8/PPPP1PPP/RNBQKBNR w KQkq -": ["b1c3", "g1f3", "d2d4"],
-    "rnb1kbnr/pppppppp/8/3q4/8/2N5/PPPP1PPP/R1BQKBNR b KQkq -": ["d5a5", "d5d6", "d5d8"],
-    "rnb1kbnr/pppppppp/8/q7/8/2N5/PPPP1PPP/R1BQKBNR w KQkq -": ["d2d4", "g1f3", "f1c4"],
-    "rnb1kbnr/pppppppp/8/q7/3P4/2N5/PPP2PPP/R1BQKBNR b KQkq -": ["g8f6", "e7e5", "c7c6"],
-    "rnbqkb1r/pppppppp/5n2/3p4/8/2N5/PPPP1PPP/R1BQKBNR w KQkq -": ["d2d4", "c2c4", "b1c3"],
-    "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq -": ["d7d5", "g8f6", "e7e6", "c7c5", "f7f5"],
-    "rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -": ["c2c4", "g1f3", "b1c3"],
-    "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq -": ["b1c3", "g1f3", "c1f4"],
-    "rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq -": ["c1g5", "g1f3", "e2e3"],
-    "rnbqkb1r/ppp2ppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR b KQkq -": ["f8e7", "h7h6", "b8d7"],
-    "rnbq1rk1/ppp2ppp/4pn2/3p2B1/2PP4/2N2N2/PP2PPPP/R2QKB1R b - -": ["h7h6", "b8d7", "c7c6"],
-    "rnbq1rk1/ppp2ppp/4pn2/3p2b1/2PP4/2N2N2/PP2PPPP/R2QKB1R w - -": ["c1e3", "h2h3", "a2a3"],
-    "rnbq1rk1/pp3ppp/4pn2/2pp2b1/2PP4/2N2N2/PP2PPPP/R2QKB1R w - -": ["c4d5", "d1c2", "a2a3"],
-    "rnbqkbnr/pp2pppp/2p5/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq -": ["e2e3", "g1f3", "c1f4"],
-    "rnbqkb1r/pp2pppp/2p2n2/8/2PP4/2N2N2/PP2PPPP/R1BQKB1R b KQkq -": ["e7e6", "d7d5", "f8e7"],
-    "rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N2N2/PP2PPPP/R1BQKB1R w KQkq -": ["c4d5", "g2g3", "e2e3"],
-    "rnbqk2r/ppppppbp/5np1/8/2PPP3/2N5/PP3PPP/R1BQKBNR w KQkq -": ["e4e5", "f2f3", "g2g4"],
-    "rnbqk2r/ppppppbp/5np1/8/2PPP3/2N2N2/PP3PPP/R1BQKB1R b KQkq -": ["e8g8", "d7d6", "f6e8"],
-    "rnbq1rk1/ppppppbp/5np1/8/2PPP3/2N2N2/PP3PPP/R1BQKB1R w - -": ["f1e2", "c1f4", "h2h3"],
-    "rnbqk2r/ppppppbp/5np1/8/2PP4/2N2N2/PP2PPPP/R1BQKB1R b KQkq -": ["d7d5", "e8g8", "c7c6"],
-    "rnbqk2r/pppp1ppp/4pn2/8/1bPP4/2N5/PP2PPPP/R1BQKBNR w KQkq -": ["d1c2", "c1d2", "a2a3"],
-    "rnbqk2r/pppp1ppp/4pn2/8/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq -": ["b4c3", "d7d5", "e8g8"],
-    "rnbqk2r/p1pp1ppp/1p2pn2/8/2PP4/2N2N2/PP2PPPP/R1BQKB1R w KQkq -": ["g2g3", "e2e3", "b2b3"],
-    "rnbqkb1r/pppp1ppp/4pn2/8/2P5/2N2N2/PP1PPPPP/R1BQKB1R b KQkq -": ["f8b4", "e7e5", "d7d5"],
-    "rnbqk2r/pppp1ppp/4pn2/8/2PP4/6P1/PP2PP1P/RNBQKB1R b KQkq -": ["e8g8", "d7d5", "b7b6"],
-    "rnbqkb1r/pp1p1ppp/4pn2/2pP4/2P5/2N5/PP2PPPP/R1BQKBNR b KQkq -": ["e6d5", "b7b5", "g7g6"],
-    "rnbqkb1r/ppppp2p/5np1/5p2/3P4/5NP1/PPP1PP1P/RNBQKB1R b KQkq -": ["g7g6", "e7e6", "f8g7"],
-    "rnbqkb1r/pppppppp/5n2/8/8/5NP1/PPPPPP1P/RNBQKB1R b KQkq -": ["e7e6", "d7d5", "g7g6"],
-    "rnbqkbnr/pp2pppp/2p5/8/3Pp3/2N5/PPP2PPP/R1BQKBNR w KQkq -": ["c3e4", "f1c4", "g1f3"],
-    "rnbqkb1r/pppppppp/1n6/4P3/2P5/8/PP1P1PPP/RNBQKBNR b KQkq -": ["d7d6", "e7e6", "g7g6"],
-    "rnbqkbnr/ppp2ppp/8/3p4/3P4/2N5/PPP2PPP/R1BQKBNR w KQkq -": ["g1f3", "c1f4", "e2e4"],
-}
-
 # Search globals
 killer_moves = {}
 history_table = {}
@@ -374,6 +285,7 @@ def evaluate_piece_activity(board):
     return score
 
 def evaluate(board):
+    """Evaluate from White's perspective. Positive = White is better."""
     if board.is_checkmate():
         return -99999
     if board.is_stalemate() or board.is_insufficient_material() or board.halfmove_clock >= 100 or board.is_repetition(3):
@@ -401,10 +313,6 @@ def evaluate(board):
     score += evaluate_mobility(board)
     if not endgame:
         score += evaluate_king_safety(board)
-    if board.turn == chess.WHITE:
-        score += 10
-    else:
-        score -= 10
     return score
 
 # ========== MOVE ORDERING ==========
@@ -487,10 +395,10 @@ def quiescence_search(board, alpha, beta, depth=0):
             alpha = score
     return alpha
 
-# ========== MAIN SEARCH (SIMPLE CORRECT NEGAMAX) ==========
+# ========== MAIN SEARCH ==========
 
 def alpha_beta(board, depth, alpha, beta, ply):
-    """Simple correct negamax alpha-beta without PVS/LMR to avoid bugs."""
+    """Negamax alpha-beta search."""
     global NODES_SEARCHED
     NODES_SEARCHED += 1
     if should_stop():
@@ -536,14 +444,7 @@ def iterative_deepening(board, max_depth, time_limit):
     START_TIME = time.time()
     TIME_LIMIT = time_limit
     clear_search_data()
-    parts = board.fen().split()
-    key = ' '.join(parts[:4])
-    if key in OPENING_BOOK and len(board.move_stack) < 12:
-        moves = OPENING_BOOK[key]
-        legal = [str(m) for m in board.legal_moves]
-        valid = [m for m in moves if m in legal]
-        if valid:
-            return 0, chess.Move.from_uci(random.choice(valid))
+
     best_move = None
     best_score = 0
     for depth in range(1, max_depth + 1):
@@ -568,4 +469,5 @@ def iterative_deepening(board, max_depth, time_limit):
     return best_score, best_move
 
 def search(board, max_depth, time_limit=0):
+    """Main entry point. Returns (score, move)."""
     return iterative_deepening(board, max_depth, time_limit)
