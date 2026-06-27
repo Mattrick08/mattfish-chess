@@ -2,7 +2,7 @@ import os
 from flask import Flask, render_template, jsonify, request, session
 import secrets
 import chess
-from engine import search
+from engine import search as local_search
 import requests
 import chess.pgn
 import io
@@ -10,17 +10,20 @@ from collections import defaultdict
 
 app = Flask(__name__)
 
-# ========== LICHESS CLOUD EVAL ==========
-LICHESS_API_HEADERS = {
+# ========== LICHESS CLOUD API ==========
+LICHESS_HEADERS = {
     "User-Agent": "Mozilla/5.0 (MattFish Chess App)"
 }
 
-def get_lichess_eval(fen):
-    """Get evaluation from Lichess cloud analysis. Returns (eval_cp, mate) or None."""
+def get_lichess_cloud_eval(fen):
+    """
+    Get evaluation and best move from Lichess cloud analysis.
+    Returns: (eval_cp, mate, best_move_uci) or None if unavailable.
+    """
     try:
-        url = f"https://lichess.org/api/cloud-eval"
+        url = "https://lichess.org/api/cloud-eval"
         params = {"fen": fen, "multiPv": 1}
-        response = requests.get(url, params=params, headers=LICHESS_API_HEADERS, timeout=3)
+        response = requests.get(url, params=params, headers=LICHESS_HEADERS, timeout=3)
 
         if response.status_code == 429:
             return None  # Rate limited
@@ -32,11 +35,12 @@ def get_lichess_eval(fen):
             return None
 
         pv = data["pvs"][0]
+        best_move = pv.get("moves", "").split()[0] if "moves" in pv else None
 
         if "mate" in pv:
-            return (None, pv["mate"])
+            return (None, pv["mate"], best_move)
         elif "cp" in pv:
-            return (pv["cp"], 0)
+            return (pv["cp"], 0, best_move)
 
         return None
     except Exception as e:
@@ -73,7 +77,7 @@ def new_chess_game():
 
 @app.route("/api/chess/eval", methods=["POST"])
 def chess_eval():
-    """Get evaluation from Lichess cloud eval. Falls back to local engine if unavailable."""
+    """Get evaluation from Lichess cloud eval. Falls back to local engine."""
     data = request.get_json() or {}
     session_id = data.get("session_id")
 
@@ -92,17 +96,17 @@ def chess_eval():
         return jsonify({"eval": 0, "mate": 0})
 
     # Try Lichess cloud eval first
-    lichess_result = get_lichess_eval(board.fen())
+    lichess_result = get_lichess_cloud_eval(board.fen())
 
     if lichess_result is not None:
-        eval_cp, mate = lichess_result
+        eval_cp, mate, _ = lichess_result
         if mate != 0:
             return jsonify({"eval": None, "mate": mate})
         else:
             return jsonify({"eval": eval_cp, "mate": 0})
 
     # Fallback to local engine
-    score, _ = search(board, 3, time_limit=1.0)
+    score, _ = local_search(board, 3, time_limit=1.0)
     if board.turn == chess.BLACK:
         score = -score
 
@@ -114,6 +118,29 @@ def chess_eval():
             return jsonify({"eval": None, "mate": -mate_in})
 
     return jsonify({"eval": score, "mate": 0})
+
+def get_engine_move(board, difficulty):
+    """Get engine move: Lichess first, fallback to local engine."""
+    # Try Lichess cloud analysis for best move
+    lichess_result = get_lichess_cloud_eval(board.fen())
+
+    if lichess_result is not None:
+        _, _, best_move_uci = lichess_result
+        if best_move_uci:
+            try:
+                move = chess.Move.from_uci(best_move_uci)
+                if move in board.legal_moves:
+                    return move
+            except:
+                pass
+
+    # Fallback to local engine
+    depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
+    time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
+    depth = depth_map.get(difficulty, 5)
+
+    _, engine_move = local_search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
+    return engine_move
 
 @app.route("/api/chess/move", methods=["POST"])
 def chess_move():
@@ -131,13 +158,9 @@ def chess_move():
     board = game_data["board"]
     player_color = game_data.get("color", "white")
 
-    depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
-    time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
-    depth = depth_map.get(difficulty, 5)
-
     if player_move == "engine":
         if board.turn == chess.WHITE:
-            _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
+            engine_move = get_engine_move(board, difficulty)
             if engine_move:
                 board.push(engine_move)
 
@@ -176,7 +199,7 @@ def chess_move():
 
     engine_move = None
     if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
-        _, engine_move = search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
+        engine_move = get_engine_move(board, difficulty)
         if engine_move:
             board.push(engine_move)
 
