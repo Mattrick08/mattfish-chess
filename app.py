@@ -10,6 +10,38 @@ from collections import defaultdict
 
 app = Flask(__name__)
 
+# ========== LICHESS CLOUD EVAL ==========
+LICHESS_API_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (MattFish Chess App)"
+}
+
+def get_lichess_eval(fen):
+    """Get evaluation from Lichess cloud analysis. Returns (eval_cp, mate) or None."""
+    try:
+        url = f"https://lichess.org/api/cloud-eval"
+        params = {"fen": fen, "multiPv": 1}
+        response = requests.get(url, params=params, headers=LICHESS_API_HEADERS, timeout=3)
+
+        if response.status_code == 429:
+            return None  # Rate limited
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+        if "pvs" not in data or not data["pvs"]:
+            return None
+
+        pv = data["pvs"][0]
+
+        if "mate" in pv:
+            return (None, pv["mate"])
+        elif "cp" in pv:
+            return (pv["cp"], 0)
+
+        return None
+    except Exception as e:
+        return None
+
 # ========== CHESS GAME ==========
 games = {}
 
@@ -41,7 +73,7 @@ def new_chess_game():
 
 @app.route("/api/chess/eval", methods=["POST"])
 def chess_eval():
-    """Evaluate current position and return centipawn score from White's perspective."""
+    """Get evaluation from Lichess cloud eval. Falls back to local engine if unavailable."""
     data = request.get_json() or {}
     session_id = data.get("session_id")
 
@@ -59,8 +91,18 @@ def chess_eval():
                 return jsonify({"eval": 9999, "mate": 1})
         return jsonify({"eval": 0, "mate": 0})
 
-    score, _ = search(board, 3, time_limit=1.0)
+    # Try Lichess cloud eval first
+    lichess_result = get_lichess_eval(board.fen())
 
+    if lichess_result is not None:
+        eval_cp, mate = lichess_result
+        if mate != 0:
+            return jsonify({"eval": None, "mate": mate})
+        else:
+            return jsonify({"eval": eval_cp, "mate": 0})
+
+    # Fallback to local engine
+    score, _ = search(board, 3, time_limit=1.0)
     if board.turn == chess.BLACK:
         score = -score
 
