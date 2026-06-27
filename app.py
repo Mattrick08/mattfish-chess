@@ -7,25 +7,8 @@ import requests
 import chess.pgn
 import io
 from collections import defaultdict
-import json
-import random
 
 app = Flask(__name__)
-
-# ========== PUZZLES ==========
-PUZZLES = []
-
-def load_puzzles():
-    global PUZZLES
-    try:
-        with open("puzzles.json", "r") as f:
-            PUZZLES = json.load(f)
-        print(f"Loaded {len(PUZZLES)} puzzles")
-    except FileNotFoundError:
-        print("Warning: puzzles.json not found. Run setup_puzzles.py first.")
-        PUZZLES = []
-
-load_puzzles()
 
 # ========== CHESS GAME ==========
 games = {}
@@ -34,75 +17,31 @@ games = {}
 def play():
     return render_template("chess.html")
 
-@app.route("/puzzles")
-def puzzles_page():
-    return render_template("puzzles.html")
-
-# ========== PUZZLE API ==========
-@app.route("/api/puzzle/random", methods=["GET"])
-def get_random_puzzle():
-    if not PUZZLES:
-        return jsonify({"error": "No puzzles loaded"}), 500
-    puzzle = random.choice(PUZZLES)
-    return jsonify({
-        "id": puzzle["id"],
-        "fen": puzzle["fen"],
-        "rating": puzzle["rating"],
-        "themes": puzzle["themes"],
-        "moves": puzzle["moves"]
-    })
-
-@app.route("/api/puzzle/verify", methods=["POST"])
-def verify_puzzle_move():
+@app.route("/api/chess/new", methods=["POST"])
+def new_chess_game():
     data = request.get_json() or {}
-    puzzle_id = data.get("puzzle_id")
-    move_index = data.get("move_index", 0)
-    player_move = data.get("move")
+    session_id = data.get("session_id")
+    if not session_id:
+        session_id = secrets.token_hex(16)
+    player_color = data.get("color", "white")
 
-    if not puzzle_id or not player_move:
-        return jsonify({"error": "Missing data"}), 400
-
-    # Find puzzle
-    puzzle = None
-    for p in PUZZLES:
-        if p["id"] == puzzle_id:
-            puzzle = p
-            break
-
-    if not puzzle:
-        return jsonify({"error": "Puzzle not found"}), 404
-
-    correct_moves = puzzle["moves"]
-
-    if move_index >= len(correct_moves):
-        return jsonify({"error": "Invalid move index"}), 400
-
-    expected_move = correct_moves[move_index]
-    is_correct = player_move == expected_move
-
-    response = {
-        "correct": is_correct,
-        "expected": expected_move,
-        "completed": False,
-        "next_move": None
+    board = chess.Board()
+    games[session_id] = {
+        "board": board,
+        "color": player_color
     }
 
-    if is_correct:
-        # Check if this is the very last move (no opponent response)
-        if move_index + 1 >= len(correct_moves):
-            response["completed"] = True
-        else:
-            # Return opponent's response move
-            response["next_move"] = correct_moves[move_index + 1]
-            # Check if opponent's response is the last move
-            if move_index + 2 >= len(correct_moves):
-                response["completed_after_response"] = True
+    return jsonify({
+        "fen": board.fen(),
+        "legal_moves": [str(m) for m in board.legal_moves],
+        "game_over": False,
+        "check": False,
+        "session_id": session_id
+    })
 
-    return jsonify(response)
-
-# ========== EVALUATION ==========
 @app.route("/api/chess/eval", methods=["POST"])
 def chess_eval():
+    """Evaluate current position and return centipawn score from White's perspective."""
     data = request.get_json() or {}
     session_id = data.get("session_id")
 
@@ -133,29 +72,6 @@ def chess_eval():
             return jsonify({"eval": None, "mate": -mate_in})
 
     return jsonify({"eval": score, "mate": 0})
-
-# ========== CHESS GAME API ==========
-@app.route("/api/chess/new", methods=["POST"])
-def new_chess_game():
-    data = request.get_json() or {}
-    session_id = data.get("session_id")
-    if not session_id:
-        session_id = secrets.token_hex(16)
-    player_color = data.get("color", "white")
-
-    board = chess.Board()
-    games[session_id] = {
-        "board": board,
-        "color": player_color
-    }
-
-    return jsonify({
-        "fen": board.fen(),
-        "legal_moves": [str(m) for m in board.legal_moves],
-        "game_over": False,
-        "check": False,
-        "session_id": session_id
-    })
 
 @app.route("/api/chess/move", methods=["POST"])
 def chess_move():
