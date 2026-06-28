@@ -304,6 +304,7 @@ def handle_join_room(data):
     room = rooms[room_code]
 
     if len(room['players']) >= 2:
+        # Join as spectator
         room['spectators'].append(sid)
         join_room(room_code)
         emit('joined_as_spectator', {
@@ -315,6 +316,7 @@ def handle_join_room(data):
         emit('spectator_joined', {'count': len(room['spectators'])}, room=room_code, include_self=False)
         return
 
+    # Join as player
     taken_colors = set(room['players'].values())
     your_color = 'black' if 'white' in taken_colors else 'white'
     room['players'][sid] = your_color
@@ -326,6 +328,18 @@ def handle_join_room(data):
         'fen': room['board'].fen()
     })
 
+    # Start the game!
+    room['status'] = 'playing'
+    room['last_move_time'] = time.time()
+    
+    # FIX: Emit game_started to the ENTIRE room (both players)
+    socketio.emit('game_started', {
+        'room_code': room_code,
+        'fen': room['board'].fen(),
+        'white_player': [s for s, c in room['players'].items() if c == 'white'][0],
+        'black_player': [s for s, c in room['players'].items() if c == 'black'][0],
+        'time_control': room['time_control']
+    }, room=room_code)
     # Start the game!
     room['status'] = 'playing'
     room['last_move_time'] = time.time()
