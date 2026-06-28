@@ -15,7 +15,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ========== MULTIPLAYER GAME STATE ==========
-# rooms = { room_code: { 'players': { sid: color }, 'board': chess.Board(), 'spectators': [sid], 'chat': [] } }
 rooms = {}
 
 # ========== LICHESS CLOUD API ==========
@@ -24,10 +23,6 @@ LICHESS_HEADERS = {
 }
 
 def get_lichess_cloud_eval(fen):
-    """
-    Get evaluation and best move from Lichess cloud analysis.
-    Returns: (eval_cp, mate, best_move_uci) or None if unavailable.
-    """
     try:
         url = "https://lichess.org/api/cloud-eval"
         params = {"fen": fen, "multiPv": 1}
@@ -97,7 +92,6 @@ def new_chess_game():
 
 @app.route("/api/chess/eval", methods=["POST"])
 def chess_eval():
-    """Get evaluation from Lichess cloud eval. Falls back to local engine."""
     data = request.get_json() or {}
     session_id = data.get("session_id")
 
@@ -138,7 +132,6 @@ def chess_eval():
     return jsonify({"eval": score, "mate": 0})
 
 def get_engine_move(board, difficulty):
-    """Get engine move: Lichess first, fallback to local engine."""
     lichess_result = get_lichess_cloud_eval(board.fen())
 
     if lichess_result is not None:
@@ -264,7 +257,6 @@ def handle_connect():
 def handle_disconnect():
     sid = request.sid
     print(f'Client disconnected: {sid}')
-    # Clean up rooms
     for room_code, room_data in list(rooms.items()):
         if sid in room_data.get('players', {}):
             color = room_data['players'][sid]
@@ -279,7 +271,7 @@ def handle_disconnect():
 @socketio.on('create_room')
 def handle_create_room(data):
     sid = request.sid
-    room_code = secrets.token_hex(3).upper()  # 6-char hex code
+    room_code = secrets.token_hex(3).upper()
 
     color = data.get('color', 'white')
     opponent_color = 'black' if color == 'white' else 'white'
@@ -299,7 +291,6 @@ def handle_create_room(data):
 
     join_room(room_code)
     emit('room_created', {'room_code': room_code, 'your_color': color})
-    emit('room_updated', {'room_code': room_code, 'status': 'waiting', 'players': 1}, room=room_code)
 
 @socketio.on('join_room')
 def handle_join_room(data):
@@ -313,7 +304,6 @@ def handle_join_room(data):
     room = rooms[room_code]
 
     if len(room['players']) >= 2:
-        # Join as spectator
         room['spectators'].append(sid)
         join_room(room_code)
         emit('joined_as_spectator', {
@@ -325,7 +315,6 @@ def handle_join_room(data):
         emit('spectator_joined', {'count': len(room['spectators'])}, room=room_code, include_self=False)
         return
 
-    # Join as player
     taken_colors = set(room['players'].values())
     your_color = 'black' if 'white' in taken_colors else 'white'
     room['players'][sid] = your_color
@@ -340,6 +329,8 @@ def handle_join_room(data):
     # Start the game!
     room['status'] = 'playing'
     room['last_move_time'] = time.time()
+    
+    # Emit game_started to BOTH players (including the creator)
     emit('game_started', {
         'room_code': room_code,
         'fen': room['board'].fen(),
@@ -371,7 +362,6 @@ def handle_make_move(data):
     player_color = room['players'][sid]
     board = room['board']
 
-    # Check it's player's turn
     expected_turn = 'white' if board.turn == chess.WHITE else 'black'
     if player_color != expected_turn:
         emit('error', {'message': 'Not your turn'})
@@ -385,14 +375,12 @@ def handle_make_move(data):
 
         board.push(move)
 
-        # Update timer
         now = time.time()
         elapsed = now - room['last_move_time']
         room['timers'][player_color] -= elapsed
         room['timers'][player_color] += room['time_control']['increment']
         room['last_move_time'] = now
 
-        # Check time out
         if room['timers'][player_color] <= 0:
             room['timers'][player_color] = 0
             room['status'] = 'finished'
@@ -440,7 +428,6 @@ def handle_chat(data):
 
     room = rooms[room_code]
 
-    # Determine sender
     if sid in room['players']:
         sender = room['players'][sid]
         sender_name = sender.capitalize()
@@ -455,7 +442,6 @@ def handle_chat(data):
     }
     room['chat'].append(chat_msg)
 
-    # Keep only last 100 messages
     if len(room['chat']) > 100:
         room['chat'] = room['chat'][-100:]
 
