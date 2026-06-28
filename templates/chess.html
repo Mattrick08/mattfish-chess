@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>MattFish Chess</title>
-    <script src="/static/theme.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -14,7 +13,6 @@
             gap: 30px;
             padding: 20px;
             min-height: 100vh;
-            transition: background-color 0.3s, color 0.3s;
         }
         .sidebar {
             width: 250px;
@@ -22,7 +20,7 @@
             flex-direction: column;
             gap: 15px;
         }
-        h1 { color: #e74c3c; margin: 0; font-size: 28px; transition: color 0.3s; }
+        h1 { color: #e74c3c; margin: 0; font-size: 28px; }
         #status {
             background: #2e2e2e;
             padding: 15px;
@@ -31,7 +29,6 @@
             display: flex;
             align-items: center;
             font-size: 15px;
-            transition: background-color 0.3s;
         }
         .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn {
             padding: 10px;
@@ -222,7 +219,6 @@
             width: 560px;
             max-height: 120px;
             overflow-y: auto;
-            transition: background-color 0.3s;
         }
         .move-history h3 { font-size: 14px; color: #aaa; margin-bottom: 8px; }
         .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
@@ -269,12 +265,14 @@
             background: #b58863;
             transition: height 0.5s ease;
         }
+        /* White at bottom (default) */
         .eval-bar-white {
             bottom: 0;
         }
         .eval-bar-black {
             top: 0;
         }
+        /* When playing black, flip it */
         .eval-bar-wrapper.flipped .eval-bar-white {
             bottom: auto;
             top: 0;
@@ -291,7 +289,6 @@
             height: 2px;
             background: #e74c3c;
             z-index: 2;
-            transition: background 0.3s;
         }
         .eval-number {
             font-size: 14px;
@@ -309,177 +306,37 @@
             color: #4CAF50;
             font-weight: bold;
         }
-
-        /* ========== PERSONALIZATION PANEL ========== */
-        .personalize-panel {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 10px;
-            transition: background-color 0.3s;
-        }
-        .personalize-panel h3 {
-            font-size: 14px;
-            color: #e74c3c;
-            margin-bottom: 12px;
-            text-align: center;
-            transition: color 0.3s;
-        }
-        .color-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 4px;
-            margin-bottom: 10px;
-        }
-        .color-swatch {
-            width: 100%;
-            aspect-ratio: 1;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: 0.2s;
-        }
-        .color-swatch:hover {
-            transform: scale(1.15);
-            border-color: white;
-            z-index: 2;
-            position: relative;
-        }
-        .color-swatch.active {
-            border-color: #fff;
-            box-shadow: 0 0 0 2px #e74c3c;
-        }
-        .custom-color-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .custom-color-row label {
-            font-size: 11px;
-            color: #aaa;
-            min-width: 70px;
-        }
-        .custom-color-row input[type="color"] {
-            width: 36px;
-            height: 28px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            background: none;
-            padding: 0;
-        }
-        .custom-color-row input[type="text"] {
-            flex: 1;
-            padding: 5px 8px;
-            font-size: 12px;
-            border-radius: 4px;
-            border: 1px solid #555;
-            background: #1e1e1e;
-            color: white;
-            width: auto;
-        }
-        .text-color-options {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .text-color-btn {
-            padding: 5px 10px;
-            font-size: 11px;
-            border-radius: 4px;
-            border: 1px solid #555;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .text-color-btn:hover {
-            transform: scale(1.05);
-            border-color: white;
-        }
-        .upload-area {
-            border: 2px dashed #555;
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.2s;
-            margin-bottom: 10px;
-        }
-        .upload-area:hover {
-            border-color: #e74c3c;
-            background: rgba(231, 76, 60, 0.05);
-        }
-        .upload-area.dragover {
-            border-color: #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
-        }
-        .upload-area p {
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 6px;
-        }
-        .upload-area input[type="file"] {
-            display: none;
-        }
-        .upload-btn {
-            padding: 6px 14px;
-            font-size: 12px;
-            background: #444;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
+    </style>
+<base target="_blank">
+    <script src="/static/theme.js"></script>
+    <style>
+        /* Personalization panel styles - isolated, won't affect existing elements */
+        .personalize-panel { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; padding: 15px; margin-top: 10px; }
+        .personalize-panel h3 { font-size: 14px; color: #e74c3c; margin-bottom: 12px; text-align: center; }
+        .color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 10px; }
+        .color-swatch { width: 100%; aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .color-swatch:hover { transform: scale(1.15); border-color: white; z-index: 2; position: relative; }
+        .color-swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #e74c3c; }
+        .custom-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .custom-color-row label { font-size: 11px; color: #aaa; min-width: 70px; }
+        .custom-color-row input[type="color"] { width: 36px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: none; padding: 0; }
+        .custom-color-row input[type="text"] { flex: 1; padding: 5px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #1e1e1e; color: white; width: auto; }
+        .upload-area { border: 2px dashed #555; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
+        .upload-area:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.05); }
+        .upload-area.dragover { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+        .upload-area p { font-size: 12px; color: #888; margin-bottom: 6px; }
+        .upload-area input[type="file"] { display: none; }
+        .upload-btn { padding: 6px 14px; font-size: 12px; background: #444; color: white; border: none; border-radius: 6px; cursor: pointer; }
         .upload-btn:hover { background: #555; }
-        .preview-img {
-            max-width: 100%;
-            max-height: 80px;
-            border-radius: 6px;
-            margin-top: 8px;
-            display: none;
-        }
-        .preview-img.visible {
-            display: block;
-        }
-        .remove-img-btn {
-            padding: 4px 10px;
-            font-size: 11px;
-            background: #c0392b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 6px;
-            display: none;
-        }
-        .remove-img-btn.visible {
-            display: inline-block;
-        }
+        .preview-img { max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 8px; display: none; }
+        .preview-img.visible { display: block; }
+        .remove-img-btn { padding: 4px 10px; font-size: 11px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 6px; display: none; }
+        .remove-img-btn.visible { display: inline-block; }
         .remove-img-btn:hover { background: #a93226; }
-        .reset-btn {
-            width: 100%;
-            padding: 8px;
-            font-size: 12px;
-            background: #555;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 8px;
-        }
+        .reset-btn { width: 100%; padding: 8px; font-size: 12px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
         .reset-btn:hover { background: #666; }
-        .bg-image-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: -1;
-            opacity: 0.12;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            pointer-events: none;
-        }
+        .bg-image-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1; opacity: 0.12; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+        .section-title { font-size: 11px; color: #888; text-transform: uppercase; margin: 10px 0 6px 0; letter-spacing: 0.5px; }
     </style>
 <base target="_blank">
 </head>
@@ -487,7 +344,7 @@
     <div class="bg-image-overlay" id="bgImageOverlay"></div>
 
     <div class="sidebar">
-        <h1 class="accent-color" id="appTitle">♔ MattFish</h1>
+        <h1>♔ MattFish</h1>
         <div id="status">Click "New Game" to start</div>
 
         <div class="section-title">Difficulty</div>
@@ -506,17 +363,16 @@
         <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
-        <button class="new-game-btn accent-bg" onclick="newGame()">New Game</button>
+        <button class="new-game-btn" onclick="newGame()">New Game</button>
+                <div id="themePanelContainer"></div>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
-
-        <!-- PERSONALIZATION PANEL -->
-        <div id="themePanelContainer"></div>
     </div>
 
     <div class="board-area">
         <div class="board-wrapper">
             <div class="coords-ranks" id="ranks"></div>
             <div id="board"></div>
+            <!-- Evaluation Bar -->
             <div class="eval-container" id="evalContainer">
                 <div class="eval-label" id="evalLabelTop">White</div>
                 <div class="eval-bar-wrapper" id="evalBarWrapper">
@@ -581,12 +437,6 @@
         let sessionId = null;
         let evalBarEnabled = false;
 
-        // ========== WINDOW ONLOAD ==========
-        window.onload = function() {
-            initThemePanel('themePanelContainer');
-            newGame();
-        };
-
         // ========== EVALUATION BAR ==========
         function toggleEvalBar() {
             evalBarEnabled = !evalBarEnabled;
@@ -639,12 +489,12 @@
                 const whiteBar = document.getElementById('evalBarWhite');
                 const blackBar = document.getElementById('evalBarBlack');
                 const evalNumber = document.getElementById('evalNumber');
-                const theme = getTheme();
 
                 let displayText = '';
                 let whitePercent = 50;
 
                 if (data.mate !== 0) {
+                    // Mate situation
                     if (data.mate > 0) {
                         displayText = '+' + data.mate + 'M';
                         whitePercent = 100;
@@ -653,7 +503,9 @@
                         whitePercent = 0;
                     }
                 } else {
+                    // Centipawn evaluation
                     const evalCp = data.eval;
+                    // Convert to pawns
                     const evalPawns = evalCp / 100;
 
                     if (evalPawns > 0) {
@@ -664,16 +516,22 @@
                         displayText = '0.0';
                     }
 
+                    // Map evaluation to percentage (clamped between 0 and 100)
                     const clamped = Math.max(-1000, Math.min(1000, evalCp));
                     whitePercent = 50 + (clamped / 20);
                     whitePercent = Math.max(5, Math.min(95, whitePercent));
                 }
 
+                // If playing black, we flip the visual so black is at bottom
+                // But the bar heights are always whitePercent for white
+                // When flipped via CSS, white will be at top and black at bottom
                 whiteBar.style.height = whitePercent + '%';
                 blackBar.style.height = (100 - whitePercent) + '%';
 
+                // Show evaluation from the player's perspective
                 let playerEval = displayText;
                 if (playerColor === 'black') {
+                    // Flip the sign for black's perspective
                     if (displayText.startsWith('+')) {
                         playerEval = '-' + displayText.substring(1);
                     } else if (displayText.startsWith('-')) {
@@ -683,19 +541,21 @@
 
                 evalNumber.textContent = playerEval;
 
+                // Color based on who's better from player's perspective
                 if (playerColor === 'white') {
                     if (displayText.startsWith('+')) {
-                        evalNumber.style.color = '#4CAF50';
+                        evalNumber.style.color = '#4CAF50'; // Green = good for player
                     } else if (displayText.startsWith('-')) {
-                        evalNumber.style.color = theme.accentColor;
+                        evalNumber.style.color = '#e74c3c'; // Red = bad for player
                     } else {
                         evalNumber.style.color = '#888';
                     }
                 } else {
+                    // For black, flipped
                     if (displayText.startsWith('-')) {
-                        evalNumber.style.color = '#4CAF50';
+                        evalNumber.style.color = '#4CAF50'; // Green = good for black
                     } else if (displayText.startsWith('+')) {
-                        evalNumber.style.color = theme.accentColor;
+                        evalNumber.style.color = '#e74c3c'; // Red = bad for black
                     } else {
                         evalNumber.style.color = '#888';
                     }
@@ -765,29 +625,28 @@
             }
         }
 
+        window.onload = function() {
+            try {
+                if (typeof initThemePanel === 'function') {
+                    initThemePanel('themePanelContainer');
+                }
+            } catch (e) {
+                console.log('Theme panel not available:', e);
+            }
+            newGame();
+        };
+
         function setDiff(d) {
             difficulty = d;
-            const theme = getTheme();
             document.querySelectorAll('.diff-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent === d);
-                if (b.classList.contains('active')) {
-                    b.style.borderColor = theme.accentColor;
-                } else {
-                    b.style.borderColor = '#444';
-                }
             });
         }
 
         function setColor(c) {
             playerColor = c;
-            const theme = getTheme();
             document.querySelectorAll('.color-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent.toLowerCase() === c);
-                if (b.classList.contains('active')) {
-                    b.style.borderColor = theme.accentColor;
-                } else {
-                    b.style.borderColor = '#444';
-                }
             });
             updateEvalBarOrientation();
             newGame();
@@ -1193,7 +1052,6 @@
         function showGameOver(result) {
             const overlay = document.getElementById('gameOver');
             const text = document.getElementById('gameOverText');
-            const theme = getTheme();
 
             let msg = result;
             let color = '#fff';
@@ -1201,7 +1059,7 @@
             const playerLost = (playerColor === 'white' && result === '0-1') || (playerColor === 'black' && result === '1-0');
 
             if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
-            else if (playerLost) { msg = 'MattFish Wins!'; color = theme.accentColor; }
+            else if (playerLost) { msg = 'MattFish Wins!'; color = '#e74c3c'; }
             else { msg = 'Draw!'; color = '#f39c12'; }
 
             text.textContent = msg;
