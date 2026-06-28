@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 import os
 from flask import Flask, render_template, jsonify, request, session
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -12,8 +14,14 @@ import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=True, engineio_logger=True)
 
+
+# ========== HEALTH CHECK ==========
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+    
 # ========== MULTIPLAYER GAME STATE ==========
 rooms = {}
 
