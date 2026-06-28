@@ -165,7 +165,9 @@
             'q': '/static/pieces/bQ (1).png', 'k': '/static/pieces/bK (1).png'
         };
 
-        const socket = io();
+        // FIX: Use polling fallback for Render free tier compatibility
+        const socket = io({ transports: ['websocket', 'polling'] });
+
         let roomCode = null;
         let currentFEN = '';
         let lastMove = null;
@@ -175,31 +177,40 @@
         let timerInterval = null;
 
         function joinSpectate() {
-            const code = document.getElementById('roomCode').value.trim();
+            const code = document.getElementById('roomCode').value.trim().toUpperCase();
             if (code.length !== 6) {
                 setStatus('Please enter a valid 6-character room code');
                 return;
             }
             roomCode = code;
+            console.log('Joining room:', roomCode);
             socket.emit('join_room', { room_code: code });
         }
 
+        socket.on('connect', () => {
+            console.log('Connected to server, socket id:', socket.id);
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('Connection error:', err.message);
+        });
+
         socket.on('joined_as_spectator', (data) => {
+            console.log('Joined as spectator:', data);
             document.getElementById('joinSection').classList.add('hidden');
             document.getElementById('gameUI').classList.remove('hidden');
             currentFEN = data.fen;
 
-            data.chat.forEach(msg => addChatMessage(msg.sender, msg.message));
-            
-            // Setup board immediately
+            if (data.chat) {
+                data.chat.forEach(msg => addChatMessage(msg.sender, msg.message));
+            }
             setupBoard();
             setStatus('Spectating room ' + roomCode);
-            
-            // Request sync to get current game state
             socket.emit('request_sync', { room_code: roomCode });
         });
 
         socket.on('sync_state', (data) => {
+            console.log('Sync state:', data);
             currentFEN = data.fen;
             if (data.timers) {
                 whiteTime = data.timers.white || whiteTime;
@@ -210,6 +221,7 @@
         });
 
         socket.on('move_made', (data) => {
+            console.log('Move made:', data);
             currentFEN = data.fen;
             lastMove = {
                 from: data.move.substring(0, 2),
@@ -249,6 +261,7 @@
         });
 
         socket.on('error', (data) => {
+            console.error('Error:', data);
             setStatus('Error: ' + data.message);
         });
 
@@ -311,9 +324,12 @@
         function drawBoard() {
             const board = document.getElementById('board');
             board.innerHTML = '';
-            
-            if (!currentFEN) return;
-            
+
+            if (!currentFEN) {
+                console.warn('No FEN available, cannot draw board');
+                return;
+            }
+
             const fenParts = currentFEN.split(' ');
             const fenRows = fenParts[0].split('/');
             const grid = [];
