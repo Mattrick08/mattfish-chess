@@ -112,7 +112,6 @@
         .hidden { display: none !important; }
         a { color: #4CAF50; text-decoration: none; }
     </style>
-<base target="_blank">
 </head>
 <body>
     <div class="sidebar">
@@ -191,8 +190,12 @@
             currentFEN = data.fen;
 
             data.chat.forEach(msg => addChatMessage(msg.sender, msg.message));
+            
+            // Setup board immediately
             setupBoard();
             setStatus('Spectating room ' + roomCode);
+            
+            // Request sync to get current game state
             socket.emit('request_sync', { room_code: roomCode });
         });
 
@@ -219,7 +222,6 @@
             }
             updateTimerDisplay();
 
-            const moveNum = Math.floor(moveHistory.length) + 1;
             if (data.player_color === 'white') {
                 moveHistory.push({ white: data.move, black: null });
             } else {
@@ -309,6 +311,9 @@
         function drawBoard() {
             const board = document.getElementById('board');
             board.innerHTML = '';
+            
+            if (!currentFEN) return;
+            
             const fenParts = currentFEN.split(' ');
             const fenRows = fenParts[0].split('/');
             const grid = [];
