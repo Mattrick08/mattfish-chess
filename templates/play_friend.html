@@ -285,7 +285,6 @@
             display: flex;
             flex-direction: column;
         }
-        .chat-section h3 { font-size: 13px; color: #e74c3c; margin-bottom: 8px; }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -373,7 +372,6 @@
         <h1>♔ MattFish</h1>
         <div id="status">Create or join a room to play</div>
 
-        <!-- LOBBY -->
         <div id="lobbySection" class="lobby-section">
             <h3>🎮 Play a Friend</h3>
 
@@ -403,7 +401,6 @@
             </div>
         </div>
 
-        <!-- GAME UI (hidden until game starts) -->
         <div id="gameUI" class="hidden">
             <div class="timer-display" id="opponentTimer">10:00</div>
 
@@ -483,7 +480,8 @@
             'k': '/static/pieces/bK (1).png'
         };
 
-        const socket = io();
+        // FIX: Use polling fallback for Render free tier compatibility
+        const socket = io({ transports: ['websocket', 'polling'] });
 
         let myColor = null;
         let roomCode = null;
@@ -517,6 +515,7 @@
         }
 
         function createRoom() {
+            console.log('Creating room with time control:', selectedTimeControl);
             socket.emit('create_room', {
                 color: 'white',
                 time_control: selectedTimeControl
@@ -524,7 +523,7 @@
         }
 
         function joinRoom() {
-            const code = document.getElementById('joinCode').value.trim();
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
             if (code.length !== 6) {
                 setStatus('Please enter a valid 6-character room code');
                 return;
@@ -548,67 +547,60 @@
 
         // ========== SOCKET EVENTS ==========
         socket.on('connect', () => {
-            console.log('Connected to server');
+            console.log('Connected to server, socket id:', socket.id);
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('Connection error:', err.message);
+            setStatus('Connection error: ' + err.message);
         });
 
         socket.on('room_created', (data) => {
+            console.log('Room created:', data);
             roomCode = data.room_code;
             myColor = data.your_color;
             document.getElementById('createRoomView').classList.add('hidden');
             document.getElementById('roomView').classList.remove('hidden');
             document.getElementById('roomCodeDisplay').textContent = roomCode;
-            setStatus('Room created! Share the code with your friend.');
+            setStatus('Room created! Share code: ' + roomCode);
         });
 
-        // FIX: joined_room now properly initializes everything for the second player
         socket.on('joined_room', (data) => {
+            console.log('Joined room:', data);
             roomCode = data.room_code;
             myColor = data.your_color;
-            currentFEN = data.fen;
-            
-            // Initialize legal moves from start position
-            legalMoves = [];
-            
-            // Hide lobby, show game UI
-            document.getElementById('lobbySection').classList.add('hidden');
-            document.getElementById('gameUI').classList.remove('hidden');
-            
-            setupBoard();
-            setStatus('Game started! You are ' + myColor + '. Waiting for opponent...');
+            startGame(data);
         });
 
-        // FIX: game_started now properly initializes board, timers, and legal moves for BOTH players
+        // FIX: This handler runs for BOTH players when game starts
         socket.on('game_started', (data) => {
-            roomCode = data.room_code;
-            currentFEN = data.fen;
-            
-            // Initialize timers
-            myTime = data.time_control.minutes * 60;
-            opponentTime = data.time_control.minutes * 60;
-            updateTimerDisplay();
-            
-            // Initialize legal moves for start position
-            legalMoves = ['a2a3','a2a4','b2b3','b2b4','c2c3','c2c4','d2d3','d2d4','e2e3','e2e4','f2f3','f2f4','g2g3','g2g4','h2h3','h2h4','b1a3','b1c3','g1f3','g1h3'];
-            
-            // Hide all lobby views, show game UI
+            console.log('Game started:', data);
+            // Only process if we're already in a room (creator already has roomCode)
+            if (!roomCode) {
+                roomCode = data.room_code;
+            }
+            startGame(data);
+        });
+
+        function startGame(data) {
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('roomView').classList.add('hidden');
             document.getElementById('gameUI').classList.remove('hidden');
             
+            currentFEN = data.fen;
+            myTime = data.time_control.minutes * 60;
+            opponentTime = data.time_control.minutes * 60;
+            updateTimerDisplay();
             setupBoard();
             gameStatus = 'playing';
             isMyTurn = myColor === 'white';
-            
-            if (isMyTurn) {
-                startTimer('my');
-                setStatus('Game started! Your turn (White).');
-            } else {
-                startTimer('opponent');
-                setStatus('Game started! Waiting for opponent...');
-            }
-        });
+            setStatus(isMyTurn ? 'Game started! Your turn.' : 'Game started! Waiting for opponent...');
+            if (isMyTurn) startTimer('my');
+            else startTimer('opponent');
+        }
 
         socket.on('joined_as_spectator', (data) => {
+            console.log('Joined as spectator:', data);
             roomCode = data.room_code;
             myColor = null;
             document.getElementById('lobbySection').classList.add('hidden');
@@ -624,6 +616,7 @@
         });
 
         socket.on('move_made', (data) => {
+            console.log('Move made:', data);
             currentFEN = data.fen;
             legalMoves = data.legal_moves || [];
             lastMove = {
@@ -631,11 +624,9 @@
                 to: data.move.substring(2, 4)
             };
 
-            if (data.timers) {
-                myTime = data.timers[myColor] || myTime;
-                const oppColor = myColor === 'white' ? 'black' : 'white';
-                opponentTime = data.timers[oppColor] || opponentTime;
-            }
+            myTime = data.timers[myColor] || myTime;
+            const oppColor = myColor === 'white' ? 'black' : 'white';
+            opponentTime = data.timers[oppColor] || opponentTime;
             updateTimerDisplay();
 
             if (data.player_color === 'white') {
@@ -694,6 +685,7 @@
         });
 
         socket.on('error', (data) => {
+            console.error('Socket error:', data);
             setStatus('Error: ' + data.message);
         });
 
@@ -826,7 +818,10 @@
             const board = document.getElementById('board');
             board.innerHTML = '';
 
-            if (!currentFEN) return;
+            if (!currentFEN) {
+                console.warn('No FEN available, cannot draw board');
+                return;
+            }
 
             const fenParts = currentFEN.split(' ');
             const fenRows = fenParts[0].split('/');
