@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>MattFish Chess</title>
+    <script src="/static/theme.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,6 +14,7 @@
             gap: 30px;
             padding: 20px;
             min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
         }
         .sidebar {
             width: 250px;
@@ -20,7 +22,7 @@
             flex-direction: column;
             gap: 15px;
         }
-        h1 { color: #e74c3c; margin: 0; font-size: 28px; }
+        h1 { color: #e74c3c; margin: 0; font-size: 28px; transition: color 0.3s; }
         #status {
             background: #2e2e2e;
             padding: 15px;
@@ -29,6 +31,7 @@
             display: flex;
             align-items: center;
             font-size: 15px;
+            transition: background-color 0.3s;
         }
         .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn {
             padding: 10px;
@@ -219,6 +222,7 @@
             width: 560px;
             max-height: 120px;
             overflow-y: auto;
+            transition: background-color 0.3s;
         }
         .move-history h3 { font-size: 14px; color: #aaa; margin-bottom: 8px; }
         .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
@@ -287,6 +291,7 @@
             height: 2px;
             background: #e74c3c;
             z-index: 2;
+            transition: background 0.3s;
         }
         .eval-number {
             font-size: 14px;
@@ -312,30 +317,34 @@
             border-radius: 10px;
             padding: 15px;
             margin-top: 10px;
+            transition: background-color 0.3s;
         }
         .personalize-panel h3 {
             font-size: 14px;
             color: #e74c3c;
             margin-bottom: 12px;
             text-align: center;
+            transition: color 0.3s;
         }
         .color-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            margin-bottom: 12px;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            margin-bottom: 10px;
         }
         .color-swatch {
             width: 100%;
-            height: 28px;
-            border-radius: 6px;
+            aspect-ratio: 1;
+            border-radius: 4px;
             cursor: pointer;
             border: 2px solid transparent;
             transition: 0.2s;
         }
         .color-swatch:hover {
-            transform: scale(1.1);
+            transform: scale(1.15);
             border-color: white;
+            z-index: 2;
+            position: relative;
         }
         .color-swatch.active {
             border-color: #fff;
@@ -345,28 +354,49 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .custom-color-row label {
-            font-size: 12px;
+            font-size: 11px;
             color: #aaa;
+            min-width: 70px;
         }
         .custom-color-row input[type="color"] {
-            width: 40px;
-            height: 30px;
+            width: 36px;
+            height: 28px;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
             background: none;
+            padding: 0;
         }
         .custom-color-row input[type="text"] {
             flex: 1;
-            padding: 6px 8px;
+            padding: 5px 8px;
             font-size: 12px;
-            border-radius: 6px;
+            border-radius: 4px;
             border: 1px solid #555;
             background: #1e1e1e;
             color: white;
+            width: auto;
+        }
+        .text-color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .text-color-btn {
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .text-color-btn:hover {
+            transform: scale(1.05);
+            border-color: white;
         }
         .upload-area {
             border: 2px dashed #555;
@@ -405,7 +435,7 @@
         .upload-btn:hover { background: #555; }
         .preview-img {
             max-width: 100%;
-            max-height: 100px;
+            max-height: 80px;
             border-radius: 6px;
             margin-top: 8px;
             display: none;
@@ -444,7 +474,7 @@
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             z-index: -1;
-            opacity: 0.15;
+            opacity: 0.12;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -457,7 +487,7 @@
     <div class="bg-image-overlay" id="bgImageOverlay"></div>
 
     <div class="sidebar">
-        <h1 id="appTitle">♔ MattFish</h1>
+        <h1 class="accent-color" id="appTitle">♔ MattFish</h1>
         <div id="status">Click "New Game" to start</div>
 
         <div class="section-title">Difficulty</div>
@@ -476,27 +506,11 @@
         <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
-        <button class="new-game-btn" onclick="newGame()">New Game</button>
+        <button class="new-game-btn accent-bg" onclick="newGame()">New Game</button>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
 
         <!-- PERSONALIZATION PANEL -->
-        <div class="personalize-panel">
-            <h3>🎨 Personalize</h3>
-            <div class="color-grid" id="colorGrid"></div>
-            <div class="custom-color-row">
-                <label>Custom:</label>
-                <input type="color" id="customColorPicker" value="#e74c3c" onchange="applyCustomColor(this.value)">
-                <input type="text" id="customColorHex" value="#e74c3c" maxlength="7" onchange="applyCustomColor(this.value)">
-            </div>
-            <div class="upload-area" id="uploadArea" onclick="document.getElementById('bgImageInput').click()">
-                <p>🖼️ Click or drop image</p>
-                <button class="upload-btn" type="button">Choose Image</button>
-                <img class="preview-img" id="previewImg" alt="Preview">
-                <button class="remove-img-btn" id="removeImgBtn" onclick="event.stopPropagation(); removeBgImage()">Remove Image</button>
-            </div>
-            <input type="file" id="bgImageInput" accept="image/*" onchange="handleImageUpload(event)">
-            <button class="reset-btn" onclick="resetPersonalization()">Reset to Default</button>
-        </div>
+        <div id="themePanelContainer"></div>
     </div>
 
     <div class="board-area">
@@ -567,170 +581,11 @@
         let sessionId = null;
         let evalBarEnabled = false;
 
-        // ========== PERSONALIZATION ==========
-        const PRESET_COLORS = [
-            '#e74c3c', '#c0392b', '#e67e22', '#f39c12',
-            '#f1c40f', '#2ecc71', '#27ae60', '#1abc9c',
-            '#16a085', '#3498db', '#2980b9', '#9b59b6',
-            '#8e44ad', '#e91e63', '#ff5722', '#00bcd4'
-        ];
-        let currentAccentColor = '#e74c3c';
-
-        function initPersonalization() {
-            const grid = document.getElementById('colorGrid');
-            PRESET_COLORS.forEach(color => {
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch';
-                swatch.style.backgroundColor = color;
-                swatch.dataset.color = color;
-                swatch.onclick = () => applyColor(color);
-                grid.appendChild(swatch);
-            });
-
-            // Load saved preferences
-            const savedColor = localStorage.getItem('mattfish_accent_color');
-            const savedImage = localStorage.getItem('mattfish_bg_image');
-
-            if (savedColor) {
-                applyColor(savedColor, false);
-            }
-            if (savedImage) {
-                applyBgImage(savedImage);
-            }
-        }
-
-        function applyColor(color, save = true) {
-            currentAccentColor = color;
-            document.getElementById('customColorPicker').value = color;
-            document.getElementById('customColorHex').value = color;
-
-            // Update all swatch active states
-            document.querySelectorAll('.color-swatch').forEach(s => {
-                s.classList.toggle('active', s.dataset.color === color);
-            });
-
-            // Apply to title
-            document.getElementById('appTitle').style.color = color;
-
-            // Apply to new game button
-            const newGameBtn = document.querySelector('.new-game-btn');
-            newGameBtn.style.background = color;
-            newGameBtn.onmouseover = () => newGameBtn.style.background = darkenColor(color, 20);
-            newGameBtn.onmouseout = () => newGameBtn.style.background = color;
-
-            // Apply to personalization panel title
-            document.querySelector('.personalize-panel h3').style.color = color;
-
-            // Apply to active diff button border
-            document.querySelectorAll('.diff-btn.active').forEach(b => {
-                b.style.borderColor = color;
-            });
-
-            // Apply to active color button
-            document.querySelectorAll('.color-btn.active').forEach(b => {
-                b.style.borderColor = color;
-            });
-
-            // Apply to eval bar center line
-            document.querySelector('.eval-center-line').style.background = color;
-
-            // Apply to game over text when active
-            const gameOverText = document.getElementById('gameOverText');
-            if (gameOverText.style.color === 'rgb(231, 76, 60)' || gameOverText.style.color === '#e74c3c') {
-                gameOverText.style.color = color;
-            }
-
-            if (save) {
-                localStorage.setItem('mattfish_accent_color', color);
-            }
-        }
-
-        function applyCustomColor(value) {
-            let color = value;
-            if (!color.startsWith('#')) color = '#' + color;
-            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-                applyColor(color);
-            }
-        }
-
-        function darkenColor(hex, percent) {
-            const num = parseInt(hex.replace('#', ''), 16);
-            const amt = Math.round(2.55 * percent);
-            const R = Math.max((num >> 16) - amt, 0);
-            const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
-            const B = Math.max((num & 0x0000FF) - amt, 0);
-            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
-        }
-
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const dataUrl = e.target.result;
-                applyBgImage(dataUrl);
-                localStorage.setItem('mattfish_bg_image', dataUrl);
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function applyBgImage(dataUrl) {
-            const overlay = document.getElementById('bgImageOverlay');
-            overlay.style.backgroundImage = `url(${dataUrl})`;
-
-            const preview = document.getElementById('previewImg');
-            preview.src = dataUrl;
-            preview.classList.add('visible');
-
-            document.getElementById('removeImgBtn').classList.add('visible');
-            document.querySelector('.upload-area p').textContent = 'Image set!';
-        }
-
-        function removeBgImage() {
-            const overlay = document.getElementById('bgImageOverlay');
-            overlay.style.backgroundImage = '';
-
-            const preview = document.getElementById('previewImg');
-            preview.src = '';
-            preview.classList.remove('visible');
-
-            document.getElementById('removeImgBtn').classList.remove('visible');
-            document.querySelector('.upload-area p').textContent = '🖼️ Click or drop image';
-
-            localStorage.removeItem('mattfish_bg_image');
-            document.getElementById('bgImageInput').value = '';
-        }
-
-        function resetPersonalization() {
-            applyColor('#e74c3c');
-            removeBgImage();
-            localStorage.removeItem('mattfish_accent_color');
-        }
-
-        // Drag and drop for image
-        const uploadArea = document.getElementById('uploadArea');
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    const dataUrl = evt.target.result;
-                    applyBgImage(dataUrl);
-                    localStorage.setItem('mattfish_bg_image', dataUrl);
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+        // ========== WINDOW ONLOAD ==========
+        window.onload = function() {
+            initThemePanel('themePanelContainer');
+            newGame();
+        };
 
         // ========== EVALUATION BAR ==========
         function toggleEvalBar() {
@@ -784,6 +639,7 @@
                 const whiteBar = document.getElementById('evalBarWhite');
                 const blackBar = document.getElementById('evalBarBlack');
                 const evalNumber = document.getElementById('evalNumber');
+                const theme = getTheme();
 
                 let displayText = '';
                 let whitePercent = 50;
@@ -831,7 +687,7 @@
                     if (displayText.startsWith('+')) {
                         evalNumber.style.color = '#4CAF50';
                     } else if (displayText.startsWith('-')) {
-                        evalNumber.style.color = currentAccentColor;
+                        evalNumber.style.color = theme.accentColor;
                     } else {
                         evalNumber.style.color = '#888';
                     }
@@ -839,7 +695,7 @@
                     if (displayText.startsWith('-')) {
                         evalNumber.style.color = '#4CAF50';
                     } else if (displayText.startsWith('+')) {
-                        evalNumber.style.color = currentAccentColor;
+                        evalNumber.style.color = theme.accentColor;
                     } else {
                         evalNumber.style.color = '#888';
                     }
@@ -909,17 +765,13 @@
             }
         }
 
-        window.onload = function() {
-            initPersonalization();
-            newGame();
-        };
-
         function setDiff(d) {
             difficulty = d;
+            const theme = getTheme();
             document.querySelectorAll('.diff-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent === d);
                 if (b.classList.contains('active')) {
-                    b.style.borderColor = currentAccentColor;
+                    b.style.borderColor = theme.accentColor;
                 } else {
                     b.style.borderColor = '#444';
                 }
@@ -928,10 +780,11 @@
 
         function setColor(c) {
             playerColor = c;
+            const theme = getTheme();
             document.querySelectorAll('.color-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent.toLowerCase() === c);
                 if (b.classList.contains('active')) {
-                    b.style.borderColor = currentAccentColor;
+                    b.style.borderColor = theme.accentColor;
                 } else {
                     b.style.borderColor = '#444';
                 }
@@ -1340,6 +1193,7 @@
         function showGameOver(result) {
             const overlay = document.getElementById('gameOver');
             const text = document.getElementById('gameOverText');
+            const theme = getTheme();
 
             let msg = result;
             let color = '#fff';
@@ -1347,7 +1201,7 @@
             const playerLost = (playerColor === 'white' && result === '0-1') || (playerColor === 'black' && result === '1-0');
 
             if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
-            else if (playerLost) { msg = 'MattFish Wins!'; color = currentAccentColor; }
+            else if (playerLost) { msg = 'MattFish Wins!'; color = theme.accentColor; }
             else { msg = 'Draw!'; color = '#f39c12'; }
 
             text.textContent = msg;
