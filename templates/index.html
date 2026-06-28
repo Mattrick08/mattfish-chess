@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MattFish</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/theme.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -13,12 +14,15 @@
             color: white;
             font-family: Arial, sans-serif;
             padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         h1 {
             text-align: center;
             font-size: 36px;
             margin-bottom: 30px;
+            color: #e74c3c;
+            transition: color 0.3s;
         }
 
         .input-section {
@@ -50,6 +54,9 @@
             border-radius: 6px;
             border: none;
             width: 300px;
+            background: #2e2e2e;
+            color: white;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         .buttons {
@@ -66,6 +73,7 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
+            transition: 0.2s;
         }
 
         button:hover { background-color: #45a049; }
@@ -116,24 +124,28 @@
             padding: 20px;
             width: 200px;
             text-align: center;
+            transition: background-color 0.3s;
         }
 
         .stat-card h2 {
             font-size: 20px;
             margin-bottom: 10px;
             color: #4CAF50;
+            transition: color 0.3s;
         }
 
         .stat-card p {
             font-size: 14px;
             margin: 5px 0;
             color: #ccc;
+            transition: color 0.3s;
         }
 
         .stat-card .rating {
             font-size: 28px;
             font-weight: bold;
             color: white;
+            transition: color 0.3s;
         }
 
         .chart-section {
@@ -142,12 +154,14 @@
             background-color: #2e2e2e;
             border-radius: 10px;
             padding: 20px;
+            transition: background-color 0.3s;
         }
 
         .chart-section h2 {
             text-align: center;
             margin-bottom: 15px;
             color: #4CAF50;
+            transition: color 0.3s;
         }
 
         .pie-section {
@@ -164,11 +178,13 @@
             padding: 20px;
             text-align: center;
             width: 220px;
+            transition: background-color 0.3s;
         }
 
         .pie-card h3 {
             margin-bottom: 10px;
             color: #4CAF50;
+            transition: color 0.3s;
         }
 
         .openings-section {
@@ -177,12 +193,14 @@
             background-color: #2e2e2e;
             border-radius: 10px;
             padding: 20px;
+            transition: background-color 0.3s;
         }
 
         .openings-section h2 {
             text-align: center;
             margin-bottom: 15px;
             color: #4CAF50;
+            transition: color 0.3s;
         }
 
         .sort-buttons {
@@ -212,8 +230,8 @@
             font-size: 14px;
         }
 
-        th { color: #4CAF50; }
-        td { color: #ccc; }
+        th { color: #4CAF50; transition: color 0.3s; }
+        td { color: #ccc; transition: color 0.3s; }
 
         .loading {
             text-align: center;
@@ -221,245 +239,435 @@
             font-size: 14px;
             margin-top: 10px;
         }
+
+        /* ========== PERSONALIZATION PANEL STYLES ========== */
+        .personalize-panel {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 400px;
+            transition: background-color 0.3s;
+        }
+        .personalize-panel h3 {
+            font-size: 14px;
+            color: #e74c3c;
+            margin-bottom: 12px;
+            text-align: center;
+            transition: color 0.3s;
+        }
+        .section-title {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin: 10px 0 6px 0;
+            letter-spacing: 0.5px;
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        .color-swatch {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.2s;
+        }
+        .color-swatch:hover {
+            transform: scale(1.15);
+            border-color: white;
+            z-index: 2;
+            position: relative;
+        }
+        .color-swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 0 2px #e74c3c;
+        }
+        .custom-color-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .custom-color-row label {
+            font-size: 11px;
+            color: #aaa;
+            min-width: 70px;
+        }
+        .custom-color-row input[type="color"] {
+            width: 36px;
+            height: 28px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+        .custom-color-row input[type="text"] {
+            flex: 1;
+            padding: 5px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #1e1e1e;
+            color: white;
+            width: auto;
+        }
+        .text-color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .text-color-btn {
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .text-color-btn:hover {
+            transform: scale(1.05);
+            border-color: white;
+        }
+        .upload-area {
+            border: 2px dashed #555;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-bottom: 10px;
+        }
+        .upload-area:hover {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.05);
+        }
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        .upload-area p {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            padding: 6px 14px;
+            font-size: 12px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .upload-btn:hover { background: #555; }
+        .preview-img {
+            max-width: 100%;
+            max-height: 80px;
+            border-radius: 6px;
+            margin-top: 8px;
+            display: none;
+        }
+        .preview-img.visible {
+            display: block;
+        }
+        .remove-img-btn {
+            padding: 4px 10px;
+            font-size: 11px;
+            background: #c0392b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 6px;
+            display: none;
+        }
+        .remove-img-btn.visible {
+            display: inline-block;
+        }
+        .remove-img-btn:hover { background: #a93226; }
+        .reset-btn {
+            width: 100%;
+            padding: 8px;
+            font-size: 12px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .reset-btn:hover { background: #666; }
+
+        .bg-image-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            opacity: 0.12;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
     </style>
-<base target="_blank">
 <base target="_blank">
 </head>
 <body>
+    <div class="bg-image-overlay" id="bgImageOverlay"></div>
 
-<h1>MattFish</h1>
-<div style="text-align: center; margin-bottom: 25px;">
-    <a href="/play" target="_blank" style="
-        display: inline-block;
-        padding: 15px 40px;
-        font-size: 18px;
-        background: #e74c3c;
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        transition: 0.3s;
-        font-weight: bold;
-    " onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">
-        ♔ Play vs MattFish Engine ♚
-    </a>
-</div>
+    <h1 class="accent-color">MattFish</h1>
 
-<div class="top-section">
-    <div class="left-inputs">
-        <input type="text" id="username" placeholder="Enter your Chess.com username">
-        <div class="buttons">
-            <button onclick="loadAll()">Load Stats</button>
+    <div style="text-align: center; margin-bottom: 25px;">
+        <a href="/play" target="_blank" class="accent-bg" style="
+            display: inline-block;
+            padding: 15px 40px;
+            font-size: 18px;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: 0.3s;
+            font-weight: bold;
+        " onmouseover="this.style.backgroundColor=darkenColor(getTheme().accentColor, 20)" onmouseout="this.style.backgroundColor=getTheme().accentColor">
+            ♔ Play vs MattFish Engine ♚
+        </a>
+    </div>
+
+    <div class="top-section">
+        <div class="left-inputs">
+            <input type="text" id="username" placeholder="Enter your Chess.com username">
+            <div class="buttons">
+                <button onclick="loadAll()">Load Stats</button>
+            </div>
+            <div class="buttons">
+                <button class="period-btn active" onclick="setPeriod(3, this)">Last 3 months</button>
+                <button class="period-btn" onclick="setPeriod(6, this)">Last 6 months</button>
+                <button class="period-btn" onclick="setPeriod(12, this)">Last year</button>
+                <button class="period-btn" onclick="setPeriod(999, this)">All time</button>
+            </div>
         </div>
-        <div class="buttons">
-            <button class="period-btn active" onclick="setPeriod(3, this)">Last 3 months</button>
-            <button class="period-btn" onclick="setPeriod(6, this)">Last 6 months</button>
-            <button class="period-btn" onclick="setPeriod(12, this)">Last year</button>
-            <button class="period-btn" onclick="setPeriod(999, this)">All time</button>
+        <div class="avatar-frame">
+            <div class="avatar-placeholder" id="avatar-placeholder">No avatar</div>
+            <img id="avatar-img" style="display:none" src="" alt="Avatar">
         </div>
     </div>
-    <div class="avatar-frame">
-        <div class="avatar-placeholder" id="avatar-placeholder">No avatar</div>
-        <img id="avatar-img" style="display:none" src="" alt="Avatar">
+
+    <!-- PERSONALIZATION PANEL -->
+    <div id="themePanelContainer"></div>
+
+    <div class="stats-section" id="stats-section"></div>
+
+    <div class="pie-section" id="pie-section"></div>
+
+    <div class="chart-section" id="chart-section" style="display:none">
+        <h2>Rating History</h2>
+        <p class="loading" id="chart-loading">Loading games...</p>
+        <canvas id="ratingChart"></canvas>
     </div>
-</div>
 
-<div class="stats-section" id="stats-section"></div>
-
-<div class="pie-section" id="pie-section"></div>
-
-<div class="chart-section" id="chart-section" style="display:none">
-    <h2>Rating History</h2>
-    <p class="loading" id="chart-loading">Loading games...</p>
-    <canvas id="ratingChart"></canvas>
-</div>
-
-<div class="openings-section" id="openings-section" style="display:none">
-    <h2>Opening Explorer</h2>
-    <div class="sort-buttons">
-        <button class="sort-btn active" onclick="sortOpenings('most_played', this)">Most Played</button>
-        <button class="sort-btn" onclick="sortOpenings('winrate', this)">Best Winrate</button>
-    </div>
-    <p class="loading" id="openings-loading">Loading openings...</p>
-    <table id="openings-table">
-        <thead>
-            <tr>
-                <th>Opening</th>
-                <th>Games</th>
-                <th>Wins</th>
-                <th>Draws</th>
-                <th>Losses</th>
-                <th>Winrate</th>
-            </tr>
-        </thead>
-        <tbody id="openings-body"></tbody>
-    </table>
-</div>
-
-<script>
-    let currentPeriod = 3;
-    let ratingChart = null;
-    let pieCharts = {};
-    let openingsData = [];
-    let currentSort = "most_played";
-
-    function setPeriod(months, btn) {
-        currentPeriod = months;
-        document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-    }
-
-    async function loadAll() {
-        const username = document.getElementById("username").value;
-        if (!username) return;
-        await loadStats(username);
-        await loadHistory(username);
-        await loadOpenings(username);
-    }
-
-    async function loadStats(username) {
-        const response = await fetch(`/stats/${username}`);
-        const data = await response.json();
-
-        // Avatar
-        if (data.avatar) {
-            document.getElementById("avatar-placeholder").style.display = "none";
-            const img = document.getElementById("avatar-img");
-            img.src = data.avatar;
-            img.style.display = "block";
-        }
-
-        const section = document.getElementById("stats-section");
-        const pieSection = document.getElementById("pie-section");
-        section.innerHTML = "";
-        pieSection.innerHTML = "";
-
-        // Destroy old pie charts
-        Object.values(pieCharts).forEach(c => c.destroy());
-        pieCharts = {};
-
-        for (const [name, stats] of Object.entries(data.stats)) {
-            const total = stats.wins + stats.draws + stats.losses;
-
-            // Stat card
-            section.innerHTML += `
-                <div class="stat-card">
-                    <h2>${name}</h2>
-                    <div class="rating">${stats.current}</div>
-                    <p>Best: ${stats.best}</p>
-                    <p>Wins: ${stats.wins}</p>
-                    <p>Draws: ${stats.draws}</p>
-                    <p>Losses: ${stats.losses}</p>
-                    <p>Total: ${total}</p>
-                </div>
-            `;
-
-            // Pie card
-            const pieId = `pie-${name}`;
-            pieSection.innerHTML += `
-                <div class="pie-card">
-                    <h3>${name}</h3>
-                    <canvas id="${pieId}"></canvas>
-                </div>
-            `;
-
-            setTimeout(() => {
-                const ctx = document.getElementById(pieId).getContext("2d");
-                pieCharts[name] = new Chart(ctx, {
-                    type: "pie",
-                    data: {
-                        labels: ["Wins", "Losses", "Draws"],
-                        datasets: [{
-                            data: [stats.wins, stats.losses, stats.draws],
-                            backgroundColor: ["green", "red", "gray"]
-                        }]
-                    },
-                    options: {
-                        plugins: {
-                            legend: { labels: { color: "white" } }
-                        }
-                    }
-                });
-            }, 100);
-        }
-    }
-
-    async function loadHistory(username) {
-        const chartSection = document.getElementById("chart-section");
-        const loading = document.getElementById("chart-loading");
-        chartSection.style.display = "block";
-        loading.style.display = "block";
-
-        const response = await fetch(`/history/${username}/${currentPeriod}`);
-        const data = await response.json();
-
-        loading.style.display = "none";
-
-        if (ratingChart) ratingChart.destroy();
-
-        const ctx = document.getElementById("ratingChart").getContext("2d");
-        ratingChart = new Chart(ctx, {
-            type: "line",
-            data: {
-                labels: data.blitz.map((_, i) => i + 1),
-                datasets: [
-                    { label: "Rapid", data: data.rapid, borderColor: "green", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
-                    { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
-                    { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { labels: { color: "white" } } },
-                scales: {
-                    x: { ticks: { color: "white" }, grid: { color: "#444" } },
-                    y: { ticks: { color: "white" }, grid: { color: "#444" } }
-                }
-            }
-        });
-    }
-
-    async function loadOpenings(username) {
-        const section = document.getElementById("openings-section");
-        const loading = document.getElementById("openings-loading");
-        section.style.display = "block";
-        loading.style.display = "block";
-
-        const response = await fetch(`/openings/${username}/${currentPeriod}`);
-        openingsData = await response.json();
-
-        loading.style.display = "none";
-        sortOpenings(currentSort);
-    }
-
-    function sortOpenings(sortBy, btn) {
-        currentSort = sortBy;
-        document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-        if (btn) btn.classList.add("active");
-
-        let sorted = [...openingsData];
-        if (sortBy === "most_played") {
-            sorted.sort((a, b) => b.total - a.total);
-        } else {
-            sorted = sorted.filter(o => o.total >= 3);
-            sorted.sort((a, b) => b.winrate - a.winrate);
-        }
-
-        const tbody = document.getElementById("openings-body");
-        tbody.innerHTML = "";
-        sorted.slice(0, 10).forEach(o => {
-            tbody.innerHTML += `
+    <div class="openings-section" id="openings-section" style="display:none">
+        <h2>Opening Explorer</h2>
+        <div class="sort-buttons">
+            <button class="sort-btn active" onclick="sortOpenings('most_played', this)">Most Played</button>
+            <button class="sort-btn" onclick="sortOpenings('winrate', this)">Best Winrate</button>
+        </div>
+        <p class="loading" id="openings-loading">Loading openings...</p>
+        <table id="openings-table">
+            <thead>
                 <tr>
-                    <td>${o.name}</td>
-                    <td>${o.total}</td>
-                    <td style="color: green">${o.wins}</td>
-                    <td style="color: gray">${o.draws}</td>
-                    <td style="color: red">${o.losses}</td>
-                    <td>${o.winrate}%</td>
+                    <th>Opening</th>
+                    <th>Games</th>
+                    <th>Wins</th>
+                    <th>Draws</th>
+                    <th>Losses</th>
+                    <th>Winrate</th>
                 </tr>
-            `;
-        });
-    }
-</script>
+            </thead>
+            <tbody id="openings-body"></tbody>
+        </table>
+    </div>
 
+    <script>
+        let currentPeriod = 3;
+        let ratingChart = null;
+        let pieCharts = {};
+        let openingsData = [];
+        let currentSort = "most_played";
+
+        // Initialize theme panel on page load
+        window.onload = function() {
+            initThemePanel('themePanelContainer');
+        };
+
+        function setPeriod(months, btn) {
+            currentPeriod = months;
+            document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+        }
+
+        async function loadAll() {
+            const username = document.getElementById("username").value;
+            if (!username) return;
+            await loadStats(username);
+            await loadHistory(username);
+            await loadOpenings(username);
+        }
+
+        async function loadStats(username) {
+            const response = await fetch(`/stats/${username}`);
+            const data = await response.json();
+
+            if (data.avatar) {
+                document.getElementById("avatar-placeholder").style.display = "none";
+                const img = document.getElementById("avatar-img");
+                img.src = data.avatar;
+                img.style.display = "block";
+            }
+
+            const section = document.getElementById("stats-section");
+            const pieSection = document.getElementById("pie-section");
+            section.innerHTML = "";
+            pieSection.innerHTML = "";
+
+            Object.values(pieCharts).forEach(c => c.destroy());
+            pieCharts = {};
+
+            const theme = getTheme();
+
+            for (const [name, stats] of Object.entries(data.stats)) {
+                const total = stats.wins + stats.draws + stats.losses;
+
+                section.innerHTML += `
+                    <div class="stat-card">
+                        <h2 class="accent-color">${name}</h2>
+                        <div class="rating">${stats.current}</div>
+                        <p>Best: ${stats.best}</p>
+                        <p>Wins: ${stats.wins}</p>
+                        <p>Draws: ${stats.draws}</p>
+                        <p>Losses: ${stats.losses}</p>
+                        <p>Total: ${total}</p>
+                    </div>
+                `;
+
+                const pieId = `pie-${name}`;
+                pieSection.innerHTML += `
+                    <div class="pie-card">
+                        <h3 class="accent-color">${name}</h3>
+                        <canvas id="${pieId}"></canvas>
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    const ctx = document.getElementById(pieId).getContext("2d");
+                    pieCharts[name] = new Chart(ctx, {
+                        type: "pie",
+                        data: {
+                            labels: ["Wins", "Losses", "Draws"],
+                            datasets: [{
+                                data: [stats.wins, stats.losses, stats.draws],
+                                backgroundColor: [theme.accentColor, "#c0392b", "#888888"]
+                            }]
+                        },
+                        options: {
+                            plugins: {
+                                legend: { labels: { color: theme.textColor } }
+                            }
+                        }
+                    });
+                }, 100);
+            }
+
+            // Re-apply theme after dynamic content loads
+            setTimeout(applyThemeToPage, 200);
+        }
+
+        async function loadHistory(username) {
+            const chartSection = document.getElementById("chart-section");
+            const loading = document.getElementById("chart-loading");
+            chartSection.style.display = "block";
+            loading.style.display = "block";
+
+            const response = await fetch(`/history/${username}/${currentPeriod}`);
+            const data = await response.json();
+
+            loading.style.display = "none";
+
+            if (ratingChart) ratingChart.destroy();
+
+            const theme = getTheme();
+
+            const ctx = document.getElementById("ratingChart").getContext("2d");
+            ratingChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: data.blitz.map((_, i) => i + 1),
+                    datasets: [
+                        { label: "Rapid", data: data.rapid, borderColor: theme.accentColor, backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+                        { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+                        { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: theme.textColor } } },
+                    scales: {
+                        x: { ticks: { color: theme.textColor }, grid: { color: "#444" } },
+                        y: { ticks: { color: theme.textColor }, grid: { color: "#444" } }
+                    }
+                }
+            });
+        }
+
+        async function loadOpenings(username) {
+            const section = document.getElementById("openings-section");
+            const loading = document.getElementById("openings-loading");
+            section.style.display = "block";
+            loading.style.display = "block";
+
+            const response = await fetch(`/openings/${username}/${currentPeriod}`);
+            openingsData = await response.json();
+
+            loading.style.display = "none";
+            sortOpenings(currentSort);
+        }
+
+        function sortOpenings(sortBy, btn) {
+            currentSort = sortBy;
+            document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+            if (btn) btn.classList.add("active");
+
+            let sorted = [...openingsData];
+            if (sortBy === "most_played") {
+                sorted.sort((a, b) => b.total - a.total);
+            } else {
+                sorted = sorted.filter(o => o.total >= 3);
+                sorted.sort((a, b) => b.winrate - a.winrate);
+            }
+
+            const tbody = document.getElementById("openings-body");
+            tbody.innerHTML = "";
+            sorted.slice(0, 10).forEach(o => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${o.name}</td>
+                        <td>${o.total}</td>
+                        <td style="color: green">${o.wins}</td>
+                        <td style="color: gray">${o.draws}</td>
+                        <td style="color: red">${o.losses}</td>
+                        <td>${o.winrate}%</td>
+                    </tr>
+                `;
+            });
+        }
+    </script>
 </body>
 </html>
