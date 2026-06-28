@@ -322,17 +322,18 @@ def handle_join_room(data):
     room['players'][sid] = your_color
     join_room(room_code)
 
+    # Tell the joiner they got in
     emit('joined_room', {
         'room_code': room_code,
         'your_color': your_color,
         'fen': room['board'].fen()
     })
 
-    # Start the game!
+    # Start the game and tell EVERYONE in the room
     room['status'] = 'playing'
     room['last_move_time'] = time.time()
     
-    # FIX: Emit game_started to the ENTIRE room (both players)
+    # THIS IS THE FIX: socketio.emit broadcasts to all in room
     socketio.emit('game_started', {
         'room_code': room_code,
         'fen': room['board'].fen(),
