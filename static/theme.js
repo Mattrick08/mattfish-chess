@@ -1,5 +1,5 @@
 // ========== MATTFISH SHARED THEME SYSTEM ==========
-// This file handles background color, accent color, and background image
+// Uses CSS custom properties for clean, non-destructive theming
 // Syncs between index.html and chess.html via localStorage
 
 const THEME_KEYS = {
@@ -67,32 +67,52 @@ function darkenColor(hex, percent) {
 function applyThemeToPage() {
     const theme = getTheme();
 
-    // Apply background color to body
+    // Set CSS custom properties on the root element
+    // This allows CSS to use var(--mattfish-bg) etc.
+    const root = document.documentElement;
+    root.style.setProperty('--mattfish-bg', theme.bgColor);
+    root.style.setProperty('--mattfish-accent', theme.accentColor);
+    root.style.setProperty('--mattfish-text', theme.textColor);
+    root.style.setProperty('--mattfish-card-bg', lightenColor(theme.bgColor, 8));
+    root.style.setProperty('--mattfish-input-bg', lightenColor(theme.bgColor, 5));
+
+    // Apply background color to body ONLY
     document.body.style.backgroundColor = theme.bgColor;
 
-    // Apply text color
+    // Apply text color to body ONLY (inherited by children)
     document.body.style.color = theme.textColor;
 
-    // Apply accent color to all accent elements
+    // Apply accent color to specific elements with accent-color class
     document.querySelectorAll('.accent-color').forEach(el => {
         el.style.color = theme.accentColor;
     });
-    document.querySelectorAll('.accent-bg').forEach(el => {
+
+    // Apply accent background ONLY to new-game-btn and similar primary buttons
+    // NOT to period-btn, sort-btn, diff-btn, etc.
+    document.querySelectorAll('.new-game-btn').forEach(el => {
         el.style.backgroundColor = theme.accentColor;
-    });
-    document.querySelectorAll('.accent-border').forEach(el => {
-        el.style.borderColor = theme.accentColor;
-    });
-
-    // Apply accent to specific common elements
-    document.querySelectorAll('h1').forEach(el => {
-        if (!el.classList.contains('no-accent')) el.style.color = theme.accentColor;
+        el.onmouseenter = function() { 
+            this.style.backgroundColor = darkenColor(theme.accentColor, 20); 
+        };
+        el.onmouseleave = function() { 
+            this.style.backgroundColor = theme.accentColor; 
+        };
     });
 
-    // Update card backgrounds to be slightly lighter than body
-    const cardBg = lightenColor(theme.bgColor, 8);
+    // Apply accent to "Play vs MattFish" link on index page
+    document.querySelectorAll('a.accent-bg').forEach(el => {
+        el.style.backgroundColor = theme.accentColor;
+        el.onmouseenter = function() { 
+            this.style.backgroundColor = darkenColor(theme.accentColor, 20); 
+        };
+        el.onmouseleave = function() { 
+            this.style.backgroundColor = theme.accentColor; 
+        };
+    });
+
+    // Update card/panel backgrounds
     document.querySelectorAll('.stat-card, .chart-section, .pie-card, .openings-section, .personalize-panel, #status, .move-history').forEach(el => {
-        el.style.backgroundColor = cardBg;
+        el.style.backgroundColor = lightenColor(theme.bgColor, 8);
     });
 
     // Update input backgrounds
@@ -101,28 +121,44 @@ function applyThemeToPage() {
         el.style.color = theme.textColor;
     });
 
-    // Update new game button
-    const newGameBtn = document.querySelector('.new-game-btn');
-    if (newGameBtn) {
-        newGameBtn.style.backgroundColor = theme.accentColor;
-    }
-
     // Update eval center line
-    const evalLine = document.querySelector('.eval-center-line');
-    if (evalLine) evalLine.style.background = theme.accentColor;
+    document.querySelectorAll('.eval-center-line').forEach(el => {
+        el.style.background = theme.accentColor;
+    });
 
     // Update personalization panel title
-    const panelTitle = document.querySelector('.personalize-panel h3');
-    if (panelTitle) panelTitle.style.color = theme.accentColor;
+    document.querySelectorAll('.personalize-panel h3').forEach(el => {
+        el.style.color = theme.accentColor;
+    });
+
+    // Update stat card headings
+    document.querySelectorAll('.stat-card h2, .chart-section h2, .openings-section h2, .pie-card h3').forEach(el => {
+        el.style.color = theme.accentColor;
+    });
+
+    // Update table headers
+    document.querySelectorAll('th').forEach(el => {
+        el.style.color = theme.accentColor;
+    });
+
+    // Update active button borders
+    document.querySelectorAll('.diff-btn.active, .color-btn.active').forEach(el => {
+        el.style.borderColor = theme.accentColor;
+    });
 
     // Apply background image
     const overlay = document.getElementById('bgImageOverlay');
-    if (overlay && theme.bgImage) {
-        overlay.style.backgroundImage = `url(${theme.bgImage})`;
+    if (overlay) {
+        if (theme.bgImage) {
+            overlay.style.backgroundImage = 'url(' + theme.bgImage + ')';
+        } else {
+            overlay.style.backgroundImage = '';
+        }
     }
 }
 
-function initThemePanel(containerId, options = {}) {
+function initThemePanel(containerId, options) {
+    options = options || {};
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -132,16 +168,16 @@ function initThemePanel(containerId, options = {}) {
     const showImage = options.showImage !== false;
     const showText = options.showText !== false;
 
-    let html = '<div class="personalize-panel">';
-    html += '<h3 class="accent-color">🎨 Personalize</h3>';
+    var html = '<div class="personalize-panel">';
+    html += '<h3 class="accent-color">&#127912; Personalize</h3>';
 
     if (showBg) {
         html += '<div class="section-title">Background Color</div>';
         html += '<div class="color-grid" id="bgColorGrid"></div>';
         html += '<div class="custom-color-row">';
         html += '<label>Custom BG:</label>';
-        html += `<input type="color" id="customBgColorPicker" value="${theme.bgColor}" onchange="applyCustomBgColor(this.value)">`;
-        html += `<input type="text" id="customBgColorHex" value="${theme.bgColor}" maxlength="7" onchange="applyCustomBgColor(this.value)">`;
+        html += '<input type="color" id="customBgColorPicker" value="' + theme.bgColor + '" onchange="applyCustomBgColor(this.value)">';
+        html += '<input type="text" id="customBgColorHex" value="' + theme.bgColor + '" maxlength="7" onchange="applyCustomBgColor(this.value)">';
         html += '</div>';
     }
 
@@ -150,8 +186,8 @@ function initThemePanel(containerId, options = {}) {
         html += '<div class="color-grid" id="accentColorGrid"></div>';
         html += '<div class="custom-color-row">';
         html += '<label>Custom:</label>';
-        html += `<input type="color" id="customAccentColorPicker" value="${theme.accentColor}" onchange="applyCustomAccentColor(this.value)">`;
-        html += `<input type="text" id="customAccentColorHex" value="${theme.accentColor}" maxlength="7" onchange="applyCustomAccentColor(this.value)">`;
+        html += '<input type="color" id="customAccentColorPicker" value="' + theme.accentColor + '" onchange="applyCustomAccentColor(this.value)">';
+        html += '<input type="text" id="customAccentColorHex" value="' + theme.accentColor + '" maxlength="7" onchange="applyCustomAccentColor(this.value)">';
         html += '</div>';
     }
 
@@ -167,14 +203,14 @@ function initThemePanel(containerId, options = {}) {
         html += '</div>';
         html += '<div class="custom-color-row">';
         html += '<label>Custom Text:</label>';
-        html += `<input type="color" id="customTextColorPicker" value="${theme.textColor}" onchange="applyCustomTextColor(this.value)">`;
-        html += `<input type="text" id="customTextColorHex" value="${theme.textColor}" maxlength="7" onchange="applyCustomTextColor(this.value)">`;
+        html += '<input type="color" id="customTextColorPicker" value="' + theme.textColor + '" onchange="applyCustomTextColor(this.value)">';
+        html += '<input type="text" id="customTextColorHex" value="' + theme.textColor + '" maxlength="7" onchange="applyCustomTextColor(this.value)">';
         html += '</div>';
     }
 
     if (showImage) {
         html += '<div class="upload-area" id="uploadArea" onclick="document.getElementById('bgImageInput').click()">';
-        html += '<p>🖼️ Click or drop image</p>';
+        html += '<p>&#128444; Click or drop image</p>';
         html += '<button class="upload-btn" type="button">Choose Image</button>';
         html += '<img class="preview-img" id="previewImg" alt="Preview">';
         html += '<button class="remove-img-btn" id="removeImgBtn" onclick="event.stopPropagation(); removeBgImage()">Remove Image</button>';
@@ -189,26 +225,26 @@ function initThemePanel(containerId, options = {}) {
 
     // Populate color grids
     if (showBg) {
-        const bgGrid = document.getElementById('bgColorGrid');
-        PRESET_BG_COLORS.forEach(color => {
-            const swatch = document.createElement('div');
+        var bgGrid = document.getElementById('bgColorGrid');
+        PRESET_BG_COLORS.forEach(function(color) {
+            var swatch = document.createElement('div');
             swatch.className = 'color-swatch';
             swatch.style.backgroundColor = color;
             swatch.dataset.color = color;
-            swatch.onclick = () => applyBgColor(color);
+            swatch.onclick = function() { applyBgColor(color); };
             if (color === theme.bgColor) swatch.classList.add('active');
             bgGrid.appendChild(swatch);
         });
     }
 
     if (showAccent) {
-        const accentGrid = document.getElementById('accentColorGrid');
-        PRESET_ACCENT_COLORS.forEach(color => {
-            const swatch = document.createElement('div');
+        var accentGrid = document.getElementById('accentColorGrid');
+        PRESET_ACCENT_COLORS.forEach(function(color) {
+            var swatch = document.createElement('div');
             swatch.className = 'color-swatch';
             swatch.style.backgroundColor = color;
             swatch.dataset.color = color;
-            swatch.onclick = () => applyAccentColor(color);
+            swatch.onclick = function() { applyAccentColor(color); };
             if (color === theme.accentColor) swatch.classList.add('active');
             accentGrid.appendChild(swatch);
         });
@@ -216,36 +252,36 @@ function initThemePanel(containerId, options = {}) {
 
     // Load saved image preview
     if (showImage && theme.bgImage) {
-        const preview = document.getElementById('previewImg');
+        var preview = document.getElementById('previewImg');
         if (preview) {
             preview.src = theme.bgImage;
             preview.classList.add('visible');
         }
-        const removeBtn = document.getElementById('removeImgBtn');
+        var removeBtn = document.getElementById('removeImgBtn');
         if (removeBtn) removeBtn.classList.add('visible');
-        const uploadAreaP = document.querySelector('#uploadArea p');
+        var uploadAreaP = document.querySelector('#uploadArea p');
         if (uploadAreaP) uploadAreaP.textContent = 'Image set!';
     }
 
     // Setup drag and drop
     if (showImage) {
-        const uploadArea = document.getElementById('uploadArea');
+        var uploadArea = document.getElementById('uploadArea');
         if (uploadArea) {
-            uploadArea.addEventListener('dragover', (e) => {
+            uploadArea.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 uploadArea.classList.add('dragover');
             });
-            uploadArea.addEventListener('dragleave', () => {
+            uploadArea.addEventListener('dragleave', function() {
                 uploadArea.classList.remove('dragover');
             });
-            uploadArea.addEventListener('drop', (e) => {
+            uploadArea.addEventListener('drop', function(e) {
                 e.preventDefault();
                 uploadArea.classList.remove('dragover');
-                const file = e.dataTransfer.files[0];
+                var file = e.dataTransfer.files[0];
                 if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
+                    var reader = new FileReader();
                     reader.onload = function(evt) {
-                        const dataUrl = evt.target.result;
+                        var dataUrl = evt.target.result;
                         applyBgImage(dataUrl);
                         saveTheme(THEME_KEYS.bgImage, dataUrl);
                         applyThemeToPage();
@@ -261,18 +297,18 @@ function initThemePanel(containerId, options = {}) {
 
 function applyBgColor(color) {
     saveTheme(THEME_KEYS.bgColor, color);
-    const picker = document.getElementById('customBgColorPicker');
-    const hex = document.getElementById('customBgColorHex');
+    var picker = document.getElementById('customBgColorPicker');
+    var hex = document.getElementById('customBgColorHex');
     if (picker) picker.value = color;
     if (hex) hex.value = color;
-    document.querySelectorAll('#bgColorGrid .color-swatch').forEach(s => {
+    document.querySelectorAll('#bgColorGrid .color-swatch').forEach(function(s) {
         s.classList.toggle('active', s.dataset.color === color);
     });
     applyThemeToPage();
 }
 
 function applyCustomBgColor(value) {
-    let color = value;
+    var color = value;
     if (!color.startsWith('#')) color = '#' + color;
     if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
         applyBgColor(color);
@@ -281,18 +317,18 @@ function applyCustomBgColor(value) {
 
 function applyAccentColor(color) {
     saveTheme(THEME_KEYS.accentColor, color);
-    const picker = document.getElementById('customAccentColorPicker');
-    const hex = document.getElementById('customAccentColorHex');
+    var picker = document.getElementById('customAccentColorPicker');
+    var hex = document.getElementById('customAccentColorHex');
     if (picker) picker.value = color;
     if (hex) hex.value = color;
-    document.querySelectorAll('#accentColorGrid .color-swatch').forEach(s => {
+    document.querySelectorAll('#accentColorGrid .color-swatch').forEach(function(s) {
         s.classList.toggle('active', s.dataset.color === color);
     });
     applyThemeToPage();
 }
 
 function applyCustomAccentColor(value) {
-    let color = value;
+    var color = value;
     if (!color.startsWith('#')) color = '#' + color;
     if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
         applyAccentColor(color);
@@ -301,15 +337,15 @@ function applyCustomAccentColor(value) {
 
 function applyTextColor(color) {
     saveTheme(THEME_KEYS.textColor, color);
-    const picker = document.getElementById('customTextColorPicker');
-    const hex = document.getElementById('customTextColorHex');
+    var picker = document.getElementById('customTextColorPicker');
+    var hex = document.getElementById('customTextColorHex');
     if (picker) picker.value = color;
     if (hex) hex.value = color;
     applyThemeToPage();
 }
 
 function applyCustomTextColor(value) {
-    let color = value;
+    var color = value;
     if (!color.startsWith('#')) color = '#' + color;
     if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
         applyTextColor(color);
@@ -317,12 +353,12 @@ function applyCustomTextColor(value) {
 }
 
 function handleImageUpload(event) {
-    const file = event.target.files[0];
+    var file = event.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
+    var reader = new FileReader();
     reader.onload = function(e) {
-        const dataUrl = e.target.result;
+        var dataUrl = e.target.result;
         applyBgImage(dataUrl);
         saveTheme(THEME_KEYS.bgImage, dataUrl);
         applyThemeToPage();
@@ -331,40 +367,40 @@ function handleImageUpload(event) {
 }
 
 function applyBgImage(dataUrl) {
-    const overlay = document.getElementById('bgImageOverlay');
-    if (overlay) overlay.style.backgroundImage = `url(${dataUrl})`;
+    var overlay = document.getElementById('bgImageOverlay');
+    if (overlay) overlay.style.backgroundImage = 'url(' + dataUrl + ')';
 
-    const preview = document.getElementById('previewImg');
+    var preview = document.getElementById('previewImg');
     if (preview) {
         preview.src = dataUrl;
         preview.classList.add('visible');
     }
 
-    const removeBtn = document.getElementById('removeImgBtn');
+    var removeBtn = document.getElementById('removeImgBtn');
     if (removeBtn) removeBtn.classList.add('visible');
 
-    const uploadAreaP = document.querySelector('#uploadArea p');
+    var uploadAreaP = document.querySelector('#uploadArea p');
     if (uploadAreaP) uploadAreaP.textContent = 'Image set!';
 }
 
 function removeBgImage() {
-    const overlay = document.getElementById('bgImageOverlay');
+    var overlay = document.getElementById('bgImageOverlay');
     if (overlay) overlay.style.backgroundImage = '';
 
-    const preview = document.getElementById('previewImg');
+    var preview = document.getElementById('previewImg');
     if (preview) {
         preview.src = '';
         preview.classList.remove('visible');
     }
 
-    const removeBtn = document.getElementById('removeImgBtn');
+    var removeBtn = document.getElementById('removeImgBtn');
     if (removeBtn) removeBtn.classList.remove('visible');
 
-    const uploadAreaP = document.querySelector('#uploadArea p');
-    if (uploadAreaP) uploadAreaP.textContent = '🖼️ Click or drop image';
+    var uploadAreaP = document.querySelector('#uploadArea p');
+    if (uploadAreaP) uploadAreaP.textContent = '&#128444; Click or drop image';
 
     saveTheme(THEME_KEYS.bgImage, null);
-    const fileInput = document.getElementById('bgImageInput');
+    var fileInput = document.getElementById('bgImageInput');
     if (fileInput) fileInput.value = '';
 }
 
