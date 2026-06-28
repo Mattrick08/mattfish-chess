@@ -265,14 +265,12 @@
             background: #b58863;
             transition: height 0.5s ease;
         }
-        /* White at bottom (default) */
         .eval-bar-white {
             bottom: 0;
         }
         .eval-bar-black {
             top: 0;
         }
-        /* When playing black, flip it */
         .eval-bar-wrapper.flipped .eval-bar-white {
             bottom: auto;
             top: 0;
@@ -306,12 +304,160 @@
             color: #4CAF50;
             font-weight: bold;
         }
+
+        /* ========== PERSONALIZATION PANEL ========== */
+        .personalize-panel {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .personalize-panel h3 {
+            font-size: 14px;
+            color: #e74c3c;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .color-swatch {
+            width: 100%;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.2s;
+        }
+        .color-swatch:hover {
+            transform: scale(1.1);
+            border-color: white;
+        }
+        .color-swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 0 2px #e74c3c;
+        }
+        .custom-color-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .custom-color-row label {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .custom-color-row input[type="color"] {
+            width: 40px;
+            height: 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+        }
+        .custom-color-row input[type="text"] {
+            flex: 1;
+            padding: 6px 8px;
+            font-size: 12px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #1e1e1e;
+            color: white;
+        }
+        .upload-area {
+            border: 2px dashed #555;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-bottom: 10px;
+        }
+        .upload-area:hover {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.05);
+        }
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        .upload-area p {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            padding: 6px 14px;
+            font-size: 12px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .upload-btn:hover { background: #555; }
+        .preview-img {
+            max-width: 100%;
+            max-height: 100px;
+            border-radius: 6px;
+            margin-top: 8px;
+            display: none;
+        }
+        .preview-img.visible {
+            display: block;
+        }
+        .remove-img-btn {
+            padding: 4px 10px;
+            font-size: 11px;
+            background: #c0392b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 6px;
+            display: none;
+        }
+        .remove-img-btn.visible {
+            display: inline-block;
+        }
+        .remove-img-btn:hover { background: #a93226; }
+        .reset-btn {
+            width: 100%;
+            padding: 8px;
+            font-size: 12px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .reset-btn:hover { background: #666; }
+        .bg-image-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            opacity: 0.15;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
     </style>
 <base target="_blank">
 </head>
 <body>
+    <div class="bg-image-overlay" id="bgImageOverlay"></div>
+
     <div class="sidebar">
-        <h1>♔ MattFish</h1>
+        <h1 id="appTitle">♔ MattFish</h1>
         <div id="status">Click "New Game" to start</div>
 
         <div class="section-title">Difficulty</div>
@@ -332,13 +478,31 @@
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
+
+        <!-- PERSONALIZATION PANEL -->
+        <div class="personalize-panel">
+            <h3>🎨 Personalize</h3>
+            <div class="color-grid" id="colorGrid"></div>
+            <div class="custom-color-row">
+                <label>Custom:</label>
+                <input type="color" id="customColorPicker" value="#e74c3c" onchange="applyCustomColor(this.value)">
+                <input type="text" id="customColorHex" value="#e74c3c" maxlength="7" onchange="applyCustomColor(this.value)">
+            </div>
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('bgImageInput').click()">
+                <p>🖼️ Click or drop image</p>
+                <button class="upload-btn" type="button">Choose Image</button>
+                <img class="preview-img" id="previewImg" alt="Preview">
+                <button class="remove-img-btn" id="removeImgBtn" onclick="event.stopPropagation(); removeBgImage()">Remove Image</button>
+            </div>
+            <input type="file" id="bgImageInput" accept="image/*" onchange="handleImageUpload(event)">
+            <button class="reset-btn" onclick="resetPersonalization()">Reset to Default</button>
+        </div>
     </div>
 
     <div class="board-area">
         <div class="board-wrapper">
             <div class="coords-ranks" id="ranks"></div>
             <div id="board"></div>
-            <!-- Evaluation Bar -->
             <div class="eval-container" id="evalContainer">
                 <div class="eval-label" id="evalLabelTop">White</div>
                 <div class="eval-bar-wrapper" id="evalBarWrapper">
@@ -403,6 +567,171 @@
         let sessionId = null;
         let evalBarEnabled = false;
 
+        // ========== PERSONALIZATION ==========
+        const PRESET_COLORS = [
+            '#e74c3c', '#c0392b', '#e67e22', '#f39c12',
+            '#f1c40f', '#2ecc71', '#27ae60', '#1abc9c',
+            '#16a085', '#3498db', '#2980b9', '#9b59b6',
+            '#8e44ad', '#e91e63', '#ff5722', '#00bcd4'
+        ];
+        let currentAccentColor = '#e74c3c';
+
+        function initPersonalization() {
+            const grid = document.getElementById('colorGrid');
+            PRESET_COLORS.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+                swatch.onclick = () => applyColor(color);
+                grid.appendChild(swatch);
+            });
+
+            // Load saved preferences
+            const savedColor = localStorage.getItem('mattfish_accent_color');
+            const savedImage = localStorage.getItem('mattfish_bg_image');
+
+            if (savedColor) {
+                applyColor(savedColor, false);
+            }
+            if (savedImage) {
+                applyBgImage(savedImage);
+            }
+        }
+
+        function applyColor(color, save = true) {
+            currentAccentColor = color;
+            document.getElementById('customColorPicker').value = color;
+            document.getElementById('customColorHex').value = color;
+
+            // Update all swatch active states
+            document.querySelectorAll('.color-swatch').forEach(s => {
+                s.classList.toggle('active', s.dataset.color === color);
+            });
+
+            // Apply to title
+            document.getElementById('appTitle').style.color = color;
+
+            // Apply to new game button
+            const newGameBtn = document.querySelector('.new-game-btn');
+            newGameBtn.style.background = color;
+            newGameBtn.onmouseover = () => newGameBtn.style.background = darkenColor(color, 20);
+            newGameBtn.onmouseout = () => newGameBtn.style.background = color;
+
+            // Apply to personalization panel title
+            document.querySelector('.personalize-panel h3').style.color = color;
+
+            // Apply to active diff button border
+            document.querySelectorAll('.diff-btn.active').forEach(b => {
+                b.style.borderColor = color;
+            });
+
+            // Apply to active color button
+            document.querySelectorAll('.color-btn.active').forEach(b => {
+                b.style.borderColor = color;
+            });
+
+            // Apply to eval bar center line
+            document.querySelector('.eval-center-line').style.background = color;
+
+            // Apply to game over text when active
+            const gameOverText = document.getElementById('gameOverText');
+            if (gameOverText.style.color === 'rgb(231, 76, 60)' || gameOverText.style.color === '#e74c3c') {
+                gameOverText.style.color = color;
+            }
+
+            if (save) {
+                localStorage.setItem('mattfish_accent_color', color);
+            }
+        }
+
+        function applyCustomColor(value) {
+            let color = value;
+            if (!color.startsWith('#')) color = '#' + color;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                applyColor(color);
+            }
+        }
+
+        function darkenColor(hex, percent) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max((num >> 16) - amt, 0);
+            const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+            const B = Math.max((num & 0x0000FF) - amt, 0);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                applyBgImage(dataUrl);
+                localStorage.setItem('mattfish_bg_image', dataUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyBgImage(dataUrl) {
+            const overlay = document.getElementById('bgImageOverlay');
+            overlay.style.backgroundImage = `url(${dataUrl})`;
+
+            const preview = document.getElementById('previewImg');
+            preview.src = dataUrl;
+            preview.classList.add('visible');
+
+            document.getElementById('removeImgBtn').classList.add('visible');
+            document.querySelector('.upload-area p').textContent = 'Image set!';
+        }
+
+        function removeBgImage() {
+            const overlay = document.getElementById('bgImageOverlay');
+            overlay.style.backgroundImage = '';
+
+            const preview = document.getElementById('previewImg');
+            preview.src = '';
+            preview.classList.remove('visible');
+
+            document.getElementById('removeImgBtn').classList.remove('visible');
+            document.querySelector('.upload-area p').textContent = '🖼️ Click or drop image';
+
+            localStorage.removeItem('mattfish_bg_image');
+            document.getElementById('bgImageInput').value = '';
+        }
+
+        function resetPersonalization() {
+            applyColor('#e74c3c');
+            removeBgImage();
+            localStorage.removeItem('mattfish_accent_color');
+        }
+
+        // Drag and drop for image
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const dataUrl = evt.target.result;
+                    applyBgImage(dataUrl);
+                    localStorage.setItem('mattfish_bg_image', dataUrl);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
         // ========== EVALUATION BAR ==========
         function toggleEvalBar() {
             evalBarEnabled = !evalBarEnabled;
@@ -460,7 +789,6 @@
                 let whitePercent = 50;
 
                 if (data.mate !== 0) {
-                    // Mate situation
                     if (data.mate > 0) {
                         displayText = '+' + data.mate + 'M';
                         whitePercent = 100;
@@ -469,9 +797,7 @@
                         whitePercent = 0;
                     }
                 } else {
-                    // Centipawn evaluation
                     const evalCp = data.eval;
-                    // Convert to pawns
                     const evalPawns = evalCp / 100;
 
                     if (evalPawns > 0) {
@@ -482,22 +808,16 @@
                         displayText = '0.0';
                     }
 
-                    // Map evaluation to percentage (clamped between 0 and 100)
                     const clamped = Math.max(-1000, Math.min(1000, evalCp));
                     whitePercent = 50 + (clamped / 20);
                     whitePercent = Math.max(5, Math.min(95, whitePercent));
                 }
 
-                // If playing black, we flip the visual so black is at bottom
-                // But the bar heights are always whitePercent for white
-                // When flipped via CSS, white will be at top and black at bottom
                 whiteBar.style.height = whitePercent + '%';
                 blackBar.style.height = (100 - whitePercent) + '%';
 
-                // Show evaluation from the player's perspective
                 let playerEval = displayText;
                 if (playerColor === 'black') {
-                    // Flip the sign for black's perspective
                     if (displayText.startsWith('+')) {
                         playerEval = '-' + displayText.substring(1);
                     } else if (displayText.startsWith('-')) {
@@ -507,21 +827,19 @@
 
                 evalNumber.textContent = playerEval;
 
-                // Color based on who's better from player's perspective
                 if (playerColor === 'white') {
                     if (displayText.startsWith('+')) {
-                        evalNumber.style.color = '#4CAF50'; // Green = good for player
+                        evalNumber.style.color = '#4CAF50';
                     } else if (displayText.startsWith('-')) {
-                        evalNumber.style.color = '#e74c3c'; // Red = bad for player
+                        evalNumber.style.color = currentAccentColor;
                     } else {
                         evalNumber.style.color = '#888';
                     }
                 } else {
-                    // For black, flipped
                     if (displayText.startsWith('-')) {
-                        evalNumber.style.color = '#4CAF50'; // Green = good for black
+                        evalNumber.style.color = '#4CAF50';
                     } else if (displayText.startsWith('+')) {
-                        evalNumber.style.color = '#e74c3c'; // Red = bad for black
+                        evalNumber.style.color = currentAccentColor;
                     } else {
                         evalNumber.style.color = '#888';
                     }
@@ -592,6 +910,7 @@
         }
 
         window.onload = function() {
+            initPersonalization();
             newGame();
         };
 
@@ -599,6 +918,11 @@
             difficulty = d;
             document.querySelectorAll('.diff-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent === d);
+                if (b.classList.contains('active')) {
+                    b.style.borderColor = currentAccentColor;
+                } else {
+                    b.style.borderColor = '#444';
+                }
             });
         }
 
@@ -606,6 +930,11 @@
             playerColor = c;
             document.querySelectorAll('.color-btn').forEach(b => {
                 b.classList.toggle('active', b.textContent.toLowerCase() === c);
+                if (b.classList.contains('active')) {
+                    b.style.borderColor = currentAccentColor;
+                } else {
+                    b.style.borderColor = '#444';
+                }
             });
             updateEvalBarOrientation();
             newGame();
@@ -1018,7 +1347,7 @@
             const playerLost = (playerColor === 'white' && result === '0-1') || (playerColor === 'black' && result === '1-0');
 
             if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
-            else if (playerLost) { msg = 'MattFish Wins!'; color = '#e74c3c'; }
+            else if (playerLost) { msg = 'MattFish Wins!'; color = currentAccentColor; }
             else { msg = 'Draw!'; color = '#f39c12'; }
 
             text.textContent = msg;
