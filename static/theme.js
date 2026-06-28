@@ -1,18 +1,16 @@
-// ========== MATTFISH SHARED THEME SYSTEM ==========
-// Uses CSS custom properties for clean, non-destructive theming
-// Syncs between index.html and chess.html via localStorage
+// ========== MATTFISH THEME SYSTEM ==========
+// Minimal, safe theme that only changes background and accent colors
+// Does NOT override text colors or button styles to avoid breaking visibility
 
 const THEME_KEYS = {
     bgColor: 'mattfish_bg_color',
     accentColor: 'mattfish_accent_color',
-    bgImage: 'mattfish_bg_image',
-    textColor: 'mattfish_text_color'
+    bgImage: 'mattfish_bg_image'
 };
 
 const DEFAULTS = {
     bgColor: '#1e1e1e',
-    accentColor: '#e74c3c',
-    textColor: '#ffffff'
+    accentColor: '#e74c3c'
 };
 
 const PRESET_BG_COLORS = [
@@ -30,12 +28,10 @@ const PRESET_ACCENT_COLORS = [
 ];
 
 function getTheme() {
-    return {
-        bgColor: localStorage.getItem(THEME_KEYS.bgColor) || DEFAULTS.bgColor,
-        accentColor: localStorage.getItem(THEME_KEYS.accentColor) || DEFAULTS.accentColor,
-        bgImage: localStorage.getItem(THEME_KEYS.bgImage) || null,
-        textColor: localStorage.getItem(THEME_KEYS.textColor) || DEFAULTS.textColor
-    };
+    var bg = localStorage.getItem(THEME_KEYS.bgColor) || DEFAULTS.bgColor;
+    var accent = localStorage.getItem(THEME_KEYS.accentColor) || DEFAULTS.accentColor;
+    var img = localStorage.getItem(THEME_KEYS.bgImage) || null;
+    return { bgColor: bg, accentColor: accent, bgImage: img };
 }
 
 function saveTheme(key, value) {
@@ -47,107 +43,81 @@ function saveTheme(key, value) {
 }
 
 function lightenColor(hex, percent) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min((num >> 16) + amt, 255);
-    const G = Math.min((num >> 8 & 0x00FF) + amt, 255);
-    const B = Math.min((num & 0x0000FF) + amt, 255);
+    var num = parseInt(hex.replace('#', ''), 16);
+    var amt = Math.round(2.55 * percent);
+    var R = Math.min((num >> 16) + amt, 255);
+    var G = Math.min((num >> 8 & 0x00FF) + amt, 255);
+    var B = Math.min((num & 0x0000FF) + amt, 255);
     return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
 function darkenColor(hex, percent) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.max((num >> 16) - amt, 0);
-    const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
-    const B = Math.max((num & 0x0000FF) - amt, 0);
+    var num = parseInt(hex.replace('#', ''), 16);
+    var amt = Math.round(2.55 * percent);
+    var R = Math.max((num >> 16) - amt, 0);
+    var G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+    var B = Math.max((num & 0x0000FF) - amt, 0);
     return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
 function applyThemeToPage() {
-    const theme = getTheme();
+    var theme = getTheme();
 
-    // Set CSS custom properties on the root element
-    // This allows CSS to use var(--mattfish-bg) etc.
-    const root = document.documentElement;
-    root.style.setProperty('--mattfish-bg', theme.bgColor);
-    root.style.setProperty('--mattfish-accent', theme.accentColor);
-    root.style.setProperty('--mattfish-text', theme.textColor);
-    root.style.setProperty('--mattfish-card-bg', lightenColor(theme.bgColor, 8));
-    root.style.setProperty('--mattfish-input-bg', lightenColor(theme.bgColor, 5));
-
-    // Apply background color to body ONLY
+    // Only change body background - NEVER touch body color
     document.body.style.backgroundColor = theme.bgColor;
 
-    // Apply text color to body ONLY (inherited by children)
-    document.body.style.color = theme.textColor;
+    // Only apply accent to specific elements that are safe to change
+    // h1 title
+    var h1 = document.querySelector('h1');
+    if (h1) h1.style.color = theme.accentColor;
 
-    // Apply accent color to specific elements with accent-color class
-    document.querySelectorAll('.accent-color').forEach(el => {
+    // New game button
+    var ngb = document.querySelector('.new-game-btn');
+    if (ngb) {
+        ngb.style.backgroundColor = theme.accentColor;
+        ngb.onmouseenter = function() { this.style.backgroundColor = darkenColor(theme.accentColor, 20); };
+        ngb.onmouseleave = function() { this.style.backgroundColor = theme.accentColor; };
+    }
+
+    // Play link on index page
+    var playLink = document.querySelector('a.accent-bg');
+    if (playLink) {
+        playLink.style.backgroundColor = theme.accentColor;
+        playLink.onmouseenter = function() { this.style.backgroundColor = darkenColor(theme.accentColor, 20); };
+        playLink.onmouseleave = function() { this.style.backgroundColor = theme.accentColor; };
+    }
+
+    // Eval center line
+    var evalLine = document.querySelector('.eval-center-line');
+    if (evalLine) evalLine.style.background = theme.accentColor;
+
+    // Personalize panel title
+    var panelTitle = document.querySelector('.personalize-panel h3');
+    if (panelTitle) panelTitle.style.color = theme.accentColor;
+
+    // Stat card headings (index page)
+    document.querySelectorAll('.stat-card h2, .chart-section h2, .openings-section h2, .pie-card h3').forEach(function(el) {
         el.style.color = theme.accentColor;
     });
 
-    // Apply accent background ONLY to new-game-btn and similar primary buttons
-    // NOT to period-btn, sort-btn, diff-btn, etc.
-    document.querySelectorAll('.new-game-btn').forEach(el => {
-        el.style.backgroundColor = theme.accentColor;
-        el.onmouseenter = function() { 
-            this.style.backgroundColor = darkenColor(theme.accentColor, 20); 
-        };
-        el.onmouseleave = function() { 
-            this.style.backgroundColor = theme.accentColor; 
-        };
-    });
-
-    // Apply accent to "Play vs MattFish" link on index page
-    document.querySelectorAll('a.accent-bg').forEach(el => {
-        el.style.backgroundColor = theme.accentColor;
-        el.onmouseenter = function() { 
-            this.style.backgroundColor = darkenColor(theme.accentColor, 20); 
-        };
-        el.onmouseleave = function() { 
-            this.style.backgroundColor = theme.accentColor; 
-        };
-    });
-
-    // Update card/panel backgrounds
-    document.querySelectorAll('.stat-card, .chart-section, .pie-card, .openings-section, .personalize-panel, #status, .move-history').forEach(el => {
-        el.style.backgroundColor = lightenColor(theme.bgColor, 8);
-    });
-
-    // Update input backgrounds
-    document.querySelectorAll('input[type="text"]').forEach(el => {
-        el.style.backgroundColor = lightenColor(theme.bgColor, 5);
-        el.style.color = theme.textColor;
-    });
-
-    // Update eval center line
-    document.querySelectorAll('.eval-center-line').forEach(el => {
-        el.style.background = theme.accentColor;
-    });
-
-    // Update personalization panel title
-    document.querySelectorAll('.personalize-panel h3').forEach(el => {
+    // Table headers (index page)
+    document.querySelectorAll('th').forEach(function(el) {
         el.style.color = theme.accentColor;
     });
 
-    // Update stat card headings
-    document.querySelectorAll('.stat-card h2, .chart-section h2, .openings-section h2, .pie-card h3').forEach(el => {
-        el.style.color = theme.accentColor;
-    });
-
-    // Update table headers
-    document.querySelectorAll('th').forEach(el => {
-        el.style.color = theme.accentColor;
-    });
-
-    // Update active button borders
-    document.querySelectorAll('.diff-btn.active, .color-btn.active').forEach(el => {
+    // Active button borders
+    document.querySelectorAll('.diff-btn.active, .color-btn.active').forEach(function(el) {
         el.style.borderColor = theme.accentColor;
     });
 
-    // Apply background image
-    const overlay = document.getElementById('bgImageOverlay');
+    // Card backgrounds - make slightly lighter than body
+    var cardBg = lightenColor(theme.bgColor, 8);
+    document.querySelectorAll('.stat-card, .chart-section, .pie-card, .openings-section, .personalize-panel, #status, .move-history').forEach(function(el) {
+        el.style.backgroundColor = cardBg;
+    });
+
+    // Background image
+    var overlay = document.getElementById('bgImageOverlay');
     if (overlay) {
         if (theme.bgImage) {
             overlay.style.backgroundImage = 'url(' + theme.bgImage + ')';
@@ -159,17 +129,16 @@ function applyThemeToPage() {
 
 function initThemePanel(containerId, options) {
     options = options || {};
-    const container = document.getElementById(containerId);
+    var container = document.getElementById(containerId);
     if (!container) return;
 
-    const theme = getTheme();
-    const showBg = options.showBg !== false;
-    const showAccent = options.showAccent !== false;
-    const showImage = options.showImage !== false;
-    const showText = options.showText !== false;
+    var theme = getTheme();
+    var showBg = options.showBg !== false;
+    var showAccent = options.showAccent !== false;
+    var showImage = options.showImage !== false;
 
     var html = '<div class="personalize-panel">';
-    html += '<h3 class="accent-color">&#127912; Personalize</h3>';
+    html += '<h3 style="color:' + theme.accentColor + '">&#127912; Personalize</h3>';
 
     if (showBg) {
         html += '<div class="section-title">Background Color</div>';
@@ -191,23 +160,6 @@ function initThemePanel(containerId, options) {
         html += '</div>';
     }
 
-    if (showText) {
-        html += '<div class="section-title">Text Color</div>';
-        html += '<div class="text-color-options">';
-        html += '<button class="text-color-btn" onclick="applyTextColor('#ffffff')" style="background:#fff;color:#000">White</button>';
-        html += '<button class="text-color-btn" onclick="applyTextColor('#cccccc')" style="background:#ccc;color:#000">Light Gray</button>';
-        html += '<button class="text-color-btn" onclick="applyTextColor('#888888')" style="background:#888;color:#fff">Gray</button>';
-        html += '<button class="text-color-btn" onclick="applyTextColor('#ffeb3b')" style="background:#ffeb3b;color:#000">Yellow</button>';
-        html += '<button class="text-color-btn" onclick="applyTextColor('#00bcd4')" style="background:#00bcd4;color:#fff">Cyan</button>';
-        html += '<button class="text-color-btn" onclick="applyTextColor('#e91e63')" style="background:#e91e63;color:#fff">Pink</button>';
-        html += '</div>';
-        html += '<div class="custom-color-row">';
-        html += '<label>Custom Text:</label>';
-        html += '<input type="color" id="customTextColorPicker" value="' + theme.textColor + '" onchange="applyCustomTextColor(this.value)">';
-        html += '<input type="text" id="customTextColorHex" value="' + theme.textColor + '" maxlength="7" onchange="applyCustomTextColor(this.value)">';
-        html += '</div>';
-    }
-
     if (showImage) {
         html += '<div class="upload-area" id="uploadArea" onclick="document.getElementById('bgImageInput').click()">';
         html += '<p>&#128444; Click or drop image</p>';
@@ -223,7 +175,6 @@ function initThemePanel(containerId, options) {
 
     container.innerHTML = html;
 
-    // Populate color grids
     if (showBg) {
         var bgGrid = document.getElementById('bgColorGrid');
         PRESET_BG_COLORS.forEach(function(color) {
@@ -250,7 +201,6 @@ function initThemePanel(containerId, options) {
         });
     }
 
-    // Load saved image preview
     if (showImage && theme.bgImage) {
         var preview = document.getElementById('previewImg');
         if (preview) {
@@ -263,7 +213,6 @@ function initThemePanel(containerId, options) {
         if (uploadAreaP) uploadAreaP.textContent = 'Image set!';
     }
 
-    // Setup drag and drop
     if (showImage) {
         var uploadArea = document.getElementById('uploadArea');
         if (uploadArea) {
@@ -335,27 +284,9 @@ function applyCustomAccentColor(value) {
     }
 }
 
-function applyTextColor(color) {
-    saveTheme(THEME_KEYS.textColor, color);
-    var picker = document.getElementById('customTextColorPicker');
-    var hex = document.getElementById('customTextColorHex');
-    if (picker) picker.value = color;
-    if (hex) hex.value = color;
-    applyThemeToPage();
-}
-
-function applyCustomTextColor(value) {
-    var color = value;
-    if (!color.startsWith('#')) color = '#' + color;
-    if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-        applyTextColor(color);
-    }
-}
-
 function handleImageUpload(event) {
     var file = event.target.files[0];
     if (!file) return;
-
     var reader = new FileReader();
     reader.onload = function(e) {
         var dataUrl = e.target.result;
@@ -369,16 +300,13 @@ function handleImageUpload(event) {
 function applyBgImage(dataUrl) {
     var overlay = document.getElementById('bgImageOverlay');
     if (overlay) overlay.style.backgroundImage = 'url(' + dataUrl + ')';
-
     var preview = document.getElementById('previewImg');
     if (preview) {
         preview.src = dataUrl;
         preview.classList.add('visible');
     }
-
     var removeBtn = document.getElementById('removeImgBtn');
     if (removeBtn) removeBtn.classList.add('visible');
-
     var uploadAreaP = document.querySelector('#uploadArea p');
     if (uploadAreaP) uploadAreaP.textContent = 'Image set!';
 }
@@ -386,19 +314,15 @@ function applyBgImage(dataUrl) {
 function removeBgImage() {
     var overlay = document.getElementById('bgImageOverlay');
     if (overlay) overlay.style.backgroundImage = '';
-
     var preview = document.getElementById('previewImg');
     if (preview) {
         preview.src = '';
         preview.classList.remove('visible');
     }
-
     var removeBtn = document.getElementById('removeImgBtn');
     if (removeBtn) removeBtn.classList.remove('visible');
-
     var uploadAreaP = document.querySelector('#uploadArea p');
     if (uploadAreaP) uploadAreaP.textContent = '&#128444; Click or drop image';
-
     saveTheme(THEME_KEYS.bgImage, null);
     var fileInput = document.getElementById('bgImageInput');
     if (fileInput) fileInput.value = '';
@@ -407,7 +331,6 @@ function removeBgImage() {
 function resetTheme() {
     saveTheme(THEME_KEYS.bgColor, null);
     saveTheme(THEME_KEYS.accentColor, null);
-    saveTheme(THEME_KEYS.textColor, null);
     saveTheme(THEME_KEYS.bgImage, null);
     location.reload();
 }
