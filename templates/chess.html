@@ -30,7 +30,7 @@
             align-items: center;
             font-size: 15px;
         }
-        .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn {
+        .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn, .time-btn {
             padding: 10px;
             border: 2px solid #444;
             background: transparent;
@@ -40,10 +40,14 @@
             font-size: 14px;
             transition: 0.2s;
         }
-        .diff-btn:hover, .color-btn:hover { border-color: #666; }
+        .diff-btn:hover, .color-btn:hover, .time-btn:hover { border-color: #666; }
         .diff-btn.active, .color-btn.active { 
             border-color: #4CAF50; 
             background: rgba(76,175,80,0.2); 
+        }
+        .time-btn.active {
+            border-color: #2196F3;
+            background: rgba(33,150,243,0.2);
         }
         .undo-btn {
             border-color: #f39c12;
@@ -265,14 +269,12 @@
             background: #b58863;
             transition: height 0.5s ease;
         }
-        /* White at bottom (default) */
         .eval-bar-white {
             bottom: 0;
         }
         .eval-bar-black {
             top: 0;
         }
-        /* When playing black, flip it */
         .eval-bar-wrapper.flipped .eval-bar-white {
             bottom: auto;
             top: 0;
@@ -306,7 +308,7 @@
             color: #4CAF50;
             font-weight: bold;
         }
-    
+
         .personalize-toggle-btn { padding: 10px; font-size: 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; width: 100%; }
         .personalize-toggle-btn:hover { background: #c0392b; }
         .personalize-panel { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; padding: 15px; margin-top: 10px; }
@@ -335,9 +337,75 @@
         .reset-btn { width: 100%; padding: 8px; font-size: 12px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
         .reset-btn:hover { background: #666; }
         .bg-image-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1; opacity: 0.12; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+
+        /* ========== TIME CONTROL ========== */
+        .timer-display {
+            background: #2e2e2e;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .timer-display.active-turn {
+            border: 2px solid #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        .timer-display.low-time {
+            color: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .time-controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .time-btn {
+            padding: 8px 6px;
+            font-size: 12px;
+        }
+        .custom-time-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .custom-time-row input {
+            width: 60px;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #1e1e1e;
+            color: white;
+            text-align: center;
+            font-size: 13px;
+        }
+        .custom-time-row label {
+            font-size: 11px;
+            color: #aaa;
+        }
+        .time-out-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1001;
+        }
+        .time-out-overlay.active { display: flex; }
+        .time-out-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
 </style>
 <base target="_blank">
     <script type="text/javascript" src="/static/theme.js"></script>
+<base target="_blank">
 <base target="_blank">
 </head>
 <body>
@@ -346,6 +414,9 @@
     <div class="sidebar">
         <h1>♔ MattFish</h1>
         <div id="status">Click "New Game" to start</div>
+
+        <!-- Player Timer -->
+        <div class="timer-display" id="playerTimer">10:00</div>
 
         <div class="section-title">Difficulty</div>
         <div>
@@ -360,11 +431,33 @@
             <button class="color-btn" onclick="setColor('black')">Black</button>
         </div>
 
+        <div class="section-title">Time Control</div>
+        <div class="time-controls-grid">
+            <button class="time-btn active" onclick="setTimeControl('bullet1', this)" data-min="1" data-inc="0">1+0</button>
+            <button class="time-btn" onclick="setTimeControl('bullet2', this)" data-min="2" data-inc="1">2+1</button>
+            <button class="time-btn" onclick="setTimeControl('blitz3', this)" data-min="3" data-inc="2">3+2</button>
+            <button class="time-btn" onclick="setTimeControl('blitz5', this)" data-min="5" data-inc="0">5+0</button>
+            <button class="time-btn" onclick="setTimeControl('blitz5inc', this)" data-min="5" data-inc="3">5+3</button>
+            <button class="time-btn" onclick="setTimeControl('rapid10', this)" data-min="10" data-inc="0">10+0</button>
+            <button class="time-btn" onclick="setTimeControl('rapid10inc', this)" data-min="10" data-inc="5">10+5</button>
+            <button class="time-btn" onclick="setTimeControl('rapid15', this)" data-min="15" data-inc="10">15+10</button>
+        </div>
+        <div class="custom-time-row">
+            <label>Custom:</label>
+            <input type="number" id="customMin" placeholder="Min" min="1" max="180" value="10">
+            <label>+</label>
+            <input type="number" id="customInc" placeholder="Inc" min="0" max="60" value="0">
+            <button class="time-btn" onclick="setCustomTimeControl()" style="padding:6px 10px;">Set</button>
+        </div>
+
+        <!-- Engine Timer -->
+        <div class="timer-display" id="engineTimer">10:00</div>
+
         <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
-                <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
+        <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
         <div id="themePanelContainer"></div>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
@@ -406,6 +499,11 @@
         <button class="play-again-btn" onclick="newGame()">Play Again</button>
     </div>
 
+    <div class="time-out-overlay" id="timeOutOverlay">
+        <div class="time-out-text" id="timeOutText"></div>
+        <button class="play-again-btn" onclick="newGame()">Play Again</button>
+    </div>
+
     <script>
         const PIECE_IMAGES = {
             'P': '/static/pieces/wP (1).png',
@@ -437,6 +535,128 @@
         let isCheck = false;
         let sessionId = null;
         let evalBarEnabled = false;
+
+        // ========== TIME CONTROL ==========
+        let timeControl = { minutes: 10, increment: 0 };
+        let playerTime = 600; // seconds
+        let engineTime = 600; // seconds
+        let timerInterval = null;
+        let activeTimer = null; // 'player' or 'engine'
+        let gameStarted = false;
+
+        const TIME_PRESETS = {
+            'bullet1': { minutes: 1, increment: 0 },
+            'bullet2': { minutes: 2, increment: 1 },
+            'blitz3': { minutes: 3, increment: 2 },
+            'blitz5': { minutes: 5, increment: 0 },
+            'blitz5inc': { minutes: 5, increment: 3 },
+            'rapid10': { minutes: 10, increment: 0 },
+            'rapid10inc': { minutes: 10, increment: 5 },
+            'rapid15': { minutes: 15, increment: 10 }
+        };
+
+        function formatTime(seconds) {
+            if (seconds <= 0) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function updateTimerDisplay() {
+            const playerTimer = document.getElementById('playerTimer');
+            const engineTimer = document.getElementById('engineTimer');
+
+            playerTimer.textContent = formatTime(playerTime);
+            engineTimer.textContent = formatTime(engineTime);
+
+            // Highlight active timer
+            playerTimer.classList.toggle('active-turn', activeTimer === 'player');
+            engineTimer.classList.toggle('active-turn', activeTimer === 'engine');
+
+            // Low time warning (under 30 seconds)
+            playerTimer.classList.toggle('low-time', playerTime < 30);
+            engineTimer.classList.toggle('low-time', engineTime < 30);
+        }
+
+        function startTimer(who) {
+            stopTimer();
+            activeTimer = who;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(function() {
+                if (who === 'player') {
+                    playerTime -= 0.1;
+                    if (playerTime <= 0) {
+                        playerTime = 0;
+                        stopTimer();
+                        showTimeOut('You ran out of time! MattFish wins.');
+                    }
+                } else {
+                    engineTime -= 0.1;
+                    if (engineTime <= 0) {
+                        engineTime = 0;
+                        stopTimer();
+                        showTimeOut('MattFish ran out of time! You win.');
+                    }
+                }
+                updateTimerDisplay();
+            }, 100);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            activeTimer = null;
+            updateTimerDisplay();
+        }
+
+        function addIncrement(who) {
+            if (timeControl.increment > 0) {
+                if (who === 'player') {
+                    playerTime += timeControl.increment;
+                } else {
+                    engineTime += timeControl.increment;
+                }
+                updateTimerDisplay();
+            }
+        }
+
+        function showTimeOut(message) {
+            const overlay = document.getElementById('timeOutOverlay');
+            const text = document.getElementById('timeOutText');
+            text.textContent = message;
+            text.style.color = message.includes('You win') ? '#4CAF50' : '#e74c3c';
+            overlay.classList.add('active');
+            setStatus('Time out!');
+            playGameOverSound(message.includes('You win'));
+        }
+
+        function setTimeControl(preset, btn) {
+            timeControl = TIME_PRESETS[preset];
+            playerTime = timeControl.minutes * 60;
+            engineTime = timeControl.minutes * 60;
+            updateTimerDisplay();
+
+            document.querySelectorAll('.time-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+        }
+
+        function setCustomTimeControl() {
+            const min = parseInt(document.getElementById('customMin').value) || 10;
+            const inc = parseInt(document.getElementById('customInc').value) || 0;
+            timeControl = { minutes: min, increment: inc };
+            playerTime = min * 60;
+            engineTime = min * 60;
+            updateTimerDisplay();
+
+            document.querySelectorAll('.time-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+        }
 
         // ========== EVALUATION BAR ==========
         function toggleEvalBar() {
@@ -495,7 +715,6 @@
                 let whitePercent = 50;
 
                 if (data.mate !== 0) {
-                    // Mate situation
                     if (data.mate > 0) {
                         displayText = '+' + data.mate + 'M';
                         whitePercent = 100;
@@ -504,9 +723,7 @@
                         whitePercent = 0;
                     }
                 } else {
-                    // Centipawn evaluation
                     const evalCp = data.eval;
-                    // Convert to pawns
                     const evalPawns = evalCp / 100;
 
                     if (evalPawns > 0) {
@@ -517,22 +734,16 @@
                         displayText = '0.0';
                     }
 
-                    // Map evaluation to percentage (clamped between 0 and 100)
                     const clamped = Math.max(-1000, Math.min(1000, evalCp));
                     whitePercent = 50 + (clamped / 20);
                     whitePercent = Math.max(5, Math.min(95, whitePercent));
                 }
 
-                // If playing black, we flip the visual so black is at bottom
-                // But the bar heights are always whitePercent for white
-                // When flipped via CSS, white will be at top and black at bottom
                 whiteBar.style.height = whitePercent + '%';
                 blackBar.style.height = (100 - whitePercent) + '%';
 
-                // Show evaluation from the player's perspective
                 let playerEval = displayText;
                 if (playerColor === 'black') {
-                    // Flip the sign for black's perspective
                     if (displayText.startsWith('+')) {
                         playerEval = '-' + displayText.substring(1);
                     } else if (displayText.startsWith('-')) {
@@ -542,21 +753,19 @@
 
                 evalNumber.textContent = playerEval;
 
-                // Color based on who's better from player's perspective
                 if (playerColor === 'white') {
                     if (displayText.startsWith('+')) {
-                        evalNumber.style.color = '#4CAF50'; // Green = good for player
+                        evalNumber.style.color = '#4CAF50';
                     } else if (displayText.startsWith('-')) {
-                        evalNumber.style.color = '#e74c3c'; // Red = bad for player
+                        evalNumber.style.color = '#e74c3c';
                     } else {
                         evalNumber.style.color = '#888';
                     }
                 } else {
-                    // For black, flipped
                     if (displayText.startsWith('-')) {
-                        evalNumber.style.color = '#4CAF50'; // Green = good for black
+                        evalNumber.style.color = '#4CAF50';
                     } else if (displayText.startsWith('+')) {
-                        evalNumber.style.color = '#e74c3c'; // Red = bad for black
+                        evalNumber.style.color = '#e74c3c';
                     } else {
                         evalNumber.style.color = '#888';
                     }
@@ -634,6 +843,7 @@
             } catch (e) {
                 console.log('Theme panel not available:', e);
             }
+            updateTimerDisplay();
             newGame();
         };
 
@@ -678,18 +888,27 @@
             const btn = document.getElementById('undoBtn');
             const canUndo = boardHistory.length > 1 || 
                 (playerColor === 'black' && boardHistory.length > 0 && moveHistory.length > 0);
-            btn.disabled = !canUndo || isThinking || document.getElementById('gameOver').classList.contains('active');
+            btn.disabled = !canUndo || isThinking || document.getElementById('gameOver').classList.contains('active') || document.getElementById('timeOutOverlay').classList.contains('active');
         }
 
         async function newGame() {
             document.getElementById('promoModal').classList.remove('active');
             document.getElementById('gameOver').classList.remove('active');
+            document.getElementById('timeOutOverlay').classList.remove('active');
             selectedSquare = null;
             lastMove = null;
             pendingPromo = null;
             moveHistory = [];
             boardHistory = [];
             isCheck = false;
+            gameStarted = false;
+            stopTimer();
+
+            // Reset timers
+            playerTime = timeControl.minutes * 60;
+            engineTime = timeControl.minutes * 60;
+            updateTimerDisplay();
+
             updateMoves();
             updatePromoImages();
             updateCoords();
@@ -721,12 +940,15 @@
                 drawBoard();
                 updateEvalBarOrientation();
                 updateEvalBar();
+                gameStarted = true;
 
                 if (playerColor === 'black') {
                     setStatus('MattFish is thinking...');
+                    startTimer('engine');
                     await engineFirstMove();
                 } else {
                     setStatus('Your turn! Click a white piece to move.');
+                    startTimer('player');
                 }
             } catch(err) {
                 setStatus('Failed to start: ' + err.message);
@@ -761,6 +983,12 @@
                         lastMove: {...lastMove},
                         moveHistory: JSON.parse(JSON.stringify(moveHistory))
                     });
+
+                    // Stop engine timer, add increment, start player timer
+                    stopTimer();
+                    addIncrement('engine');
+                    startTimer('player');
+
                     playMoveSound();
                     drawBoard();
                     updateEvalBar();
@@ -780,6 +1008,7 @@
             isThinking = true;
             updateUndoButton();
             setStatus('Undoing...');
+            stopTimer();
 
             boardHistory.pop();
             const prevState = boardHistory[boardHistory.length - 1];
@@ -803,6 +1032,13 @@
             drawBoard();
             updateEvalBar();
             updateUndoButton();
+
+            // Reset timers based on whose turn it is
+            const fenParts = currentFEN.split(' ');
+            const activeColor = fenParts[1] || 'w';
+            const isPlayerTurn = (playerColor === 'white' && activeColor === 'w') || (playerColor === 'black' && activeColor === 'b');
+            startTimer(isPlayerTurn ? 'player' : 'engine');
+
             setStatus('Undone. Your turn!');
         }
 
@@ -892,7 +1128,7 @@
         }
 
         function handleClick(square) {
-            if (isThinking) return;
+            if (isThinking || !gameStarted) return;
 
             const sq = square.dataset.square;
             const piece = square.querySelector('img');
@@ -955,6 +1191,11 @@
             isThinking = true;
             selectedSquare = null;
             updateUndoButton();
+
+            // Stop player timer, add increment
+            stopTimer();
+            addIncrement('player');
+
             setStatus('MattFish is thinking...');
 
             try {
@@ -973,6 +1214,8 @@
                         currentFEN = data.fen;
                         drawBoard();
                     }
+                    // Restart player timer on error
+                    startTimer('player');
                     updateUndoButton();
                     return;
                 }
@@ -1021,16 +1264,20 @@
                 updateUndoButton();
 
                 if (data.game_over) {
+                    stopTimer();
                     const playerWon = (playerColor === 'white' && data.result === '1-0') || (playerColor === 'black' && data.result === '0-1');
                     playGameOverSound(playerWon);
                     showGameOver(data.result);
                 } else {
+                    // Start engine timer, engine will respond
+                    startTimer('engine');
                     setStatus(data.engine_move ? 
                         'Engine played ' + data.engine_move + '. Your turn!' : 
                         'Your turn!');
                 }
             } catch(err) {
                 isThinking = false;
+                startTimer('player');
                 updateUndoButton();
                 setStatus('Error: ' + err.message);
             }
