@@ -285,6 +285,7 @@
             display: flex;
             flex-direction: column;
         }
+        .chat-section h3 { font-size: 13px; color: #e74c3c; margin-bottom: 8px; }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -366,7 +367,6 @@
         }
         a { color: #4CAF50; text-decoration: none; }
     </style>
-<base target="_blank">
 </head>
 <body>
     <div class="sidebar">
@@ -485,7 +485,7 @@
 
         const socket = io();
 
-        let myColor = null; // 'white', 'black', or null (spectator)
+        let myColor = null;
         let roomCode = null;
         let currentFEN = '';
         let selectedSquare = null;
@@ -494,7 +494,7 @@
         let pendingPromo = null;
         let moveHistory = [];
         let isMyTurn = false;
-        let gameStatus = 'lobby'; // lobby, waiting, playing, finished
+        let gameStatus = 'lobby';
         let selectedTimeControl = { minutes: 3, increment: 2 };
         let myTime = 180;
         let opponentTime = 180;
@@ -570,25 +570,12 @@
             setStatus('Game started! You are ' + myColor + '.');
         });
 
-        socket.on('joined_as_spectator', (data) => {
-            roomCode = data.room_code;
-            myColor = null;
-            document.getElementById('lobbySection').classList.add('hidden');
-            document.getElementById('gameUI').classList.remove('hidden');
-            document.getElementById('spectatorBadge').classList.remove('hidden');
-            document.querySelector('.draw-resign-row').classList.add('hidden');
-            currentFEN = data.fen;
-
-            // Load chat history
-            data.chat.forEach(msg => addChatMessage(msg.sender, msg.message));
-
-            setupBoard();
-            setStatus('Spectating room ' + roomCode);
-        });
-
+        // THIS IS THE KEY FIX - room creator also needs game_started
         socket.on('game_started', (data) => {
             document.getElementById('lobbySection').classList.add('hidden');
+            document.getElementById('roomView').classList.add('hidden');
             document.getElementById('gameUI').classList.remove('hidden');
+            
             currentFEN = data.fen;
             myTime = data.time_control.minutes * 60;
             opponentTime = data.time_control.minutes * 60;
@@ -601,6 +588,21 @@
             else startTimer('opponent');
         });
 
+        socket.on('joined_as_spectator', (data) => {
+            roomCode = data.room_code;
+            myColor = null;
+            document.getElementById('lobbySection').classList.add('hidden');
+            document.getElementById('gameUI').classList.remove('hidden');
+            document.getElementById('spectatorBadge').classList.remove('hidden');
+            document.querySelector('.draw-resign-row').classList.add('hidden');
+            currentFEN = data.fen;
+
+            data.chat.forEach(msg => addChatMessage(msg.sender, msg.message));
+
+            setupBoard();
+            setStatus('Spectating room ' + roomCode);
+        });
+
         socket.on('move_made', (data) => {
             currentFEN = data.fen;
             legalMoves = data.legal_moves || [];
@@ -609,14 +611,11 @@
                 to: data.move.substring(2, 4)
             };
 
-            // Update timers
             myTime = data.timers[myColor] || myTime;
             const oppColor = myColor === 'white' ? 'black' : 'white';
             opponentTime = data.timers[oppColor] || opponentTime;
             updateTimerDisplay();
 
-            // Add to move history
-            const moveNum = Math.floor(moveHistory.length) + 1;
             if (data.player_color === 'white') {
                 moveHistory.push({ white: data.move, black: null });
             } else {
@@ -628,7 +627,6 @@
             }
             updateMoves();
 
-            // Switch timer
             stopTimer();
             isMyTurn = !isMyTurn;
             if (isMyTurn) {
