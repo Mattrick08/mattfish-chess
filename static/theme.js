@@ -160,7 +160,7 @@ function initThemePanel(containerId, options) {
     }
 
     if (showImage) {
-        html += '<div class="upload-area" id="uploadArea" onclick="document.getElementById('bgImageInput').click()">';
+        html += '<div class="upload-area" id="uploadArea" onclick="document.getElementById(\'bgImageInput\').click()">';
         html += '<p>&#128444; Click or drop image</p>';
         html += '<button class="upload-btn" type="button">Choose Image</button>';
         html += '<img class="preview-img" id="previewImg" alt="Preview">';
