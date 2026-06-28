@@ -26,7 +26,7 @@ def get_lichess_cloud_eval(fen):
         response = requests.get(url, params=params, headers=LICHESS_HEADERS, timeout=3)
 
         if response.status_code == 429:
-            return None  # Rate limited
+            return None
         if response.status_code != 200:
             return None
 
@@ -95,7 +95,6 @@ def chess_eval():
                 return jsonify({"eval": 9999, "mate": 1})
         return jsonify({"eval": 0, "mate": 0})
 
-    # Try Lichess cloud eval first
     lichess_result = get_lichess_cloud_eval(board.fen())
 
     if lichess_result is not None:
@@ -105,7 +104,6 @@ def chess_eval():
         else:
             return jsonify({"eval": eval_cp, "mate": 0})
 
-    # Fallback to local engine
     score, _ = local_search(board, 3, time_limit=1.0)
     if board.turn == chess.BLACK:
         score = -score
@@ -121,7 +119,6 @@ def chess_eval():
 
 def get_engine_move(board, difficulty):
     """Get engine move: Lichess first, fallback to local engine."""
-    # Try Lichess cloud analysis for best move
     lichess_result = get_lichess_cloud_eval(board.fen())
 
     if lichess_result is not None:
@@ -134,7 +131,6 @@ def get_engine_move(board, difficulty):
             except:
                 pass
 
-    # Fallback to local engine
     depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
     time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
     depth = depth_map.get(difficulty, 5)
