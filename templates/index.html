@@ -2,651 +2,839 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MattFish</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>MattFish Chess</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
-            background-color: #1e1e1e;
+            background: #1e1e1e;
             color: white;
             font-family: Arial, sans-serif;
+            display: flex;
+            gap: 30px;
             padding: 20px;
+            min-height: 100vh;
         }
-
-        h1 {
-            text-align: center;
-            font-size: 36px;
-            margin-bottom: 30px;
-        }
-
-        .input-section {
+        .sidebar {
+            width: 250px;
             display: flex;
             flex-direction: column;
+            gap: 15px;
+        }
+        h1 { color: #e74c3c; margin: 0; font-size: 28px; }
+        #status {
+            background: #2e2e2e;
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 50px;
+            display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 30px;
+            font-size: 15px;
         }
-
-        .top-section {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 40px;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
-        }
-
-        .left-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        input {
+        .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn, .time-btn {
             padding: 10px;
-            font-size: 16px;
-            border-radius: 6px;
-            border: none;
-            width: 300px;
-        }
-
-        .buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
+            border: 2px solid #444;
+            background: transparent;
             color: white;
-            border: none;
             border-radius: 6px;
             cursor: pointer;
-        }
-
-        button:hover { background-color: #45a049; }
-
-        .period-btn {
-            background-color: #555;
             font-size: 14px;
-            padding: 8px 14px;
+            transition: 0.2s;
         }
-
-        .period-btn.active { background-color: #4CAF50; }
-
-        .avatar-frame {
-            border: 8px solid #4a2e0a;
-            padding: 6px;
-            background-color: #7a4a1a;
-            border-radius: 4px;
+        .diff-btn:hover, .color-btn:hover, .time-btn:hover { border-color: #666; }
+        .diff-btn.active, .color-btn.active { 
+            border-color: #4CAF50; 
+            background: rgba(76,175,80,0.2); 
         }
-
-        .avatar-frame img {
-            width: 150px;
-            height: 150px;
-            display: block;
+        .time-btn.active {
+            border-color: #2196F3;
+            background: rgba(33,150,243,0.2);
         }
-
-        .avatar-placeholder {
-            width: 150px;
-            height: 150px;
-            background-color: #2e2e2e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .undo-btn {
+            border-color: #f39c12;
+            background: rgba(243,156,18,0.1);
+        }
+        .undo-btn:hover {
+            border-color: #f39c12;
+            background: rgba(243,156,18,0.2);
+        }
+        .undo-btn:disabled {
+            border-color: #555;
+            background: transparent;
             color: #666;
-            font-size: 14px;
+            cursor: not-allowed;
         }
-
-        .stats-section {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
+        .sound-btn {
+            border-color: #2196F3;
+            background: rgba(33,150,243,0.1);
         }
-
-        .stat-card {
-            background-color: #2e2e2e;
-            border-radius: 10px;
-            padding: 20px;
-            width: 200px;
-            text-align: center;
+        .sound-btn:hover {
+            border-color: #2196F3;
+            background: rgba(33,150,243,0.2);
         }
-
-        .stat-card h2 {
-            font-size: 20px;
-            margin-bottom: 10px;
-            color: #4CAF50;
+        .sound-btn.off {
+            border-color: #555;
+            background: transparent;
+            color: #666;
         }
-
-        .stat-card p {
-            font-size: 14px;
-            margin: 5px 0;
-            color: #ccc;
+        .eval-btn {
+            border-color: #9C27B0;
+            background: rgba(156,39,176,0.1);
         }
-
-        .stat-card .rating {
-            font-size: 28px;
-            font-weight: bold;
-            color: white;
+        .eval-btn:hover {
+            border-color: #9C27B0;
+            background: rgba(156,39,176,0.2);
         }
-
-        .chart-section {
-            max-width: 900px;
-            margin: 0 auto 40px auto;
-            background-color: #2e2e2e;
-            border-radius: 10px;
-            padding: 20px;
+        .eval-btn.active {
+            border-color: #9C27B0;
+            background: rgba(156,39,176,0.3);
         }
-
-        .chart-section h2 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #4CAF50;
-        }
-
-        .pie-section {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            flex-wrap: wrap;
-            margin-bottom: 40px;
-        }
-
-        .pie-card {
-            background-color: #2e2e2e;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            width: 220px;
-        }
-
-        .pie-card h3 {
-            margin-bottom: 10px;
-            color: #4CAF50;
-        }
-
-        .openings-section {
-            max-width: 900px;
-            margin: 0 auto 40px auto;
-            background-color: #2e2e2e;
-            border-radius: 10px;
-            padding: 20px;
-        }
-
-        .openings-section h2 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #4CAF50;
-        }
-
-        .sort-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .sort-btn {
-            background-color: #555;
-            font-size: 14px;
-            padding: 8px 14px;
-        }
-
-        .sort-btn.active { background-color: #2196F3; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #444;
-            font-size: 14px;
-        }
-
-        th { color: #4CAF50; }
-        td { color: #ccc; }
-
-        .loading {
-            text-align: center;
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-    </style>
-<base target="_blank">
-<base target="_blank">
-    <script src="/static/theme.js"></script>
-    <style>
-        /* Personalize toggle button */
-        .personalize-toggle-btn {
-            display: block;
-            margin: 0 auto 20px auto;
-            padding: 10px 30px;
-            font-size: 16px;
+        .new-game-btn {
+            padding: 15px;
             background: #e74c3c;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            font-size: 16px;
             transition: 0.2s;
         }
-        .personalize-toggle-btn:hover {
-            background: #c0392b;
+        .new-game-btn:hover { background: #c0392b; }
+        .board-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
         }
-        /* Personalize panel */
-        .personalize-panel {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 0 auto 30px auto;
-            max-width: 400px;
-        }
-        .personalize-panel h3 {
-            font-size: 14px;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        .section-title {
-            font-size: 11px;
-            color: #888;
-            text-transform: uppercase;
-            margin: 10px 0 6px 0;
-            letter-spacing: 0.5px;
-        }
-        .color-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 4px;
-            margin-bottom: 10px;
-        }
-        .color-swatch {
-            width: 100%;
-            aspect-ratio: 1;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: 0.2s;
-        }
-        .color-swatch:hover {
-            transform: scale(1.15);
-            border-color: white;
-            z-index: 2;
+        .board-wrapper {
             position: relative;
-        }
-        .color-swatch.active {
-            border-color: #fff;
-            box-shadow: 0 0 0 2px #e74c3c;
-        }
-        .custom-color-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 10px;
         }
-        .custom-color-row label {
-            font-size: 11px;
-            color: #aaa;
-            min-width: 70px;
+        .coords-ranks {
+            position: absolute;
+            left: -25px;
+            top: 0;
+            height: 560px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            font-size: 14px;
+            color: #888;
+            width: 20px;
+            text-align: center;
         }
-        .custom-color-row input[type="color"] {
-            width: 36px;
-            height: 28px;
-            border: none;
+        .coords-files {
+            display: flex;
+            justify-content: space-around;
+            width: 560px;
+            padding: 5px 0;
+            font-size: 14px;
+            color: #888;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 70px);
+            grid-template-rows: repeat(8, 70px);
+            border: 3px solid #555;
             border-radius: 4px;
-            cursor: pointer;
-            background: none;
-            padding: 0;
         }
-        .custom-color-row input[type="text"] {
-            flex: 1;
-            padding: 5px 8px;
+        .square {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background 0.1s;
+        }
+        .square img {
+            width: 60px;
+            height: 60px;
+            pointer-events: none;
+        }
+        .light { background: #f0d9b5; }
+        .dark { background: #b58863; }
+        .square:hover { filter: brightness(1.15); }
+        .selected { background: #f7ec5f !important; }
+        .last-move { box-shadow: inset 0 0 0 4px rgba(255, 107, 107, 0.7); }
+        .legal::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .light.legal::after { background: rgba(0, 0, 0, 0.2); }
+        .dark.legal::after { background: rgba(255, 255, 255, 0.25); }
+        .promotion-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .promotion-modal.active { display: flex; }
+        .promo-piece {
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            background: #f0d9b5;
+            border-radius: 10px;
+            margin: 10px;
+            transition: 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .promo-piece:hover { transform: scale(1.1); background: #fff; }
+        .promo-piece img { width: 70px; height: 70px; }
+        .game-over-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        .game-over-overlay.active { display: flex; }
+        .game-over-text { font-size: 42px; font-weight: bold; margin-bottom: 20px; }
+        .play-again-btn {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .move-history {
+            background: #2e2e2e;
+            padding: 15px;
+            border-radius: 8px;
+            width: 560px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .move-history h3 { font-size: 14px; color: #aaa; margin-bottom: 8px; }
+        .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
+        .move-pair { background: #1a1a2e; padding: 4px 8px; border-radius: 4px; }
+        .move-num { color: #888; }
+        .move-w { color: #f0d9b5; }
+        .move-b { color: #b58863; }
+        .section-title {
             font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+        /* ========== EVALUATION BAR ========== */
+        .eval-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .eval-container.active {
+            display: flex;
+        }
+        .eval-bar-wrapper {
+            width: 30px;
+            height: 560px;
+            background: #2e2e2e;
+            border: 2px solid #555;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .eval-bar-white {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: #f0d9b5;
+            transition: height 0.5s ease;
+        }
+        .eval-bar-black {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: #b58863;
+            transition: height 0.5s ease;
+        }
+        .eval-bar-white {
+            bottom: 0;
+        }
+        .eval-bar-black {
+            top: 0;
+        }
+        .eval-bar-wrapper.flipped .eval-bar-white {
+            bottom: auto;
+            top: 0;
+        }
+        .eval-bar-wrapper.flipped .eval-bar-black {
+            top: auto;
+            bottom: 0;
+        }
+        .eval-center-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background: #e74c3c;
+            z-index: 2;
+        }
+        .eval-number {
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            min-width: 50px;
+        }
+        .eval-label {
+            font-size: 10px;
+            color: #888;
+            text-align: center;
+        }
+        .eval-label-player {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .personalize-toggle-btn { padding: 10px; font-size: 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; width: 100%; }
+        .personalize-toggle-btn:hover { background: #c0392b; }
+        .personalize-panel { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; padding: 15px; margin-top: 10px; }
+        .personalize-panel h3 { font-size: 14px; margin-bottom: 12px; text-align: center; }
+        .section-title { font-size: 11px; color: #888; text-transform: uppercase; margin: 10px 0 6px 0; letter-spacing: 0.5px; }
+        .color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 10px; }
+        .color-swatch { width: 100%; aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .color-swatch:hover { transform: scale(1.15); border-color: white; z-index: 2; position: relative; }
+        .color-swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #e74c3c; }
+        .custom-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .custom-color-row label { font-size: 11px; color: #aaa; min-width: 70px; }
+        .custom-color-row input[type="color"] { width: 36px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: none; padding: 0; }
+        .custom-color-row input[type="text"] { flex: 1; padding: 5px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #1e1e1e; color: white; width: auto; }
+        .upload-area { border: 2px dashed #555; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
+        .upload-area:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.05); }
+        .upload-area.dragover { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+        .upload-area p { font-size: 12px; color: #888; margin-bottom: 6px; }
+        .upload-area input[type="file"] { display: none; }
+        .upload-btn { padding: 6px 14px; font-size: 12px; background: #444; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .upload-btn:hover { background: #555; }
+        .preview-img { max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 8px; display: none; }
+        .preview-img.visible { display: block; }
+        .remove-img-btn { padding: 4px 10px; font-size: 11px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 6px; display: none; }
+        .remove-img-btn.visible { display: inline-block; }
+        .remove-img-btn:hover { background: #a93226; }
+        .reset-btn { width: 100%; padding: 8px; font-size: 12px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
+        .reset-btn:hover { background: #666; }
+        .bg-image-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1; opacity: 0.12; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+
+        /* ========== TIME CONTROL ========== */
+        .timer-display {
+            background: #2e2e2e;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .timer-display.active-turn {
+            border: 2px solid #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        .timer-display.low-time {
+            color: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .time-controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .time-btn {
+            padding: 8px 6px;
+            font-size: 12px;
+        }
+        .custom-time-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .custom-time-row input {
+            width: 60px;
+            padding: 6px;
             border-radius: 4px;
             border: 1px solid #555;
             background: #1e1e1e;
             color: white;
-            width: auto;
-        }
-        .upload-area {
-            border: 2px dashed #555;
-            border-radius: 8px;
-            padding: 12px;
             text-align: center;
-            cursor: pointer;
-            transition: 0.2s;
-            margin-bottom: 10px;
+            font-size: 13px;
         }
-        .upload-area:hover {
-            border-color: #e74c3c;
-            background: rgba(231, 76, 60, 0.05);
-        }
-        .upload-area.dragover {
-            border-color: #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
-        }
-        .upload-area p {
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 6px;
-        }
-        .upload-area input[type="file"] {
-            display: none;
-        }
-        .upload-btn {
-            padding: 6px 14px;
-            font-size: 12px;
-            background: #444;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .upload-btn:hover { background: #555; }
-        .preview-img {
-            max-width: 100%;
-            max-height: 80px;
-            border-radius: 6px;
-            margin-top: 8px;
-            display: none;
-        }
-        .preview-img.visible {
-            display: block;
-        }
-        .remove-img-btn {
-            padding: 4px 10px;
+        .custom-time-row label {
             font-size: 11px;
-            background: #c0392b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 6px;
+            color: #aaa;
+        }
+        .time-out-overlay {
             display: none;
-        }
-        .remove-img-btn.visible {
-            display: inline-block;
-        }
-        .remove-img-btn:hover { background: #a93226; }
-        .reset-btn {
-            width: 100%;
-            padding: 8px;
-            font-size: 12px;
-            background: #555;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-        .reset-btn:hover { background: #666; }
-        .bg-image-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            z-index: -1;
-            opacity: 0.12;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            pointer-events: none;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1001;
         }
-    </style>
+        .time-out-overlay.active { display: flex; }
+        .time-out-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
+</style>
+<base target="_blank">
+    <script type="text/javascript" src="/static/theme.js"></script>
+<base target="_blank">
 <base target="_blank">
 </head>
 <body>
     <div class="bg-image-overlay" id="bgImageOverlay"></div>
 
+    <div class="sidebar">
+        <h1>♔ MattFish</h1>
+        <div id="status">Click "New Game" to start</div>
 
-<h1>MattFish</h1>
+        <!-- Player Timer -->
+        <div class="timer-display" id="playerTimer">10:00</div>
 
-    <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
-
-    <div id="themePanelContainer" style="text-align:center;"></div>
-
-<div style="text-align: center; margin-bottom: 25px;">
-    <a href="/play" target="_blank" style="
-        display: inline-block;
-        padding: 15px 40px;
-        font-size: 18px;
-        background: #e74c3c;
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        transition: 0.3s;
-        font-weight: bold;
-    " onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">
-        ♔ Play vs MattFish Engine ♚
-    </a>
-</div>
-
-<div class="top-section">
-    <div class="left-inputs">
-        <input type="text" id="username" placeholder="Enter your Chess.com username">
-        <div class="buttons">
-            <button onclick="loadAll()">Load Stats</button>
+        <div class="section-title">Difficulty</div>
+        <div>
+            <button class="diff-btn" onclick="setDiff('Easy')">Easy</button>
+            <button class="diff-btn active" onclick="setDiff('Medium')">Medium</button>
+            <button class="diff-btn" onclick="setDiff('Hard')">Hard</button>
         </div>
-        <div class="buttons">
-            <button class="period-btn active" onclick="setPeriod(3, this)">Last 3 months</button>
-            <button class="period-btn" onclick="setPeriod(6, this)">Last 6 months</button>
-            <button class="period-btn" onclick="setPeriod(12, this)">Last year</button>
-            <button class="period-btn" onclick="setPeriod(999, this)">All time</button>
+
+        <div class="section-title">Play As</div>
+        <div>
+            <button class="color-btn active" onclick="setColor('white')">White</button>
+            <button class="color-btn" onclick="setColor('black')">Black</button>
+        </div>
+
+        <div class="section-title">Time Control</div>
+        <div class="time-controls-grid">
+            <button class="time-btn active" onclick="setTimeControl('bullet1', this)" data-min="1" data-inc="0">1+0</button>
+            <button class="time-btn" onclick="setTimeControl('bullet2', this)" data-min="2" data-inc="1">2+1</button>
+            <button class="time-btn" onclick="setTimeControl('blitz3', this)" data-min="3" data-inc="2">3+2</button>
+            <button class="time-btn" onclick="setTimeControl('blitz5', this)" data-min="5" data-inc="0">5+0</button>
+            <button class="time-btn" onclick="setTimeControl('blitz5inc', this)" data-min="5" data-inc="3">5+3</button>
+            <button class="time-btn" onclick="setTimeControl('rapid10', this)" data-min="10" data-inc="0">10+0</button>
+            <button class="time-btn" onclick="setTimeControl('rapid10inc', this)" data-min="10" data-inc="5">10+5</button>
+            <button class="time-btn" onclick="setTimeControl('rapid15', this)" data-min="15" data-inc="10">15+10</button>
+        </div>
+        <div class="custom-time-row">
+            <label>Custom:</label>
+            <input type="number" id="customMin" placeholder="Min" min="1" max="180" value="10">
+            <label>+</label>
+            <input type="number" id="customInc" placeholder="Inc" min="0" max="60" value="0">
+            <button class="time-btn" onclick="setCustomTimeControl()" style="padding:6px 10px;">Set</button>
+        </div>
+
+        <!-- Engine Timer -->
+        <div class="timer-display" id="engineTimer">10:00</div>
+
+        <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
+        <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
+        <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
+        <button class="new-game-btn" onclick="newGame()">New Game</button>
+        <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
+        <div id="themePanelContainer"></div>
+        <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
+    </div>
+
+    <div class="board-area">
+        <div class="board-wrapper">
+            <div class="coords-ranks" id="ranks"></div>
+            <div id="board"></div>
+            <!-- Evaluation Bar -->
+            <div class="eval-container" id="evalContainer">
+                <div class="eval-label" id="evalLabelTop">White</div>
+                <div class="eval-bar-wrapper" id="evalBarWrapper">
+                    <div class="eval-bar-black" id="evalBarBlack"></div>
+                    <div class="eval-bar-white" id="evalBarWhite"></div>
+                    <div class="eval-center-line"></div>
+                </div>
+                <div class="eval-label" id="evalLabelBottom">Black</div>
+                <div class="eval-number" id="evalNumber">0.0</div>
+            </div>
+        </div>
+        <div class="coords-files" id="files"></div>
+        <div class="move-history">
+            <h3>Move History</h3>
+            <div class="moves-list" id="moves"></div>
         </div>
     </div>
-    <div class="avatar-frame">
-        <div class="avatar-placeholder" id="avatar-placeholder">No avatar</div>
-        <img id="avatar-img" style="display:none" src="" alt="Avatar">
+
+    <div class="promotion-modal" id="promoModal">
+        <div>
+            <span class="promo-piece" onclick="doPromo('q')"><img id="promoQ" src="/static/pieces/wQ (1).png" alt="Queen"></span>
+            <span class="promo-piece" onclick="doPromo('r')"><img id="promoR" src="/static/pieces/wR (1).png" alt="Rook"></span>
+            <span class="promo-piece" onclick="doPromo('b')"><img id="promoB" src="/static/pieces/wB (1).png" alt="Bishop"></span>
+            <span class="promo-piece" onclick="doPromo('n')"><img id="promoN" src="/static/pieces/wN (1).png" alt="Knight"></span>
+        </div>
     </div>
-</div>
 
-<div class="stats-section" id="stats-section"></div>
-
-<div class="pie-section" id="pie-section"></div>
-
-<div class="chart-section" id="chart-section" style="display:none">
-    <h2>Rating History</h2>
-    <p class="loading" id="chart-loading">Loading games...</p>
-    <canvas id="ratingChart"></canvas>
-</div>
-
-<div class="openings-section" id="openings-section" style="display:none">
-    <h2>Opening Explorer</h2>
-    <div class="sort-buttons">
-        <button class="sort-btn active" onclick="sortOpenings('most_played', this)">Most Played</button>
-        <button class="sort-btn" onclick="sortOpenings('winrate', this)">Best Winrate</button>
+    <div class="game-over-overlay" id="gameOver">
+        <div class="game-over-text" id="gameOverText"></div>
+        <button class="play-again-btn" onclick="newGame()">Play Again</button>
     </div>
-    <p class="loading" id="openings-loading">Loading openings...</p>
-    <table id="openings-table">
-        <thead>
-            <tr>
-                <th>Opening</th>
-                <th>Games</th>
-                <th>Wins</th>
-                <th>Draws</th>
-                <th>Losses</th>
-                <th>Winrate</th>
-            </tr>
-        </thead>
-        <tbody id="openings-body"></tbody>
-    </table>
-</div>
 
-<script>
-    let currentPeriod = 3;
-    let ratingChart = null;
-    let pieCharts = {};
-    let openingsData = [];
-    let currentSort = "most_played";
-
-    function setPeriod(months, btn) {
-        currentPeriod = months;
-        document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-    }
-
-    async function loadAll() {
-        const username = document.getElementById("username").value;
-        if (!username) return;
-        await loadStats(username);
-        await loadHistory(username);
-        await loadOpenings(username);
-    }
-
-    async function loadStats(username) {
-        const response = await fetch(`/stats/${username}`);
-        const data = await response.json();
-
-        // Avatar
-        if (data.avatar) {
-            document.getElementById("avatar-placeholder").style.display = "none";
-            const img = document.getElementById("avatar-img");
-            img.src = data.avatar;
-            img.style.display = "block";
-        }
-
-        const section = document.getElementById("stats-section");
-        const pieSection = document.getElementById("pie-section");
-        section.innerHTML = "";
-        pieSection.innerHTML = "";
-
-        // Destroy old pie charts
-        Object.values(pieCharts).forEach(c => c.destroy());
-        pieCharts = {};
-
-        for (const [name, stats] of Object.entries(data.stats)) {
-            const total = stats.wins + stats.draws + stats.losses;
-
-            // Stat card
-            section.innerHTML += `
-                <div class="stat-card">
-                    <h2>${name}</h2>
-                    <div class="rating">${stats.current}</div>
-                    <p>Best: ${stats.best}</p>
-                    <p>Wins: ${stats.wins}</p>
-                    <p>Draws: ${stats.draws}</p>
-                    <p>Losses: ${stats.losses}</p>
-                    <p>Total: ${total}</p>
-                </div>
-            `;
-
-            // Pie card
-            const pieId = `pie-${name}`;
-            pieSection.innerHTML += `
-                <div class="pie-card">
-                    <h3>${name}</h3>
-                    <canvas id="${pieId}"></canvas>
-                </div>
-            `;
-
-            setTimeout(() => {
-                const ctx = document.getElementById(pieId).getContext("2d");
-                pieCharts[name] = new Chart(ctx, {
-                    type: "pie",
-                    data: {
-                        labels: ["Wins", "Losses", "Draws"],
-                        datasets: [{
-                            data: [stats.wins, stats.losses, stats.draws],
-                            backgroundColor: ["green", "red", "gray"]
-                        }]
-                    },
-                    options: {
-                        plugins: {
-                            legend: { labels: { color: "white" } }
-                        }
-                    }
-                });
-            }, 100);
-        }
-    }
-
-    async function loadHistory(username) {
-        const chartSection = document.getElementById("chart-section");
-        const loading = document.getElementById("chart-loading");
-        chartSection.style.display = "block";
-        loading.style.display = "block";
-
-        const response = await fetch(`/history/${username}/${currentPeriod}`);
-        const data = await response.json();
-
-        loading.style.display = "none";
-
-        if (ratingChart) ratingChart.destroy();
-
-        const ctx = document.getElementById("ratingChart").getContext("2d");
-        ratingChart = new Chart(ctx, {
-            type: "line",
-            data: {
-                labels: data.blitz.map((_, i) => i + 1),
-                datasets: [
-                    { label: "Rapid", data: data.rapid, borderColor: "green", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
-                    { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
-                    { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { labels: { color: "white" } } },
-                scales: {
-                    x: { ticks: { color: "white" }, grid: { color: "#444" } },
-                    y: { ticks: { color: "white" }, grid: { color: "#444" } }
-                }
-            }
-        });
-    }
-
-    async function loadOpenings(username) {
-        const section = document.getElementById("openings-section");
-        const loading = document.getElementById("openings-loading");
-        section.style.display = "block";
-        loading.style.display = "block";
-
-        const response = await fetch(`/openings/${username}/${currentPeriod}`);
-        openingsData = await response.json();
-
-        loading.style.display = "none";
-        sortOpenings(currentSort);
-    }
-
-    function sortOpenings(sortBy, btn) {
-        currentSort = sortBy;
-        document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-        if (btn) btn.classList.add("active");
-
-        let sorted = [...openingsData];
-        if (sortBy === "most_played") {
-            sorted.sort((a, b) => b.total - a.total);
-        } else {
-            sorted = sorted.filter(o => o.total >= 3);
-            sorted.sort((a, b) => b.winrate - a.winrate);
-        }
-
-        const tbody = document.getElementById("openings-body");
-        tbody.innerHTML = "";
-        sorted.slice(0, 10).forEach(o => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${o.name}</td>
-                    <td>${o.total}</td>
-                    <td style="color: green">${o.wins}</td>
-                    <td style="color: gray">${o.draws}</td>
-                    <td style="color: red">${o.losses}</td>
-                    <td>${o.winrate}%</td>
-                </tr>
-            `;
-        });
-    }
-</script>
-
+    <div class="time-out-overlay" id="timeOutOverlay">
+        <div class="time-out-text" id="timeOutText"></div>
+        <button class="play-again-btn" onclick="newGame()">Play Again</button>
+    </div>
 
     <script>
+        const PIECE_IMAGES = {
+            'P': '/static/pieces/wP (1).png',
+            'N': '/static/pieces/wN (1).png',
+            'B': '/static/pieces/wB (1).png',
+            'R': '/static/pieces/wR (1).png',
+            'Q': '/static/pieces/wQ (1).png',
+            'K': '/static/pieces/wK (1).png',
+            'p': '/static/pieces/bP (1).png',
+            'n': '/static/pieces/bN (1).png',
+            'b': '/static/pieces/bB (1).png',
+            'r': '/static/pieces/bR (1).png',
+            'q': '/static/pieces/bQ (1).png',
+            'k': '/static/pieces/bK (1).png'
+        };
+
+        let currentFEN = '';
+        let selectedSquare = null;
+        let legalMoves = [];
+        let lastMove = null;
+        let isThinking = false;
+        let difficulty = 'Medium';
+        let playerColor = 'white';
+        let pendingPromo = null;
+        let moveHistory = [];
+        let boardHistory = [];
+        let soundEnabled = true;
+        let audioCtx = null;
+        let isCheck = false;
+        let sessionId = null;
+        let evalBarEnabled = false;
+
+        // ========== TIME CONTROL ==========
+        let timeControl = { minutes: 10, increment: 0 };
+        let playerTime = 600; // seconds
+        let engineTime = 600; // seconds
+        let timerInterval = null;
+        let activeTimer = null; // 'player' or 'engine'
+        let gameStarted = false;
+
+        const TIME_PRESETS = {
+            'bullet1': { minutes: 1, increment: 0 },
+            'bullet2': { minutes: 2, increment: 1 },
+            'blitz3': { minutes: 3, increment: 2 },
+            'blitz5': { minutes: 5, increment: 0 },
+            'blitz5inc': { minutes: 5, increment: 3 },
+            'rapid10': { minutes: 10, increment: 0 },
+            'rapid10inc': { minutes: 10, increment: 5 },
+            'rapid15': { minutes: 15, increment: 10 }
+        };
+
+        function formatTime(seconds) {
+            if (seconds <= 0) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function updateTimerDisplay() {
+            const playerTimer = document.getElementById('playerTimer');
+            const engineTimer = document.getElementById('engineTimer');
+
+            playerTimer.textContent = formatTime(playerTime);
+            engineTimer.textContent = formatTime(engineTime);
+
+            // Highlight active timer
+            playerTimer.classList.toggle('active-turn', activeTimer === 'player');
+            engineTimer.classList.toggle('active-turn', activeTimer === 'engine');
+
+            // Low time warning (under 30 seconds)
+            playerTimer.classList.toggle('low-time', playerTime < 30);
+            engineTimer.classList.toggle('low-time', engineTime < 30);
+        }
+
+        function startTimer(who) {
+            stopTimer();
+            activeTimer = who;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(function() {
+                if (who === 'player') {
+                    playerTime -= 0.1;
+                    if (playerTime <= 0) {
+                        playerTime = 0;
+                        stopTimer();
+                        showTimeOut('You ran out of time! MattFish wins.');
+                    }
+                } else {
+                    engineTime -= 0.1;
+                    if (engineTime <= 0) {
+                        engineTime = 0;
+                        stopTimer();
+                        showTimeOut('MattFish ran out of time! You win.');
+                    }
+                }
+                updateTimerDisplay();
+            }, 100);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            activeTimer = null;
+            updateTimerDisplay();
+        }
+
+        function addIncrement(who) {
+            if (timeControl.increment > 0) {
+                if (who === 'player') {
+                    playerTime += timeControl.increment;
+                } else {
+                    engineTime += timeControl.increment;
+                }
+                updateTimerDisplay();
+            }
+        }
+
+        function showTimeOut(message) {
+            const overlay = document.getElementById('timeOutOverlay');
+            const text = document.getElementById('timeOutText');
+            text.textContent = message;
+            text.style.color = message.includes('You win') ? '#4CAF50' : '#e74c3c';
+            overlay.classList.add('active');
+            setStatus('Time out!');
+            playGameOverSound(message.includes('You win'));
+        }
+
+        function setTimeControl(preset, btn) {
+            timeControl = TIME_PRESETS[preset];
+            playerTime = timeControl.minutes * 60;
+            engineTime = timeControl.minutes * 60;
+            updateTimerDisplay();
+
+            document.querySelectorAll('.time-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+        }
+
+        function setCustomTimeControl() {
+            const min = parseInt(document.getElementById('customMin').value) || 10;
+            const inc = parseInt(document.getElementById('customInc').value) || 0;
+            timeControl = { minutes: min, increment: inc };
+            playerTime = min * 60;
+            engineTime = min * 60;
+            updateTimerDisplay();
+
+            document.querySelectorAll('.time-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+        }
+
+        // ========== EVALUATION BAR ==========
+        function toggleEvalBar() {
+            evalBarEnabled = !evalBarEnabled;
+            const btn = document.getElementById('evalBtn');
+            const container = document.getElementById('evalContainer');
+
+            if (evalBarEnabled) {
+                btn.classList.add('active');
+                container.classList.add('active');
+                updateEvalBar();
+            } else {
+                btn.classList.remove('active');
+                container.classList.remove('active');
+            }
+        }
+
+        function updateEvalBarOrientation() {
+            const wrapper = document.getElementById('evalBarWrapper');
+            const topLabel = document.getElementById('evalLabelTop');
+            const bottomLabel = document.getElementById('evalLabelBottom');
+
+            if (playerColor === 'black') {
+                wrapper.classList.add('flipped');
+                topLabel.textContent = 'White';
+                bottomLabel.textContent = 'Black (You)';
+                bottomLabel.classList.add('eval-label-player');
+                topLabel.classList.remove('eval-label-player');
+            } else {
+                wrapper.classList.remove('flipped');
+                topLabel.textContent = 'Black';
+                bottomLabel.textContent = 'White (You)';
+                bottomLabel.classList.add('eval-label-player');
+                topLabel.classList.remove('eval-label-player');
+            }
+        }
+
+        async function updateEvalBar() {
+            if (!evalBarEnabled || !sessionId) return;
+
+            try {
+                const response = await fetch('/api/chess/eval', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                const data = await response.json();
+
+                if (data.error) return;
+
+                const whiteBar = document.getElementById('evalBarWhite');
+                const blackBar = document.getElementById('evalBarBlack');
+                const evalNumber = document.getElementById('evalNumber');
+
+                let displayText = '';
+                let whitePercent = 50;
+
+                if (data.mate !== 0) {
+                    if (data.mate > 0) {
+                        displayText = '+' + data.mate + 'M';
+                        whitePercent = 100;
+                    } else {
+                        displayText = data.mate + 'M';
+                        whitePercent = 0;
+                    }
+                } else {
+                    const evalCp = data.eval;
+                    const evalPawns = evalCp / 100;
+
+                    if (evalPawns > 0) {
+                        displayText = '+' + evalPawns.toFixed(1);
+                    } else if (evalPawns < 0) {
+                        displayText = evalPawns.toFixed(1);
+                    } else {
+                        displayText = '0.0';
+                    }
+
+                    const clamped = Math.max(-1000, Math.min(1000, evalCp));
+                    whitePercent = 50 + (clamped / 20);
+                    whitePercent = Math.max(5, Math.min(95, whitePercent));
+                }
+
+                whiteBar.style.height = whitePercent + '%';
+                blackBar.style.height = (100 - whitePercent) + '%';
+
+                let playerEval = displayText;
+                if (playerColor === 'black') {
+                    if (displayText.startsWith('+')) {
+                        playerEval = '-' + displayText.substring(1);
+                    } else if (displayText.startsWith('-')) {
+                        playerEval = '+' + displayText.substring(1);
+                    }
+                }
+
+                evalNumber.textContent = playerEval;
+
+                if (playerColor === 'white') {
+                    if (displayText.startsWith('+')) {
+                        evalNumber.style.color = '#4CAF50';
+                    } else if (displayText.startsWith('-')) {
+                        evalNumber.style.color = '#e74c3c';
+                    } else {
+                        evalNumber.style.color = '#888';
+                    }
+                } else {
+                    if (displayText.startsWith('-')) {
+                        evalNumber.style.color = '#4CAF50';
+                    } else if (displayText.startsWith('+')) {
+                        evalNumber.style.color = '#e74c3c';
+                    } else {
+                        evalNumber.style.color = '#888';
+                    }
+                }
+
+            } catch(e) {}
+        }
+
+        // Sound effects using Web Audio API
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playTone(freq, duration, type, volume) {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playMoveSound() {
+            playTone(800, 0.08, 'sine', 0.15);
+            setTimeout(() => playTone(600, 0.06, 'sine', 0.1), 30);
+        }
+
+        function playCheckSound() {
+            playTone(880, 0.15, 'square', 0.2);
+            setTimeout(() => playTone(880, 0.15, 'square', 0.2), 200);
+            setTimeout(() => playTone(880, 0.3, 'square', 0.2), 400);
+        }
+
+        function playGameOverSound(won) {
+            if (won) {
+                playTone(523, 0.2, 'sine', 0.3);
+                setTimeout(() => playTone(659, 0.2, 'sine', 0.3), 200);
+                setTimeout(() => playTone(784, 0.2, 'sine', 0.3), 400);
+                setTimeout(() => playTone(1047, 0.4, 'sine', 0.3), 600);
+            } else {
+                playTone(400, 0.3, 'sine', 0.2);
+                setTimeout(() => playTone(350, 0.3, 'sine', 0.2), 300);
+                setTimeout(() => playTone(300, 0.5, 'sine', 0.2), 600);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            if (soundEnabled) {
+                btn.textContent = '🔊 Sound On';
+                btn.classList.remove('off');
+            } else {
+                btn.textContent = '🔇 Sound Off';
+                btn.classList.add('off');
+            }
+        }
+
         window.onload = function() {
             try {
                 if (typeof initThemePanel === 'function') {
@@ -655,7 +843,483 @@
             } catch (e) {
                 console.log('Theme panel not available:', e);
             }
+            updateTimerDisplay();
+            newGame();
         };
+
+        function setDiff(d) {
+            difficulty = d;
+            document.querySelectorAll('.diff-btn').forEach(b => {
+                b.classList.toggle('active', b.textContent === d);
+            });
+        }
+
+        function setColor(c) {
+            playerColor = c;
+            document.querySelectorAll('.color-btn').forEach(b => {
+                b.classList.toggle('active', b.textContent.toLowerCase() === c);
+            });
+            updateEvalBarOrientation();
+            newGame();
+        }
+
+        function updatePromoImages() {
+            const prefix = playerColor === 'white' ? 'w' : 'b';
+            document.getElementById('promoQ').src = '/static/pieces/' + prefix + 'Q (1).png';
+            document.getElementById('promoR').src = '/static/pieces/' + prefix + 'R (1).png';
+            document.getElementById('promoB').src = '/static/pieces/' + prefix + 'B (1).png';
+            document.getElementById('promoN').src = '/static/pieces/' + prefix + 'N (1).png';
+        }
+
+        function updateCoords() {
+            const ranksEl = document.getElementById('ranks');
+            const filesEl = document.getElementById('files');
+
+            if (playerColor === 'black') {
+                ranksEl.innerHTML = '12345678'.split('').map(r => '<div>' + r + '</div>').join('');
+                filesEl.innerHTML = 'hgfedcba'.split('').map(f => '<span>' + f + '</span>').join('');
+            } else {
+                ranksEl.innerHTML = '87654321'.split('').map(r => '<div>' + r + '</div>').join('');
+                filesEl.innerHTML = 'abcdefgh'.split('').map(f => '<span>' + f + '</span>').join('');
+            }
+        }
+
+        function updateUndoButton() {
+            const btn = document.getElementById('undoBtn');
+            const canUndo = boardHistory.length > 1 || 
+                (playerColor === 'black' && boardHistory.length > 0 && moveHistory.length > 0);
+            btn.disabled = !canUndo || isThinking || document.getElementById('gameOver').classList.contains('active') || document.getElementById('timeOutOverlay').classList.contains('active');
+        }
+
+        async function newGame() {
+            document.getElementById('promoModal').classList.remove('active');
+            document.getElementById('gameOver').classList.remove('active');
+            document.getElementById('timeOutOverlay').classList.remove('active');
+            selectedSquare = null;
+            lastMove = null;
+            pendingPromo = null;
+            moveHistory = [];
+            boardHistory = [];
+            isCheck = false;
+            gameStarted = false;
+            stopTimer();
+
+            // Reset timers
+            playerTime = timeControl.minutes * 60;
+            engineTime = timeControl.minutes * 60;
+            updateTimerDisplay();
+
+            updateMoves();
+            updatePromoImages();
+            updateCoords();
+            updateUndoButton();
+            setStatus('Starting...');
+
+            try {
+                const response = await fetch('/api/chess/new', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ color: playerColor, session_id: sessionId })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    setStatus('Error: ' + data.error);
+                    return;
+                }
+
+                sessionId = data.session_id || sessionId;
+                currentFEN = data.fen;
+                legalMoves = data.legal_moves;
+                boardHistory.push({
+                    fen: currentFEN,
+                    legalMoves: [...legalMoves],
+                    lastMove: null,
+                    moveHistory: []
+                });
+                drawBoard();
+                updateEvalBarOrientation();
+                updateEvalBar();
+                gameStarted = true;
+
+                if (playerColor === 'black') {
+                    setStatus('MattFish is thinking...');
+                    startTimer('engine');
+                    await engineFirstMove();
+                } else {
+                    setStatus('Your turn! Click a white piece to move.');
+                    startTimer('player');
+                }
+            } catch(err) {
+                setStatus('Failed to start: ' + err.message);
+            }
+        }
+
+        async function engineFirstMove() {
+            isThinking = true;
+            updateUndoButton();
+            try {
+                const response = await fetch('/api/chess/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ move: 'engine', difficulty: difficulty, session_id: sessionId })
+                });
+                const data = await response.json();
+                isThinking = false;
+
+                if (!data.error) {
+                    currentFEN = data.fen;
+                    isCheck = data.check || false;
+                    lastMove = {
+                        from: data.engine_move.substring(0, 2),
+                        to: data.engine_move.substring(2, 4)
+                    };
+                    moveHistory.push({ white: data.engine_move, black: null });
+                    updateMoves();
+                    legalMoves = data.legal_moves || [];
+                    boardHistory.push({
+                        fen: currentFEN,
+                        legalMoves: [...legalMoves],
+                        lastMove: {...lastMove},
+                        moveHistory: JSON.parse(JSON.stringify(moveHistory))
+                    });
+
+                    // Stop engine timer, add increment, start player timer
+                    stopTimer();
+                    addIncrement('engine');
+                    startTimer('player');
+
+                    playMoveSound();
+                    drawBoard();
+                    updateEvalBar();
+                    updateUndoButton();
+                    setStatus('Engine played ' + data.engine_move + '. Your turn!');
+                }
+            } catch(err) {
+                isThinking = false;
+                updateUndoButton();
+                setStatus('Error: ' + err.message);
+            }
+        }
+
+        async function undoMove() {
+            if (boardHistory.length < 2) return;
+
+            isThinking = true;
+            updateUndoButton();
+            setStatus('Undoing...');
+            stopTimer();
+
+            boardHistory.pop();
+            const prevState = boardHistory[boardHistory.length - 1];
+
+            currentFEN = prevState.fen;
+            legalMoves = [...prevState.legalMoves];
+            lastMove = prevState.lastMove ? {...prevState.lastMove} : null;
+            moveHistory = JSON.parse(JSON.stringify(prevState.moveHistory));
+            isCheck = false;
+
+            try {
+                await fetch('/api/chess/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+            } catch(e) {}
+
+            isThinking = false;
+            updateMoves();
+            drawBoard();
+            updateEvalBar();
+            updateUndoButton();
+
+            // Reset timers based on whose turn it is
+            const fenParts = currentFEN.split(' ');
+            const activeColor = fenParts[1] || 'w';
+            const isPlayerTurn = (playerColor === 'white' && activeColor === 'w') || (playerColor === 'black' && activeColor === 'b');
+            startTimer(isPlayerTurn ? 'player' : 'engine');
+
+            setStatus('Undone. Your turn!');
+        }
+
+        function drawBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            const fenParts = currentFEN.split(' ');
+            const fenRows = fenParts[0].split('/');
+            const activeColor = fenParts[1] || 'w';
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (let char of fenRows[r]) {
+                    if (char >= '1' && char <= '8') {
+                        for (let i = 0; i < parseInt(char); i++) row.push(null);
+                    } else {
+                        row.push(char);
+                    }
+                }
+                grid.push(row);
+            }
+
+            if (playerColor === 'black') {
+                for (let vRow = 0; vRow < 8; vRow++) {
+                    for (let vCol = 0; vCol < 8; vCol++) {
+                        const stdRank = 7 - vRow;
+                        const stdFile = 7 - vCol;
+                        const piece = grid[stdRank][stdFile];
+                        const squareName = 'hgfedcba'[vCol] + (vRow + 1);
+                        createSquare(board, vRow, vCol, squareName, piece, activeColor);
+                    }
+                }
+            } else {
+                for (let vRow = 0; vRow < 8; vRow++) {
+                    for (let vCol = 0; vCol < 8; vCol++) {
+                        const piece = grid[vRow][vCol];
+                        const squareName = 'abcdefgh'[vCol] + (8 - vRow);
+                        createSquare(board, vRow, vCol, squareName, piece, activeColor);
+                    }
+                }
+            }
+        }
+
+        function createSquare(boardEl, vRow, vCol, squareName, piece, activeColor) {
+            const square = document.createElement('div');
+            const isLight = (vRow + vCol) % 2 === 0;
+
+            square.className = 'square ' + (isLight ? 'light' : 'dark');
+            square.dataset.square = squareName;
+
+            if (isCheck && piece) {
+                if ((activeColor === 'w' && piece === 'K') || (activeColor === 'b' && piece === 'k')) {
+                    square.classList.add('check');
+                }
+            }
+
+            if (piece && PIECE_IMAGES[piece]) {
+                const img = document.createElement('img');
+                img.src = PIECE_IMAGES[piece];
+                img.alt = piece;
+                square.appendChild(img);
+            }
+
+            if (lastMove) {
+                if (square.dataset.square === lastMove.from || square.dataset.square === lastMove.to) {
+                    square.classList.add('last-move');
+                }
+            }
+
+            if (selectedSquare === square.dataset.square) {
+                square.classList.add('selected');
+            }
+
+            if (selectedSquare) {
+                const isLegalDest = legalMoves.some(m => 
+                    m.substring(0, 2) === selectedSquare && 
+                    m.substring(2, 4) === square.dataset.square
+                );
+                if (isLegalDest) {
+                    square.classList.add('legal');
+                }
+            }
+
+            square.addEventListener('click', function() { handleClick(square); });
+            boardEl.appendChild(square);
+        }
+
+        function handleClick(square) {
+            if (isThinking || !gameStarted) return;
+
+            const sq = square.dataset.square;
+            const piece = square.querySelector('img');
+            const isPlayerPiece = piece && (
+                (playerColor === 'white' && piece.src.includes('/w')) ||
+                (playerColor === 'black' && piece.src.includes('/b'))
+            );
+
+            if (!selectedSquare) {
+                if (isPlayerPiece) {
+                    selectedSquare = sq;
+                    drawBoard();
+                }
+                return;
+            }
+
+            if (selectedSquare === sq) {
+                selectedSquare = null;
+                drawBoard();
+                return;
+            }
+
+            const matchingMove = legalMoves.find(m => 
+                m.substring(0, 2) === selectedSquare && 
+                m.substring(2, 4) === sq
+            );
+
+            if (matchingMove) {
+                const fromSquare = document.querySelector('[data-square="' + selectedSquare + '"]');
+                const fromPiece = fromSquare.querySelector('img');
+                const isPawn = fromPiece && (fromPiece.src.includes('wP') || fromPiece.src.includes('bP'));
+                const promoRank = playerColor === 'white' ? '8' : '1';
+
+                if (isPawn && sq[1] === promoRank) {
+                    if (matchingMove.length === 4) {
+                        pendingPromo = selectedSquare + sq;
+                        document.getElementById('promoModal').classList.add('active');
+                        return;
+                    }
+                }
+                sendMove(matchingMove);
+            } else if (isPlayerPiece) {
+                selectedSquare = sq;
+                drawBoard();
+            } else {
+                selectedSquare = null;
+                drawBoard();
+            }
+        }
+
+        function doPromo(piece) {
+            document.getElementById('promoModal').classList.remove('active');
+            if (pendingPromo) {
+                sendMove(pendingPromo + piece);
+                pendingPromo = null;
+            }
+        }
+
+        async function sendMove(move) {
+            isThinking = true;
+            selectedSquare = null;
+            updateUndoButton();
+
+            // Stop player timer, add increment
+            stopTimer();
+            addIncrement('player');
+
+            setStatus('MattFish is thinking...');
+
+            try {
+                const response = await fetch('/api/chess/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ move: move, difficulty: difficulty, session_id: sessionId })
+                });
+
+                const data = await response.json();
+                isThinking = false;
+
+                if (data.error) {
+                    setStatus('Error: ' + data.error);
+                    if (data.fen) {
+                        currentFEN = data.fen;
+                        drawBoard();
+                    }
+                    // Restart player timer on error
+                    startTimer('player');
+                    updateUndoButton();
+                    return;
+                }
+
+                currentFEN = data.fen;
+                isCheck = data.check || false;
+
+                if (data.engine_move) {
+                    lastMove = {
+                        from: data.engine_move.substring(0, 2),
+                        to: data.engine_move.substring(2, 4)
+                    };
+                } else {
+                    lastMove = {
+                        from: move.substring(0, 2),
+                        to: move.substring(2, 4)
+                    };
+                }
+
+                if (data.player_move) {
+                    if (playerColor === 'white') {
+                        moveHistory.push({ white: data.player_move, black: data.engine_move });
+                    } else {
+                        moveHistory.push({ white: data.engine_move, black: data.player_move });
+                    }
+                    updateMoves();
+                }
+
+                legalMoves = data.legal_moves || [];
+
+                if (isCheck) {
+                    playCheckSound();
+                } else {
+                    playMoveSound();
+                }
+
+                boardHistory.push({
+                    fen: currentFEN,
+                    legalMoves: [...legalMoves],
+                    lastMove: lastMove ? {...lastMove} : null,
+                    moveHistory: JSON.parse(JSON.stringify(moveHistory))
+                });
+
+                drawBoard();
+                updateEvalBar();
+                updateUndoButton();
+
+                if (data.game_over) {
+                    stopTimer();
+                    const playerWon = (playerColor === 'white' && data.result === '1-0') || (playerColor === 'black' && data.result === '0-1');
+                    playGameOverSound(playerWon);
+                    showGameOver(data.result);
+                } else {
+                    // Start engine timer, engine will respond
+                    startTimer('engine');
+                    setStatus(data.engine_move ? 
+                        'Engine played ' + data.engine_move + '. Your turn!' : 
+                        'Your turn!');
+                }
+            } catch(err) {
+                isThinking = false;
+                startTimer('player');
+                updateUndoButton();
+                setStatus('Error: ' + err.message);
+            }
+        }
+
+        function updateMoves() {
+            const container = document.getElementById('moves');
+            container.innerHTML = '';
+
+            moveHistory.forEach((pair, i) => {
+                const div = document.createElement('div');
+                div.className = 'move-pair';
+                div.innerHTML = '<span class="move-num">' + (i + 1) + '.</span> ' +
+                    '<span class="move-w">' + (pair.white || '...') + '</span>' +
+                    (pair.black ? ' <span class="move-b">' + pair.black + '</span>' : '');
+                container.appendChild(div);
+            });
+        }
+
+        function showGameOver(result) {
+            const overlay = document.getElementById('gameOver');
+            const text = document.getElementById('gameOverText');
+
+            let msg = result;
+            let color = '#fff';
+            const playerWon = (playerColor === 'white' && result === '1-0') || (playerColor === 'black' && result === '0-1');
+            const playerLost = (playerColor === 'white' && result === '0-1') || (playerColor === 'black' && result === '1-0');
+
+            if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
+            else if (playerLost) { msg = 'MattFish Wins!'; color = '#e74c3c'; }
+            else { msg = 'Draw!'; color = '#f39c12'; }
+
+            text.textContent = msg;
+            text.style.color = color;
+            overlay.classList.add('active');
+            setStatus('Game Over: ' + result);
+            updateUndoButton();
+        }
+
+        function setStatus(text) {
+            document.getElementById('status').textContent = text;
+        }
     </script>
 </body>
 </html>
