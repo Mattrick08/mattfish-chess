@@ -1,26 +1,26 @@
 // ========== MATTFISH THEME SYSTEM ==========
-// Minimal, safe theme that only changes background and accent colors
-// Does NOT override text colors or button styles to avoid breaking visibility
+// Toggle panel, background color, accent color, image upload
+// Syncs across pages via localStorage
 
-const THEME_KEYS = {
+var THEME_KEYS = {
     bgColor: 'mattfish_bg_color',
     accentColor: 'mattfish_accent_color',
     bgImage: 'mattfish_bg_image'
 };
 
-const DEFAULTS = {
+var DEFAULTS = {
     bgColor: '#1e1e1e',
     accentColor: '#e74c3c'
 };
 
-const PRESET_BG_COLORS = [
+var PRESET_BG_COLORS = [
     '#1e1e1e', '#0d0d0d', '#1a1a2e', '#16213e',
     '#0f3460', '#1a1a1a', '#2c2c2c', '#1e1e2e',
     '#0a0a0a', '#121212', '#1e1e1e', '#2d2d2d',
     '#1a1a1a', '#0f0f0f', '#1e1e1e', '#252525'
 ];
 
-const PRESET_ACCENT_COLORS = [
+var PRESET_ACCENT_COLORS = [
     '#e74c3c', '#c0392b', '#e67e22', '#f39c12',
     '#f1c40f', '#2ecc71', '#27ae60', '#1abc9c',
     '#16a085', '#3498db', '#2980b9', '#9b59b6',
@@ -63,60 +63,44 @@ function darkenColor(hex, percent) {
 function applyThemeToPage() {
     var theme = getTheme();
 
-    // Only change body background - NEVER touch body color
     document.body.style.backgroundColor = theme.bgColor;
 
-    // Only apply accent to specific elements that are safe to change
-    // h1 title
     var h1 = document.querySelector('h1');
     if (h1) h1.style.color = theme.accentColor;
 
-    // New game button
     var ngb = document.querySelector('.new-game-btn');
     if (ngb) {
         ngb.style.backgroundColor = theme.accentColor;
-        ngb.onmouseenter = function() { this.style.backgroundColor = darkenColor(theme.accentColor, 20); };
-        ngb.onmouseleave = function() { this.style.backgroundColor = theme.accentColor; };
     }
 
-    // Play link on index page
-    var playLink = document.querySelector('a.accent-bg');
+    var playLink = document.querySelector('a[href="/play"]');
     if (playLink) {
         playLink.style.backgroundColor = theme.accentColor;
-        playLink.onmouseenter = function() { this.style.backgroundColor = darkenColor(theme.accentColor, 20); };
-        playLink.onmouseleave = function() { this.style.backgroundColor = theme.accentColor; };
     }
 
-    // Eval center line
     var evalLine = document.querySelector('.eval-center-line');
     if (evalLine) evalLine.style.background = theme.accentColor;
 
-    // Personalize panel title
     var panelTitle = document.querySelector('.personalize-panel h3');
     if (panelTitle) panelTitle.style.color = theme.accentColor;
 
-    // Stat card headings (index page)
     document.querySelectorAll('.stat-card h2, .chart-section h2, .openings-section h2, .pie-card h3').forEach(function(el) {
         el.style.color = theme.accentColor;
     });
 
-    // Table headers (index page)
     document.querySelectorAll('th').forEach(function(el) {
         el.style.color = theme.accentColor;
     });
 
-    // Active button borders
     document.querySelectorAll('.diff-btn.active, .color-btn.active').forEach(function(el) {
         el.style.borderColor = theme.accentColor;
     });
 
-    // Card backgrounds - make slightly lighter than body
     var cardBg = lightenColor(theme.bgColor, 8);
     document.querySelectorAll('.stat-card, .chart-section, .pie-card, .openings-section, .personalize-panel, #status, .move-history').forEach(function(el) {
         el.style.backgroundColor = cardBg;
     });
 
-    // Background image
     var overlay = document.getElementById('bgImageOverlay');
     if (overlay) {
         if (theme.bgImage) {
@@ -124,6 +108,20 @@ function applyThemeToPage() {
         } else {
             overlay.style.backgroundImage = '';
         }
+    }
+}
+
+function togglePersonalizePanel() {
+    var panel = document.getElementById('personalizePanel');
+    var btn = document.getElementById('personalizeToggleBtn');
+    if (!panel) return;
+
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        panel.style.display = 'block';
+        if (btn) btn.textContent = '✕ Close';
+    } else {
+        panel.style.display = 'none';
+        if (btn) btn.textContent = '🎨 Personalize';
     }
 }
 
@@ -137,7 +135,8 @@ function initThemePanel(containerId, options) {
     var showAccent = options.showAccent !== false;
     var showImage = options.showImage !== false;
 
-    var html = '<div class="personalize-panel">';
+    var html = '<div id="personalizePanel" style="display:none;">';
+    html += '<div class="personalize-panel">';
     html += '<h3 style="color:' + theme.accentColor + '">&#127912; Personalize</h3>';
 
     if (showBg) {
@@ -171,34 +170,38 @@ function initThemePanel(containerId, options) {
     }
 
     html += '<button class="reset-btn" onclick="resetTheme()">Reset to Default</button>';
-    html += '</div>';
+    html += '</div></div>';
 
     container.innerHTML = html;
 
     if (showBg) {
         var bgGrid = document.getElementById('bgColorGrid');
-        PRESET_BG_COLORS.forEach(function(color) {
-            var swatch = document.createElement('div');
-            swatch.className = 'color-swatch';
-            swatch.style.backgroundColor = color;
-            swatch.dataset.color = color;
-            swatch.onclick = function() { applyBgColor(color); };
-            if (color === theme.bgColor) swatch.classList.add('active');
-            bgGrid.appendChild(swatch);
-        });
+        if (bgGrid) {
+            PRESET_BG_COLORS.forEach(function(color) {
+                var swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+                swatch.onclick = function() { applyBgColor(color); };
+                if (color === theme.bgColor) swatch.classList.add('active');
+                bgGrid.appendChild(swatch);
+            });
+        }
     }
 
     if (showAccent) {
         var accentGrid = document.getElementById('accentColorGrid');
-        PRESET_ACCENT_COLORS.forEach(function(color) {
-            var swatch = document.createElement('div');
-            swatch.className = 'color-swatch';
-            swatch.style.backgroundColor = color;
-            swatch.dataset.color = color;
-            swatch.onclick = function() { applyAccentColor(color); };
-            if (color === theme.accentColor) swatch.classList.add('active');
-            accentGrid.appendChild(swatch);
-        });
+        if (accentGrid) {
+            PRESET_ACCENT_COLORS.forEach(function(color) {
+                var swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+                swatch.onclick = function() { applyAccentColor(color); };
+                if (color === theme.accentColor) swatch.classList.add('active');
+                accentGrid.appendChild(swatch);
+            });
+        }
     }
 
     if (showImage && theme.bgImage) {
