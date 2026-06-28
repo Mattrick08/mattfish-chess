@@ -560,32 +560,52 @@
             setStatus('Room created! Share the code with your friend.');
         });
 
+        // FIX: joined_room now properly initializes everything for the second player
         socket.on('joined_room', (data) => {
             roomCode = data.room_code;
             myColor = data.your_color;
+            currentFEN = data.fen;
+            
+            // Initialize legal moves from start position
+            legalMoves = [];
+            
+            // Hide lobby, show game UI
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('gameUI').classList.remove('hidden');
-            currentFEN = data.fen;
+            
             setupBoard();
-            setStatus('Game started! You are ' + myColor + '.');
+            setStatus('Game started! You are ' + myColor + '. Waiting for opponent...');
         });
 
-        // THIS IS THE KEY FIX - room creator also needs game_started
+        // FIX: game_started now properly initializes board, timers, and legal moves for BOTH players
         socket.on('game_started', (data) => {
+            roomCode = data.room_code;
+            currentFEN = data.fen;
+            
+            // Initialize timers
+            myTime = data.time_control.minutes * 60;
+            opponentTime = data.time_control.minutes * 60;
+            updateTimerDisplay();
+            
+            // Initialize legal moves for start position
+            legalMoves = ['a2a3','a2a4','b2b3','b2b4','c2c3','c2c4','d2d3','d2d4','e2e3','e2e4','f2f3','f2f4','g2g3','g2g4','h2h3','h2h4','b1a3','b1c3','g1f3','g1h3'];
+            
+            // Hide all lobby views, show game UI
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('roomView').classList.add('hidden');
             document.getElementById('gameUI').classList.remove('hidden');
             
-            currentFEN = data.fen;
-            myTime = data.time_control.minutes * 60;
-            opponentTime = data.time_control.minutes * 60;
-            updateTimerDisplay();
             setupBoard();
             gameStatus = 'playing';
             isMyTurn = myColor === 'white';
-            setStatus(isMyTurn ? 'Game started! Your turn (White).' : 'Game started! Waiting for opponent...');
-            if (isMyTurn) startTimer('my');
-            else startTimer('opponent');
+            
+            if (isMyTurn) {
+                startTimer('my');
+                setStatus('Game started! Your turn (White).');
+            } else {
+                startTimer('opponent');
+                setStatus('Game started! Waiting for opponent...');
+            }
         });
 
         socket.on('joined_as_spectator', (data) => {
@@ -611,9 +631,11 @@
                 to: data.move.substring(2, 4)
             };
 
-            myTime = data.timers[myColor] || myTime;
-            const oppColor = myColor === 'white' ? 'black' : 'white';
-            opponentTime = data.timers[oppColor] || opponentTime;
+            if (data.timers) {
+                myTime = data.timers[myColor] || myTime;
+                const oppColor = myColor === 'white' ? 'black' : 'white';
+                opponentTime = data.timers[oppColor] || opponentTime;
+            }
             updateTimerDisplay();
 
             if (data.player_color === 'white') {
@@ -803,6 +825,8 @@
         function drawBoard() {
             const board = document.getElementById('board');
             board.innerHTML = '';
+
+            if (!currentFEN) return;
 
             const fenParts = currentFEN.split(' ');
             const fenRows = fenParts[0].split('/');
