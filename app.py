@@ -508,7 +508,7 @@ def handle_join_room(data):
             'fen': room["board"].fen(),
             'move_history': room["move_history"],
             'white_time': room["white_time"],
-            'black_time": room["black_time"],
+            'black_time': room["black_time"],
             'chat_history': room["chat_history"],
             'game_started': room["game_started"],
             'game_over': room["game_over"],
