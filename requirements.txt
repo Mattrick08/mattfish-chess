@@ -1,4 +1,8 @@
+# Your new requirements.txt includes:
 Flask==3.0.3
 requests==2.32.3
 gunicorn==23.0.0
 python-chess==1.999
+flask-socketio==5.3.6
+python-socketio==5.11.0
+eventlet==0.35.2
