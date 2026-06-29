@@ -221,151 +221,12 @@
             font-size: 14px;
             margin-top: 10px;
         }
-
-        /* ========== MULTIPLAYER MODAL ========== */
-        .mp-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        .mp-modal-overlay.active { display: flex; }
-        .mp-modal {
-            background: #2a2a2a;
-            border: 2px solid #555;
-            border-radius: 12px;
-            padding: 30px;
-            width: 400px;
-            max-width: 90vw;
-        }
-        .mp-modal h2 {
-            text-align: center;
-            color: #e74c3c;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-        .mp-modal .room-code-display {
-            background: #1e1e1e;
-            border: 2px dashed #4CAF50;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            font-size: 32px;
-            font-weight: bold;
-            letter-spacing: 4px;
-            color: #4CAF50;
-            margin: 15px 0;
-            cursor: pointer;
-            user-select: all;
-        }
-        .mp-modal .room-code-display:hover {
-            background: #1a2a1a;
-        }
-        .mp-modal input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            font-size: 18px;
-            text-align: center;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            background: #1e1e1e;
-            border: 2px solid #555;
-            color: white;
-            border-radius: 6px;
-            margin-bottom: 15px;
-        }
-        .mp-modal input[type="text"]:focus {
-            outline: none;
-            border-color: #4CAF50;
-        }
-        .mp-modal .mp-btn {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: 0.2s;
-        }
-        .mp-btn-create {
-            background: #4CAF50;
-            color: white;
-        }
-        .mp-btn-create:hover { background: #45a049; }
-        .mp-btn-join {
-            background: #2196F3;
-            color: white;
-        }
-        .mp-btn-join:hover { background: #1976D2; }
-        .mp-btn-spectate {
-            background: #9C27B0;
-            color: white;
-        }
-        .mp-btn-spectate:hover { background: #7B1FA2; }
-        .mp-btn-close {
-            background: #555;
-            color: white;
-        }
-        .mp-btn-close:hover { background: #666; }
-        .mp-modal .waiting-text {
-            text-align: center;
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        .mp-modal .error-text {
-            color: #e74c3c;
-            text-align: center;
-            font-size: 14px;
-            margin: 10px 0;
-            display: none;
-        }
-        .mp-modal .error-text.active { display: block; }
-        .mp-modal .success-text {
-            color: #4CAF50;
-            text-align: center;
-            font-size: 14px;
-            margin: 10px 0;
-            display: none;
-        }
-        .mp-modal .success-text.active { display: block; }
-
-        /* Play buttons section */
-        .play-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 25px;
-        }
-        .play-btn {
-            display: inline-block;
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: 0.3s;
-            cursor: pointer;
-            border: none;
-        }
-        .play-btn-engine {
-            background: #e74c3c;
-            color: white;
-        }
-        .play-btn-engine:hover { background: #c0392b; }
-        .play-btn-multiplayer {
-            background: #4CAF50;
-            color: white;
-        }
-        .play-btn-multiplayer:hover { background: #45a049; }
     </style>
+<base target="_blank">
+<base target="_blank">
     <script src="/static/theme.js"></script>
     <style>
+        /* Personalize toggle button */
         .personalize-toggle-btn {
             display: block;
             margin: 0 auto 20px auto;
@@ -381,6 +242,7 @@
         .personalize-toggle-btn:hover {
             background: #c0392b;
         }
+        /* Personalize panel */
         .personalize-panel {
             background: #2a2a2a;
             border: 1px solid #444;
@@ -538,424 +400,256 @@
             pointer-events: none;
         }
     </style>
+<base target="_blank">
+<base target="_blank">
 </head>
 <body>
     <div class="bg-image-overlay" id="bgImageOverlay"></div>
 
-    <h1>MattFish</h1>
+
+<h1>MattFish</h1>
 
     <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
 
     <div id="themePanelContainer" style="text-align:center;"></div>
 
-    <div class="play-buttons">
-        <a href="/play" class="play-btn play-btn-engine">
-            &#9812; Play vs MattFish Engine &#9818;
-        </a>
-        <button class="play-btn play-btn-multiplayer" onclick="openMultiplayerModal()">
-            &#9816; Play vs Friend &#9816;
-        </button>
-    </div>
+<div style="text-align: center; margin-bottom: 25px;">
+    <a href="/play" style="
+        display: inline-block;
+        padding: 15px 40px;
+        font-size: 18px;
+        background: #e74c3c;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: 0.3s;
+        font-weight: bold;
+        margin: 5px;
+    " onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">
+        ♔ Play vs MattFish Engine ♚
+    </a>
 
-    <div class="top-section">
-        <div class="left-inputs">
-            <input type="text" id="username" placeholder="Enter your Chess.com username">
-            <div class="buttons">
-                <button onclick="loadAll()">Load Stats</button>
-            </div>
-            <div class="buttons">
-                <button class="period-btn active" onclick="setPeriod(3, this)">Last 3 months</button>
-                <button class="period-btn" onclick="setPeriod(6, this)">Last 6 months</button>
-                <button class="period-btn" onclick="setPeriod(12, this)">Last year</button>
-                <button class="period-btn" onclick="setPeriod(999, this)">All time</button>
-            </div>
+</div>
+
+<div class="top-section">
+    <div class="left-inputs">
+        <input type="text" id="username" placeholder="Enter your Chess.com username">
+        <div class="buttons">
+            <button onclick="loadAll()">Load Stats</button>
         </div>
-        <div class="avatar-frame">
-            <div class="avatar-placeholder" id="avatar-placeholder">No avatar</div>
-            <img id="avatar-img" style="display:none" src="" alt="Avatar">
-        </div>
-    </div>
-
-    <div class="stats-section" id="stats-section"></div>
-
-    <div class="pie-section" id="pie-section"></div>
-
-    <div class="chart-section" id="chart-section" style="display:none">
-        <h2>Rating History</h2>
-        <p class="loading" id="chart-loading">Loading games...</p>
-        <canvas id="ratingChart"></canvas>
-    </div>
-
-    <div class="openings-section" id="openings-section" style="display:none">
-        <h2>Opening Explorer</h2>
-        <div class="sort-buttons">
-            <button class="sort-btn active" onclick="sortOpenings('most_played', this)">Most Played</button>
-            <button class="sort-btn" onclick="sortOpenings('winrate', this)">Best Winrate</button>
-        </div>
-        <p class="loading" id="openings-loading">Loading openings...</p>
-        <table id="openings-table">
-            <thead>
-                <tr>
-                    <th>Opening</th>
-                    <th>Games</th>
-                    <th>Wins</th>
-                    <th>Draws</th>
-                    <th>Losses</th>
-                    <th>Winrate</th>
-                </tr>
-            </thead>
-            <tbody id="openings-body"></tbody>
-        </table>
-    </div>
-
-    <!-- MULTIPLAYER MODAL -->
-    <div class="mp-modal-overlay" id="mpModal">
-        <div class="mp-modal">
-            <h2>&#9816; Play vs Friend</h2>
-
-            <div id="mpCreateSection">
-                <button class="mp-btn mp-btn-create" onclick="createRoom()">&#127968; Create Room</button>
-                <div class="waiting-text">Create a room and share the code with your friend!</div>
-            </div>
-
-            <div id="mpRoomCreatedSection" style="display:none;">
-                <div style="text-align:center; color:#aaa; font-size:14px; margin-bottom:5px;">Your room code:</div>
-                <div class="room-code-display" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy">----</div>
-                <div class="waiting-text" id="waitingText">Waiting for opponent to join...</div>
-                <button class="mp-btn mp-btn-close" onclick="closeRoom()">Close Room</button>
-            </div>
-
-            <hr style="border:0; border-top:1px solid #444; margin:20px 0;">
-
-            <div id="mpJoinSection">
-                <div style="text-align:center; color:#aaa; font-size:14px; margin-bottom:10px;">Join a room</div>
-                <input type="text" id="joinRoomCode" placeholder="ENTER CODE" maxlength="6">
-                <button class="mp-btn mp-btn-join" onclick="joinRoom()">&#127942; Join as Player</button>
-                <button class="mp-btn mp-btn-spectate" onclick="spectateRoom()">&#128064; Spectate</button>
-            </div>
-
-            <div class="error-text" id="mpError"></div>
-            <div class="success-text" id="mpSuccess"></div>
-
-            <button class="mp-btn mp-btn-close" onclick="closeMultiplayerModal()" style="margin-top:10px;">Cancel</button>
+        <div class="buttons">
+            <button class="period-btn active" onclick="setPeriod(3, this)">Last 3 months</button>
+            <button class="period-btn" onclick="setPeriod(6, this)">Last 6 months</button>
+            <button class="period-btn" onclick="setPeriod(12, this)">Last year</button>
+            <button class="period-btn" onclick="setPeriod(999, this)">All time</button>
         </div>
     </div>
+    <div class="avatar-frame">
+        <div class="avatar-placeholder" id="avatar-placeholder">No avatar</div>
+        <img id="avatar-img" style="display:none" src="" alt="Avatar">
+    </div>
+</div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        // Socket.IO connection for multiplayer lobby
-        const socket = io();
-        let currentRoomCode = null;
-        let myColor = null;
+<div class="stats-section" id="stats-section"></div>
 
-        socket.on('connect', function() {
-            console.log('Connected to server');
-        });
+<div class="pie-section" id="pie-section"></div>
 
-        socket.on('room_created', function(data) {
-            currentRoomCode = data.room_code;
-            myColor = data.your_color;
-            document.getElementById('roomCodeDisplay').textContent = data.room_code;
-            document.getElementById('mpCreateSection').style.display = 'none';
-            document.getElementById('mpRoomCreatedSection').style.display = 'block';
-            showMpSuccess(data.message);
-            console.log('Room created:', data.room_code);
-        });
+<div class="chart-section" id="chart-section" style="display:none">
+    <h2>Rating History</h2>
+    <p class="loading" id="chart-loading">Loading games...</p>
+    <canvas id="ratingChart"></canvas>
+</div>
 
-        socket.on('guest_joined', function(data) {
-            document.getElementById('waitingText').innerHTML = 
-                '<span style="color:#4CAF50;">Opponent joined!</span> Starting game...';
-            // Auto-start after short delay
-            setTimeout(function() {
-                socket.emit('start_game', {});
-            }, 1500);
-        });
+<div class="openings-section" id="openings-section" style="display:none">
+    <h2>Opening Explorer</h2>
+    <div class="sort-buttons">
+        <button class="sort-btn active" onclick="sortOpenings('most_played', this)">Most Played</button>
+        <button class="sort-btn" onclick="sortOpenings('winrate', this)">Best Winrate</button>
+    </div>
+    <p class="loading" id="openings-loading">Loading openings...</p>
+    <table id="openings-table">
+        <thead>
+            <tr>
+                <th>Opening</th>
+                <th>Games</th>
+                <th>Wins</th>
+                <th>Draws</th>
+                <th>Losses</th>
+                <th>Winrate</th>
+            </tr>
+        </thead>
+        <tbody id="openings-body"></tbody>
+    </table>
+</div>
 
-        socket.on('joined_room', function(data) {
-            currentRoomCode = data.room_code;
-            myColor = data.your_color;
-            showMpSuccess(data.message);
-            // Redirect to game page with room code
-            setTimeout(function() {
-                window.location.href = '/play?room=' + data.room_code + '&color=' + data.your_color;
-            }, 1000);
-        });
+<script>
+    let currentPeriod = 3;
+    let ratingChart = null;
+    let pieCharts = {};
+    let openingsData = [];
+    let currentSort = "most_played";
 
-        socket.on('joined_as_spectator', function(data) {
-            currentRoomCode = data.room_code;
-            showMpSuccess(data.message);
-            setTimeout(function() {
-                window.location.href = '/play?room=' + data.room_code + '&mode=spectate';
-            }, 1000);
-        });
+    function setPeriod(months, btn) {
+        currentPeriod = months;
+        document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+    }
 
-        socket.on('join_error', function(data) {
-            showMpError(data.message);
-        });
+    async function loadAll() {
+        const username = document.getElementById("username").value;
+        if (!username) return;
+        await loadStats(username);
+        await loadHistory(username);
+        await loadOpenings(username);
+    }
 
-        socket.on('game_started', function(data) {
-            // Host gets redirected
-            if (myColor === 'white') {
-                window.location.href = '/play?room=' + currentRoomCode + '&color=white';
-            }
-        });
+    async function loadStats(username) {
+        const response = await fetch(`/stats/${username}`);
+        const data = await response.json();
 
-        function openMultiplayerModal() {
-            document.getElementById('mpModal').classList.add('active');
-            document.getElementById('mpCreateSection').style.display = 'block';
-            document.getElementById('mpRoomCreatedSection').style.display = 'none';
-            document.getElementById('mpError').classList.remove('active');
-            document.getElementById('mpSuccess').classList.remove('active');
-            currentRoomCode = null;
-            myColor = null;
+        // Avatar
+        if (data.avatar) {
+            document.getElementById("avatar-placeholder").style.display = "none";
+            const img = document.getElementById("avatar-img");
+            img.src = data.avatar;
+            img.style.display = "block";
         }
 
-        function closeMultiplayerModal() {
-            document.getElementById('mpModal').classList.remove('active');
-            if (currentRoomCode) {
-                socket.emit('close_room', { room_code: currentRoomCode });
-            }
-        }
+        const section = document.getElementById("stats-section");
+        const pieSection = document.getElementById("pie-section");
+        section.innerHTML = "";
+        pieSection.innerHTML = "";
 
-        function createRoom() {
-            const timeControl = { minutes: 10, increment: 0 };
-            socket.emit('create_room', { time_control: timeControl });
-        }
+        // Destroy old pie charts
+        Object.values(pieCharts).forEach(c => c.destroy());
+        pieCharts = {};
 
-        function joinRoom() {
-            const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
-            if (!code || code.length !== 6) {
-                showMpError('Please enter a valid 6-character room code.');
-                return;
-            }
-            socket.emit('join_room', { room_code: code, mode: 'play' });
-        }
+        for (const [name, stats] of Object.entries(data.stats)) {
+            const total = stats.wins + stats.draws + stats.losses;
 
-        function spectateRoom() {
-            const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
-            if (!code || code.length !== 6) {
-                showMpError('Please enter a valid 6-character room code.');
-                return;
-            }
-            socket.emit('join_room', { room_code: code, mode: 'spectate' });
-        }
+            // Stat card
+            section.innerHTML += `
+                <div class="stat-card">
+                    <h2>${name}</h2>
+                    <div class="rating">${stats.current}</div>
+                    <p>Best: ${stats.best}</p>
+                    <p>Wins: ${stats.wins}</p>
+                    <p>Draws: ${stats.draws}</p>
+                    <p>Losses: ${stats.losses}</p>
+                    <p>Total: ${total}</p>
+                </div>
+            `;
 
-        function closeRoom() {
-            if (currentRoomCode) {
-                socket.emit('leave_room', { room_code: currentRoomCode });
-            }
-            document.getElementById('mpCreateSection').style.display = 'block';
-            document.getElementById('mpRoomCreatedSection').style.display = 'none';
-            currentRoomCode = null;
-            myColor = null;
-        }
+            // Pie card
+            const pieId = `pie-${name}`;
+            pieSection.innerHTML += `
+                <div class="pie-card">
+                    <h3>${name}</h3>
+                    <canvas id="${pieId}"></canvas>
+                </div>
+            `;
 
-        function copyRoomCode() {
-            const code = document.getElementById('roomCodeDisplay').textContent;
-            navigator.clipboard.writeText(code).then(function() {
-                showMpSuccess('Room code copied to clipboard!');
-            });
-        }
-
-        function showMpError(msg) {
-            const el = document.getElementById('mpError');
-            el.textContent = msg;
-            el.classList.add('active');
-            document.getElementById('mpSuccess').classList.remove('active');
-            setTimeout(function() { el.classList.remove('active'); }, 5000);
-        }
-
-        function showMpSuccess(msg) {
-            const el = document.getElementById('mpSuccess');
-            el.textContent = msg;
-            el.classList.add('active');
-            document.getElementById('mpError').classList.remove('active');
-            setTimeout(function() { el.classList.remove('active'); }, 5000);
-        }
-
-        // Close modal on Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeMultiplayerModal();
-            }
-        });
-
-        // Close modal on overlay click
-        document.getElementById('mpModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeMultiplayerModal();
-            }
-        });
-
-        // Enter key in room code input
-        document.getElementById('joinRoomCode').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                joinRoom();
-            }
-        });
-    </script>
-
-    <script>
-        let currentPeriod = 3;
-        let ratingChart = null;
-        let pieCharts = {};
-        let openingsData = [];
-        let currentSort = "most_played";
-
-        function setPeriod(months, btn) {
-            currentPeriod = months;
-            document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-        }
-
-        async function loadAll() {
-            const username = document.getElementById("username").value;
-            if (!username) return;
-            await loadStats(username);
-            await loadHistory(username);
-            await loadOpenings(username);
-        }
-
-        async function loadStats(username) {
-            const response = await fetch(`/stats/${username}`);
-            const data = await response.json();
-
-            if (data.avatar) {
-                document.getElementById("avatar-placeholder").style.display = "none";
-                const img = document.getElementById("avatar-img");
-                img.src = data.avatar;
-                img.style.display = "block";
-            }
-
-            const section = document.getElementById("stats-section");
-            const pieSection = document.getElementById("pie-section");
-            section.innerHTML = "";
-            pieSection.innerHTML = "";
-
-            Object.values(pieCharts).forEach(c => c.destroy());
-            pieCharts = {};
-
-            for (const [name, stats] of Object.entries(data.stats)) {
-                const total = stats.wins + stats.draws + stats.losses;
-
-                section.innerHTML += `
-                    <div class="stat-card">
-                        <h2>${name}</h2>
-                        <div class="rating">${stats.current}</div>
-                        <p>Best: ${stats.best}</p>
-                        <p>Wins: ${stats.wins}</p>
-                        <p>Draws: ${stats.draws}</p>
-                        <p>Losses: ${stats.losses}</p>
-                        <p>Total: ${total}</p>
-                    </div>
-                `;
-
-                const pieId = `pie-${name}`;
-                pieSection.innerHTML += `
-                    <div class="pie-card">
-                        <h3>${name}</h3>
-                        <canvas id="${pieId}"></canvas>
-                    </div>
-                `;
-
-                setTimeout(() => {
-                    const ctx = document.getElementById(pieId).getContext("2d");
-                    pieCharts[name] = new Chart(ctx, {
-                        type: "pie",
-                        data: {
-                            labels: ["Wins", "Losses", "Draws"],
-                            datasets: [{
-                                data: [stats.wins, stats.losses, stats.draws],
-                                backgroundColor: ["green", "red", "gray"]
-                            }]
-                        },
-                        options: {
-                            plugins: {
-                                legend: { labels: { color: "white" } }
-                            }
+            setTimeout(() => {
+                const ctx = document.getElementById(pieId).getContext("2d");
+                pieCharts[name] = new Chart(ctx, {
+                    type: "pie",
+                    data: {
+                        labels: ["Wins", "Losses", "Draws"],
+                        datasets: [{
+                            data: [stats.wins, stats.losses, stats.draws],
+                            backgroundColor: ["green", "red", "gray"]
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            legend: { labels: { color: "white" } }
                         }
-                    });
-                }, 100);
-            }
-        }
-
-        async function loadHistory(username) {
-            const chartSection = document.getElementById("chart-section");
-            const loading = document.getElementById("chart-loading");
-            chartSection.style.display = "block";
-            loading.style.display = "block";
-
-            const response = await fetch(`/history/${username}/${currentPeriod}`);
-            const data = await response.json();
-
-            loading.style.display = "none";
-
-            if (ratingChart) ratingChart.destroy();
-
-            const ctx = document.getElementById("ratingChart").getContext("2d");
-            ratingChart = new Chart(ctx, {
-                type: "line",
-                data: {
-                    labels: data.blitz.map((_, i) => i + 1),
-                    datasets: [
-                        { label: "Rapid", data: data.rapid, borderColor: "green", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
-                        { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
-                        { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { labels: { color: "white" } } },
-                    scales: {
-                        x: { ticks: { color: "white" }, grid: { color: "#444" } },
-                        y: { ticks: { color: "white" }, grid: { color: "#444" } }
                     }
+                });
+            }, 100);
+        }
+    }
+
+    async function loadHistory(username) {
+        const chartSection = document.getElementById("chart-section");
+        const loading = document.getElementById("chart-loading");
+        chartSection.style.display = "block";
+        loading.style.display = "block";
+
+        const response = await fetch(`/history/${username}/${currentPeriod}`);
+        const data = await response.json();
+
+        loading.style.display = "none";
+
+        if (ratingChart) ratingChart.destroy();
+
+        const ctx = document.getElementById("ratingChart").getContext("2d");
+        ratingChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: data.blitz.map((_, i) => i + 1),
+                datasets: [
+                    { label: "Rapid", data: data.rapid, borderColor: "green", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+                    { label: "Blitz", data: data.blitz, borderColor: "gold", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+                    { label: "Bullet", data: data.bullet, borderColor: "peru", backgroundColor: "transparent", tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: "white" } } },
+                scales: {
+                    x: { ticks: { color: "white" }, grid: { color: "#444" } },
+                    y: { ticks: { color: "white" }, grid: { color: "#444" } }
                 }
-            });
-        }
-
-        async function loadOpenings(username) {
-            const section = document.getElementById("openings-section");
-            const loading = document.getElementById("openings-loading");
-            section.style.display = "block";
-            loading.style.display = "block";
-
-            const response = await fetch(`/openings/${username}/${currentPeriod}`);
-            openingsData = await response.json();
-
-            loading.style.display = "none";
-            sortOpenings(currentSort);
-        }
-
-        function sortOpenings(sortBy, btn) {
-            currentSort = sortBy;
-            document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-            if (btn) btn.classList.add("active");
-
-            let sorted = [...openingsData];
-            if (sortBy === "most_played") {
-                sorted.sort((a, b) => b.total - a.total);
-            } else {
-                sorted = sorted.filter(o => o.total >= 3);
-                sorted.sort((a, b) => b.winrate - a.winrate);
             }
+        });
+    }
 
-            const tbody = document.getElementById("openings-body");
-            tbody.innerHTML = "";
-            sorted.slice(0, 10).forEach(o => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${o.name}</td>
-                        <td>${o.total}</td>
-                        <td style="color: green">${o.wins}</td>
-                        <td style="color: gray">${o.draws}</td>
-                        <td style="color: red">${o.losses}</td>
-                        <td>${o.winrate}%</td>
-                    </tr>
-                `;
-            });
+    async function loadOpenings(username) {
+        const section = document.getElementById("openings-section");
+        const loading = document.getElementById("openings-loading");
+        section.style.display = "block";
+        loading.style.display = "block";
+
+        const response = await fetch(`/openings/${username}/${currentPeriod}`);
+        openingsData = await response.json();
+
+        loading.style.display = "none";
+        sortOpenings(currentSort);
+    }
+
+    function sortOpenings(sortBy, btn) {
+        currentSort = sortBy;
+        document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+        if (btn) btn.classList.add("active");
+
+        let sorted = [...openingsData];
+        if (sortBy === "most_played") {
+            sorted.sort((a, b) => b.total - a.total);
+        } else {
+            sorted = sorted.filter(o => o.total >= 3);
+            sorted.sort((a, b) => b.winrate - a.winrate);
         }
 
+        const tbody = document.getElementById("openings-body");
+        tbody.innerHTML = "";
+        sorted.slice(0, 10).forEach(o => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${o.name}</td>
+                    <td>${o.total}</td>
+                    <td style="color: green">${o.wins}</td>
+                    <td style="color: gray">${o.draws}</td>
+                    <td style="color: red">${o.losses}</td>
+                    <td>${o.winrate}%</td>
+                </tr>
+            `;
+        });
+    }
+</script>
+
+
+    <script>
         window.onload = function() {
             try {
                 if (typeof initThemePanel === 'function') {
