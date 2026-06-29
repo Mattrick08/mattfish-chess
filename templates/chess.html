@@ -171,30 +171,53 @@
         }
         .light.legal::after { background: rgba(0, 0, 0, 0.2); }
         .dark.legal::after { background: rgba(255, 255, 255, 0.25); }
+        .check { background: rgba(231, 76, 60, 0.6) !important; }
+
+        /* ========== PROMOTION MODAL ========== */
         .promotion-modal {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .promotion-modal.active { display: flex; }
+        .promotion-modal > div {
+            display: flex;
+            gap: 15px;
+            background: #2a2a2a;
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid #555;
+        }
         .promo-piece {
             width: 80px;
             height: 80px;
             cursor: pointer;
             background: #f0d9b5;
             border-radius: 10px;
-            margin: 10px;
             transition: 0.2s;
             display: flex;
             justify-content: center;
             align-items: center;
+            border: 3px solid transparent;
         }
-        .promo-piece:hover { transform: scale(1.1); background: #fff; }
-        .promo-piece img { width: 70px; height: 70px; }
+        .promo-piece:hover { 
+            transform: scale(1.15); 
+            background: #fff; 
+            border-color: #e74c3c;
+        }
+        .promo-piece img { width: 65px; height: 65px; }
+        .promo-label {
+            text-align: center;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
         .game-over-overlay {
             display: none;
             position: fixed;
@@ -236,6 +259,7 @@
             text-transform: uppercase;
             margin-top: 5px;
         }
+
         /* ========== EVALUATION BAR ========== */
         .eval-container {
             display: none;
@@ -261,6 +285,7 @@
             right: 0;
             background: #f0d9b5;
             transition: height 0.5s ease;
+            bottom: 0;
         }
         .eval-bar-black {
             position: absolute;
@@ -268,11 +293,6 @@
             right: 0;
             background: #b58863;
             transition: height 0.5s ease;
-        }
-        .eval-bar-white {
-            bottom: 0;
-        }
-        .eval-bar-black {
             top: 0;
         }
         .eval-bar-wrapper.flipped .eval-bar-white {
@@ -309,34 +329,163 @@
             font-weight: bold;
         }
 
-        .personalize-toggle-btn { padding: 10px; font-size: 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; width: 100%; }
+        .personalize-toggle-btn { 
+            padding: 10px; 
+            font-size: 14px; 
+            background: #e74c3c; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            width: 100%; 
+        }
         .personalize-toggle-btn:hover { background: #c0392b; }
-        .personalize-panel { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; padding: 15px; margin-top: 10px; }
-        .personalize-panel h3 { font-size: 14px; margin-bottom: 12px; text-align: center; }
-        .section-title { font-size: 11px; color: #888; text-transform: uppercase; margin: 10px 0 6px 0; letter-spacing: 0.5px; }
-        .color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 10px; }
-        .color-swatch { width: 100%; aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
-        .color-swatch:hover { transform: scale(1.15); border-color: white; z-index: 2; position: relative; }
-        .color-swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #e74c3c; }
-        .custom-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-        .custom-color-row label { font-size: 11px; color: #aaa; min-width: 70px; }
-        .custom-color-row input[type="color"] { width: 36px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: none; padding: 0; }
-        .custom-color-row input[type="text"] { flex: 1; padding: 5px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #1e1e1e; color: white; width: auto; }
-        .upload-area { border: 2px dashed #555; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
-        .upload-area:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.05); }
-        .upload-area.dragover { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
-        .upload-area p { font-size: 12px; color: #888; margin-bottom: 6px; }
+        .personalize-panel { 
+            background: #2a2a2a; 
+            border: 1px solid #444; 
+            border-radius: 10px; 
+            padding: 15px; 
+            margin-top: 10px; 
+        }
+        .personalize-panel h3 { 
+            font-size: 14px; 
+            margin-bottom: 12px; 
+            text-align: center; 
+        }
+        .color-grid { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            gap: 4px; 
+            margin-bottom: 10px; 
+        }
+        .color-swatch { 
+            width: 100%; 
+            aspect-ratio: 1; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            border: 2px solid transparent; 
+            transition: 0.2s; 
+        }
+        .color-swatch:hover { 
+            transform: scale(1.15); 
+            border-color: white; 
+            z-index: 2; 
+            position: relative; 
+        }
+        .color-swatch.active { 
+            border-color: #fff; 
+            box-shadow: 0 0 0 2px #e74c3c; 
+        }
+        .custom-color-row { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            margin-bottom: 10px; 
+        }
+        .custom-color-row label { 
+            font-size: 11px; 
+            color: #aaa; 
+            min-width: 70px; 
+        }
+        .custom-color-row input[type="color"] { 
+            width: 36px; 
+            height: 28px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            background: none; 
+            padding: 0; 
+        }
+        .custom-color-row input[type="text"] { 
+            flex: 1; 
+            padding: 5px 8px; 
+            font-size: 12px; 
+            border-radius: 4px; 
+            border: 1px solid #555; 
+            background: #1e1e1e; 
+            color: white; 
+            width: auto; 
+        }
+        .upload-area { 
+            border: 2px dashed #555; 
+            border-radius: 8px; 
+            padding: 12px; 
+            text-align: center; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            margin-bottom: 10px; 
+        }
+        .upload-area:hover { 
+            border-color: #e74c3c; 
+            background: rgba(231, 76, 60, 0.05); 
+        }
+        .upload-area.dragover { 
+            border-color: #4CAF50; 
+            background: rgba(76, 175, 80, 0.1); 
+        }
+        .upload-area p { 
+            font-size: 12px; 
+            color: #888; 
+            margin-bottom: 6px; 
+        }
         .upload-area input[type="file"] { display: none; }
-        .upload-btn { padding: 6px 14px; font-size: 12px; background: #444; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .upload-btn { 
+            padding: 6px 14px; 
+            font-size: 12px; 
+            background: #444; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+        }
         .upload-btn:hover { background: #555; }
-        .preview-img { max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 8px; display: none; }
+        .preview-img { 
+            max-width: 100%; 
+            max-height: 80px; 
+            border-radius: 6px; 
+            margin-top: 8px; 
+            display: none; 
+        }
         .preview-img.visible { display: block; }
-        .remove-img-btn { padding: 4px 10px; font-size: 11px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 6px; display: none; }
+        .remove-img-btn { 
+            padding: 4px 10px; 
+            font-size: 11px; 
+            background: #c0392b; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-top: 6px; 
+            display: none; 
+        }
         .remove-img-btn.visible { display: inline-block; }
         .remove-img-btn:hover { background: #a93226; }
-        .reset-btn { width: 100%; padding: 8px; font-size: 12px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
+        .reset-btn { 
+            width: 100%; 
+            padding: 8px; 
+            font-size: 12px; 
+            background: #555; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            margin-top: 8px; 
+        }
         .reset-btn:hover { background: #666; }
-        .bg-image-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1; opacity: 0.12; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+        .bg-image-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            z-index: -1; 
+            opacity: 0.12; 
+            background-size: cover; 
+            background-position: center; 
+            background-repeat: no-repeat; 
+            pointer-events: none; 
+        }
 
         /* ========== TIME CONTROL ========== */
         .timer-display {
@@ -402,9 +551,8 @@
         }
         .time-out-overlay.active { display: flex; }
         .time-out-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
-</style>
+    </style>
     <script type="text/javascript" src="/static/theme.js"></script>
-<base target="_blank">
 </head>
 <body>
     <div class="bg-image-overlay" id="bgImageOverlay"></div>
@@ -455,9 +603,9 @@
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
-        <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
+        <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">🎨 Personalize</button>
         <div id="themePanelContainer"></div>
-        <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;" target="_self">← Back to Stats</a>
+        <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
 
     <div class="board-area">
@@ -483,12 +631,26 @@
         </div>
     </div>
 
+    <!-- PROMOTION MODAL -->
     <div class="promotion-modal" id="promoModal">
         <div>
-            <span class="promo-piece" onclick="doPromo('q')"><img id="promoQ" src="/static/pieces/wQ (1).png" alt="Queen"></span>
-            <span class="promo-piece" onclick="doPromo('r')"><img id="promoR" src="/static/pieces/wR (1).png" alt="Rook"></span>
-            <span class="promo-piece" onclick="doPromo('b')"><img id="promoB" src="/static/pieces/wB (1).png" alt="Bishop"></span>
-            <span class="promo-piece" onclick="doPromo('n')"><img id="promoN" src="/static/pieces/wN (1).png" alt="Knight"></span>
+            <div style="width:100%;">
+                <div class="promo-label">Choose promotion piece:</div>
+                <div style="display:flex; gap:15px; justify-content:center;">
+                    <div class="promo-piece" onclick="doPromo('q')" title="Queen">
+                        <img id="promoQ" src="/static/pieces/wQ (1).png" alt="Queen">
+                    </div>
+                    <div class="promo-piece" onclick="doPromo('r')" title="Rook">
+                        <img id="promoR" src="/static/pieces/wR (1).png" alt="Rook">
+                    </div>
+                    <div class="promo-piece" onclick="doPromo('b')" title="Bishop">
+                        <img id="promoB" src="/static/pieces/wB (1).png" alt="Bishop">
+                    </div>
+                    <div class="promo-piece" onclick="doPromo('n')" title="Knight">
+                        <img id="promoN" src="/static/pieces/wN (1).png" alt="Knight">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -536,10 +698,10 @@
 
         // ========== TIME CONTROL ==========
         let timeControl = { minutes: 10, increment: 0 };
-        let playerTime = 600; // seconds
-        let engineTime = 600; // seconds
+        let playerTime = 600;
+        let engineTime = 600;
         let timerInterval = null;
-        let activeTimer = null; // 'player' or 'engine'
+        let activeTimer = null;
         let gameStarted = false;
 
         const TIME_PRESETS = {
@@ -567,11 +729,9 @@
             playerTimer.textContent = formatTime(playerTime);
             engineTimer.textContent = formatTime(engineTime);
 
-            // Highlight active timer
             playerTimer.classList.toggle('active-turn', activeTimer === 'player');
             engineTimer.classList.toggle('active-turn', activeTimer === 'engine');
 
-            // Low time warning (under 30 seconds)
             playerTimer.classList.toggle('low-time', playerTime < 30);
             engineTimer.classList.toggle('low-time', engineTime < 30);
         }
@@ -902,7 +1062,6 @@
             gameStarted = false;
             stopTimer();
 
-            // Reset timers
             playerTime = timeControl.minutes * 60;
             engineTime = timeControl.minutes * 60;
             updateTimerDisplay();
@@ -982,7 +1141,6 @@
                         moveHistory: JSON.parse(JSON.stringify(moveHistory))
                     });
 
-                    // Stop engine timer, add increment, start player timer
                     stopTimer();
                     addIncrement('engine');
                     startTimer('player');
@@ -1031,7 +1189,6 @@
             updateEvalBar();
             updateUndoButton();
 
-            // Reset timers based on whose turn it is
             const fenParts = currentFEN.split(' ');
             const activeColor = fenParts[1] || 'w';
             const isPlayerTurn = (playerColor === 'white' && activeColor === 'w') || (playerColor === 'black' && activeColor === 'b');
@@ -1125,6 +1282,7 @@
             boardEl.appendChild(square);
         }
 
+        // ========== FIXED PROMOTION HANDLING ==========
         function handleClick(square) {
             if (isThinking || !gameStarted) return;
 
@@ -1160,12 +1318,11 @@
                 const isPawn = fromPiece && (fromPiece.src.includes('wP') || fromPiece.src.includes('bP'));
                 const promoRank = playerColor === 'white' ? '8' : '1';
 
+                // FIX: Always show promotion modal when pawn reaches last rank
                 if (isPawn && sq[1] === promoRank) {
-                    if (matchingMove.length === 4) {
-                        pendingPromo = selectedSquare + sq;
-                        document.getElementById('promoModal').classList.add('active');
-                        return;
-                    }
+                    pendingPromo = selectedSquare + sq;
+                    document.getElementById('promoModal').classList.add('active');
+                    return;
                 }
                 sendMove(matchingMove);
             } else if (isPlayerPiece) {
@@ -1190,7 +1347,6 @@
             selectedSquare = null;
             updateUndoButton();
 
-            // Stop player timer, add increment
             stopTimer();
             addIncrement('player');
 
@@ -1212,7 +1368,6 @@
                         currentFEN = data.fen;
                         drawBoard();
                     }
-                    // Restart player timer on error
                     startTimer('player');
                     updateUndoButton();
                     return;
@@ -1267,7 +1422,6 @@
                     playGameOverSound(playerWon);
                     showGameOver(data.result);
                 } else {
-                    // Start engine timer, engine will respond
                     startTimer('engine');
                     setStatus(data.engine_move ? 
                         'Engine played ' + data.engine_move + '. Your turn!' : 
