@@ -15,30 +15,22 @@
             min-height: 100vh;
         }
         .sidebar {
-            width: 280px;
+            width: 250px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            flex-shrink: 0;
+            gap: 15px;
         }
         h1 { color: #e74c3c; margin: 0; font-size: 28px; }
         #status {
             background: #2e2e2e;
-            padding: 12px;
+            padding: 15px;
             border-radius: 8px;
-            min-height: 45px;
+            min-height: 50px;
             display: flex;
             align-items: center;
-            font-size: 14px;
+            font-size: 15px;
         }
-        .section-title {
-            font-size: 11px;
-            color: #888;
-            text-transform: uppercase;
-            margin-top: 3px;
-            letter-spacing: 0.5px;
-        }
-        .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn, .time-btn, .mp-action-btn {
+        .diff-btn, .color-btn, .undo-btn, .sound-btn, .eval-btn, .time-btn {
             padding: 10px;
             border: 2px solid #444;
             background: transparent;
@@ -96,14 +88,6 @@
             border-color: #9C27B0;
             background: rgba(156,39,176,0.3);
         }
-        .mp-action-btn {
-            border-color: #e74c3c;
-            background: rgba(231,76,60,0.1);
-        }
-        .mp-action-btn:hover {
-            border-color: #e74c3c;
-            background: rgba(231,76,60,0.2);
-        }
         .new-game-btn {
             padding: 15px;
             background: #e74c3c;
@@ -120,7 +104,6 @@
             flex-direction: column;
             align-items: center;
             gap: 15px;
-            flex: 1;
         }
         .board-wrapper {
             position: relative;
@@ -189,6 +172,8 @@
         .light.legal::after { background: rgba(0, 0, 0, 0.2); }
         .dark.legal::after { background: rgba(255, 255, 255, 0.25); }
         .check { background: rgba(231, 76, 60, 0.6) !important; }
+
+        /* ========== PROMOTION MODAL ========== */
         .promotion-modal {
             display: none;
             position: fixed;
@@ -232,6 +217,7 @@
             margin-bottom: 15px;
             width: 100%;
         }
+
         .game-over-overlay {
             display: none;
             position: fixed;
@@ -267,13 +253,23 @@
         .move-num { color: #888; }
         .move-w { color: #f0d9b5; }
         .move-b { color: #b58863; }
+        .section-title {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        /* ========== EVALUATION BAR ========== */
         .eval-container {
             display: none;
             flex-direction: column;
             align-items: center;
             gap: 5px;
         }
-        .eval-container.active { display: flex; }
+        .eval-container.active {
+            display: flex;
+        }
         .eval-bar-wrapper {
             width: 30px;
             height: 560px;
@@ -285,27 +281,32 @@
         }
         .eval-bar-white {
             position: absolute;
-            left: 0; right: 0;
+            left: 0;
+            right: 0;
             background: #f0d9b5;
             transition: height 0.5s ease;
             bottom: 0;
         }
         .eval-bar-black {
             position: absolute;
-            left: 0; right: 0;
+            left: 0;
+            right: 0;
             background: #b58863;
             transition: height 0.5s ease;
             top: 0;
         }
         .eval-bar-wrapper.flipped .eval-bar-white {
-            bottom: auto; top: 0;
+            bottom: auto;
+            top: 0;
         }
         .eval-bar-wrapper.flipped .eval-bar-black {
-            top: auto; bottom: 0;
+            top: auto;
+            bottom: 0;
         }
         .eval-center-line {
             position: absolute;
-            left: 0; right: 0;
+            left: 0;
+            right: 0;
             top: 50%;
             height: 2px;
             background: #e74c3c;
@@ -327,219 +328,7 @@
             color: #4CAF50;
             font-weight: bold;
         }
-        .mp-panel {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 12px;
-            display: none;
-        }
-        .mp-panel.active { display: block; }
-        .mp-room-info {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .mp-room-code {
-            font-size: 20px;
-            font-weight: bold;
-            color: #4CAF50;
-            letter-spacing: 2px;
-            cursor: pointer;
-        }
-        .mp-room-code:hover { color: #66BB6A; }
-        .mp-player-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 8px;
-        }
-        .mp-player-info .connected { color: #4CAF50; }
-        .mp-player-info .disconnected { color: #e74c3c; }
-        .mp-player-info .you { font-weight: bold; color: #fff; }
-        .mp-chat-container {
-            background: #1e1e1e;
-            border-radius: 6px;
-            height: 150px;
-            overflow-y: auto;
-            padding: 8px;
-            margin-bottom: 8px;
-            font-size: 12px;
-        }
-        .mp-chat-message {
-            margin-bottom: 4px;
-            padding: 3px 6px;
-            border-radius: 4px;
-        }
-        .mp-chat-message .sender {
-            font-weight: bold;
-            color: #4CAF50;
-        }
-        .mp-chat-message .sender-spectator {
-            color: #9C27B0;
-        }
-        .mp-chat-input-row {
-            display: flex;
-            gap: 6px;
-        }
-        .mp-chat-input {
-            flex: 1;
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #555;
-            background: #1e1e1e;
-            color: white;
-            font-size: 13px;
-        }
-        .mp-chat-send {
-            padding: 8px 12px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .mp-chat-send:hover { background: #45a049; }
-        .mp-spectator-badge {
-            background: #9C27B0;
-            color: white;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-align: center;
-            margin-bottom: 8px;
-        }
-        .mp-draw-row {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
-        }
-        .mp-draw-btn {
-            flex: 1;
-            padding: 8px;
-            font-size: 12px;
-            border: 1px solid #555;
-            background: transparent;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .mp-draw-btn:hover { border-color: #f39c12; }
-        .mp-resign-btn {
-            flex: 1;
-            padding: 8px;
-            font-size: 12px;
-            border: 1px solid #555;
-            background: transparent;
-            color: #e74c3c;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .mp-resign-btn:hover { border-color: #e74c3c; }
-        .mp-draw-offer-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            justify-content: center;
-            align-items: center;
-            z-index: 1500;
-        }
-        .mp-draw-offer-overlay.active { display: flex; }
-        .mp-draw-offer-box {
-            background: #2a2a2a;
-            border: 2px solid #f39c12;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            max-width: 350px;
-        }
-        .mp-draw-offer-box h3 {
-            color: #f39c12;
-            margin-bottom: 15px;
-        }
-        .mp-draw-offer-box p {
-            color: #aaa;
-            margin-bottom: 20px;
-        }
-        .mp-draw-offer-box .buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-        .mp-draw-offer-box button {
-            padding: 10px 25px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .mp-accept-btn { background: #4CAF50; color: white; }
-        .mp-decline-btn { background: #555; color: white; }
-        .timer-display {
-            background: #2e2e2e;
-            padding: 12px 15px;
-            border-radius: 8px;
-            font-size: 24px;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            text-align: center;
-            letter-spacing: 2px;
-        }
-        .timer-display.active-turn {
-            border: 2px solid #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
-        }
-        .timer-display.low-time {
-            color: #e74c3c;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .time-controls-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-        }
-        .time-btn {
-            padding: 8px 6px;
-            font-size: 12px;
-        }
-        .custom-time-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-top: 8px;
-        }
-        .custom-time-row input {
-            width: 60px;
-            padding: 6px;
-            border-radius: 4px;
-            border: 1px solid #555;
-            background: #1e1e1e;
-            color: white;
-            text-align: center;
-            font-size: 13px;
-        }
-        .custom-time-row label {
-            font-size: 11px;
-            color: #aaa;
-        }
-        .time-out-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 1001;
-        }
-        .time-out-overlay.active { display: flex; }
-        .time-out-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
+
         .personalize-toggle-btn { 
             padding: 10px; 
             font-size: 14px; 
@@ -697,16 +486,71 @@
             background-repeat: no-repeat; 
             pointer-events: none; 
         }
-        .mode-badge {
+
+        /* ========== TIME CONTROL ========== */
+        .timer-display {
+            background: #2e2e2e;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
             text-align: center;
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-bottom: 5px;
+            letter-spacing: 2px;
         }
-        .mode-badge.engine { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-        .mode-badge.multiplayer { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
-        .mode-badge.spectator { background: rgba(156, 39, 176, 0.2); color: #9C27B0; }
+        .timer-display.active-turn {
+            border: 2px solid #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        .timer-display.low-time {
+            color: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .time-controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .time-btn {
+            padding: 8px 6px;
+            font-size: 12px;
+        }
+        .custom-time-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .custom-time-row input {
+            width: 60px;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #1e1e1e;
+            color: white;
+            text-align: center;
+            font-size: 13px;
+        }
+        .custom-time-row label {
+            font-size: 11px;
+            color: #aaa;
+        }
+        .time-out-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1001;
+        }
+        .time-out-overlay.active { display: flex; }
+        .time-out-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
     </style>
     <script type="text/javascript" src="/static/theme.js"></script>
 </head>
@@ -714,86 +558,61 @@
     <div class="bg-image-overlay" id="bgImageOverlay"></div>
 
     <div class="sidebar">
-        <h1>&#9818; MattFish</h1>
-
-        <div class="mode-badge engine" id="modeBadge">Engine Mode</div>
-
+        <h1>♔ MattFish</h1>
         <div id="status">Click "New Game" to start</div>
 
+        <!-- Player Timer -->
         <div class="timer-display" id="playerTimer">10:00</div>
 
-        <div id="engineControls">
-            <div class="section-title">Difficulty</div>
-            <div>
-                <button class="diff-btn" onclick="setDiff('Easy')">Easy</button>
-                <button class="diff-btn active" onclick="setDiff('Medium')">Medium</button>
-                <button class="diff-btn" onclick="setDiff('Hard')">Hard</button>
-            </div>
-
-            <div class="section-title">Play As</div>
-            <div>
-                <button class="color-btn active" onclick="setColor('white')">White</button>
-                <button class="color-btn" onclick="setColor('black')">Black</button>
-            </div>
-
-            <div class="section-title">Time Control</div>
-            <div class="time-controls-grid">
-                <button class="time-btn active" onclick="setTimeControl('bullet1', this)" data-min="1" data-inc="0">1+0</button>
-                <button class="time-btn" onclick="setTimeControl('bullet2', this)" data-min="2" data-inc="1">2+1</button>
-                <button class="time-btn" onclick="setTimeControl('blitz3', this)" data-min="3" data-inc="2">3+2</button>
-                <button class="time-btn" onclick="setTimeControl('blitz5', this)" data-min="5" data-inc="0">5+0</button>
-                <button class="time-btn" onclick="setTimeControl('blitz5inc', this)" data-min="5" data-inc="3">5+3</button>
-                <button class="time-btn" onclick="setTimeControl('rapid10', this)" data-min="10" data-inc="0">10+0</button>
-                <button class="time-btn" onclick="setTimeControl('rapid10inc', this)" data-min="10" data-inc="5">10+5</button>
-                <button class="time-btn" onclick="setTimeControl('rapid15', this)" data-min="15" data-inc="10">15+10</button>
-            </div>
-            <div class="custom-time-row">
-                <label>Custom:</label>
-                <input type="number" id="customMin" placeholder="Min" min="1" max="180" value="10">
-                <label>+</label>
-                <input type="number" id="customInc" placeholder="Inc" min="0" max="60" value="0">
-                <button class="time-btn" onclick="setCustomTimeControl()" style="padding:6px 10px;">Set</button>
-            </div>
+        <div class="section-title">Difficulty</div>
+        <div>
+            <button class="diff-btn" onclick="setDiff('Easy')">Easy</button>
+            <button class="diff-btn active" onclick="setDiff('Medium')">Medium</button>
+            <button class="diff-btn" onclick="setDiff('Hard')">Hard</button>
         </div>
 
-        <div class="mp-panel" id="mpPanel">
-            <div class="mp-room-info">
-                <div class="section-title">Room Code</div>
-                <div class="mp-room-code" id="mpRoomCode" onclick="copyMpRoomCode()" title="Click to copy">------</div>
-            </div>
-            <div class="mp-player-info" id="mpPlayerInfo">
-                <span id="whitePlayer">White: Waiting...</span>
-                <span id="blackPlayer">Black: Waiting...</span>
-            </div>
-            <div class="mp-spectator-badge" id="mpSpectatorBadge" style="display:none;">&#128064; Spectator Mode</div>
-            <div class="section-title">Chat</div>
-            <div class="mp-chat-container" id="mpChatContainer"></div>
-            <div class="mp-chat-input-row" id="mpChatInputRow">
-                <input type="text" class="mp-chat-input" id="mpChatInput" placeholder="Type a message..." maxlength="500">
-                <button class="mp-chat-send" onclick="sendChatMessage()">Send</button>
-            </div>
-            <div class="mp-draw-row" id="mpActionRow">
-                <button class="mp-draw-btn" onclick="offerDraw()">&#127987; Offer Draw</button>
-                <button class="mp-resign-btn" onclick="resignGame()">&#127987; Resign</button>
-            </div>
+        <div class="section-title">Play As</div>
+        <div>
+            <button class="color-btn active" onclick="setColor('white')">White</button>
+            <button class="color-btn" onclick="setColor('black')">Black</button>
         </div>
 
+        <div class="section-title">Time Control</div>
+        <div class="time-controls-grid">
+            <button class="time-btn active" onclick="setTimeControl('bullet1', this)" data-min="1" data-inc="0">1+0</button>
+            <button class="time-btn" onclick="setTimeControl('bullet2', this)" data-min="2" data-inc="1">2+1</button>
+            <button class="time-btn" onclick="setTimeControl('blitz3', this)" data-min="3" data-inc="2">3+2</button>
+            <button class="time-btn" onclick="setTimeControl('blitz5', this)" data-min="5" data-inc="0">5+0</button>
+            <button class="time-btn" onclick="setTimeControl('blitz5inc', this)" data-min="5" data-inc="3">5+3</button>
+            <button class="time-btn" onclick="setTimeControl('rapid10', this)" data-min="10" data-inc="0">10+0</button>
+            <button class="time-btn" onclick="setTimeControl('rapid10inc', this)" data-min="10" data-inc="5">10+5</button>
+            <button class="time-btn" onclick="setTimeControl('rapid15', this)" data-min="15" data-inc="10">15+10</button>
+        </div>
+        <div class="custom-time-row">
+            <label>Custom:</label>
+            <input type="number" id="customMin" placeholder="Min" min="1" max="180" value="10">
+            <label>+</label>
+            <input type="number" id="customInc" placeholder="Inc" min="0" max="60" value="0">
+            <button class="time-btn" onclick="setCustomTimeControl()" style="padding:6px 10px;">Set</button>
+        </div>
+
+        <!-- Engine Timer -->
         <div class="timer-display" id="engineTimer">10:00</div>
 
-        <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>&#8617; Undo Move</button>
-        <button class="sound-btn" id="soundBtn" onclick="toggleSound()">&#128266; Sound On</button>
-        <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">&#128202; Eval Bar</button>
+        <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
+        <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
+        <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
-        <button class="mp-action-btn" id="mpLeaveBtn" onclick="leaveMpGame()" style="display:none;">&#10060; Leave Room</button>
-        <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
+        <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">🎨 Personalize</button>
         <div id="themePanelContainer"></div>
-        <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">&#8592; Back to Stats</a>
+        <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
 
     <div class="board-area">
         <div class="board-wrapper">
             <div class="coords-ranks" id="ranks"></div>
             <div id="board"></div>
+            <!-- Evaluation Bar -->
             <div class="eval-container" id="evalContainer">
                 <div class="eval-label" id="evalLabelTop">White</div>
                 <div class="eval-bar-wrapper" id="evalBarWrapper">
@@ -812,6 +631,7 @@
         </div>
     </div>
 
+    <!-- PROMOTION MODAL -->
     <div class="promotion-modal" id="promoModal">
         <div>
             <div style="width:100%;">
@@ -844,20 +664,7 @@
         <button class="play-again-btn" onclick="newGame()">Play Again</button>
     </div>
 
-    <div class="mp-draw-offer-overlay" id="drawOfferOverlay">
-        <div class="mp-draw-offer-box">
-            <h3>&#127987; Draw Offered</h3>
-            <p id="drawOfferText">Your opponent offers a draw.</p>
-            <div class="buttons">
-                <button class="mp-accept-btn" onclick="respondDraw(true)">Accept</button>
-                <button class="mp-decline-btn" onclick="respondDraw(false)">Decline</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
-
         const PIECE_IMAGES = {
             'P': '/static/pieces/wP (1).png',
             'N': '/static/pieces/wN (1).png',
@@ -889,6 +696,7 @@
         let sessionId = null;
         let evalBarEnabled = false;
 
+        // ========== TIME CONTROL ==========
         let timeControl = { minutes: 10, increment: 0 };
         let playerTime = 600;
         let engineTime = 600;
@@ -906,408 +714,6 @@
             'rapid10inc': { minutes: 10, increment: 5 },
             'rapid15': { minutes: 15, increment: 10 }
         };
-
-        let socket = null;
-        let isMultiplayer = false;
-        let isSpectator = false;
-        let roomCode = null;
-        let myMpColor = null;
-        let mpGameStarted = false;
-        let mpGameOver = false;
-        let whiteTimeMp = 600;
-        let blackTimeMp = 600;
-        let mpActiveTimer = null;
-
-        function detectMode() {
-            const params = new URLSearchParams(window.location.search);
-            roomCode = params.get('room');
-            myMpColor = params.get('color');
-            const mode = params.get('mode');
-
-            if (roomCode) {
-                isMultiplayer = true;
-                if (mode === 'spectate') {
-                    isSpectator = true;
-                    myMpColor = null;
-                }
-                initSocket();
-                return;
-            }
-
-            isMultiplayer = false;
-            isSpectator = false;
-            updateModeUI();
-        }
-
-        function updateModeUI() {
-            const badge = document.getElementById('modeBadge');
-            const engineControls = document.getElementById('engineControls');
-            const mpPanel = document.getElementById('mpPanel');
-            const mpLeaveBtn = document.getElementById('mpLeaveBtn');
-            const undoBtn = document.getElementById('undoBtn');
-            const evalBtn = document.getElementById('evalBtn');
-
-            if (isSpectator) {
-                badge.textContent = 'Spectator Mode';
-                badge.className = 'mode-badge spectator';
-                engineControls.style.display = 'none';
-                mpPanel.classList.add('active');
-                mpLeaveBtn.style.display = 'block';
-                undoBtn.style.display = 'none';
-                evalBtn.style.display = 'none';
-                document.getElementById('mpSpectatorBadge').style.display = 'block';
-                document.getElementById('mpActionRow').style.display = 'none';
-                document.getElementById('mpChatInputRow').style.display = 'none';
-            } else if (isMultiplayer) {
-                badge.textContent = 'Multiplayer';
-                badge.className = 'mode-badge multiplayer';
-                engineControls.style.display = 'none';
-                mpPanel.classList.add('active');
-                mpLeaveBtn.style.display = 'block';
-                undoBtn.style.display = 'none';
-                evalBtn.style.display = 'none';
-                document.getElementById('mpSpectatorBadge').style.display = 'none';
-                document.getElementById('mpActionRow').style.display = 'flex';
-                document.getElementById('mpChatInputRow').style.display = 'flex';
-            } else {
-                badge.textContent = 'Engine Mode';
-                badge.className = 'mode-badge engine';
-                engineControls.style.display = 'block';
-                mpPanel.classList.remove('active');
-                mpLeaveBtn.style.display = 'none';
-                undoBtn.style.display = 'block';
-                evalBtn.style.display = 'block';
-            }
-        }
-
-        function initSocket() {
-            socket = io();
-
-            socket.on('connect', function() {
-                console.log('Socket connected');
-                if (isSpectator) {
-                    socket.emit('join_room', { room_code: roomCode, mode: 'spectate' });
-                } else {
-                    socket.emit('join_room', { room_code: roomCode, mode: 'play' });
-                }
-            });
-
-            socket.on('joined_room', function(data) {
-                console.log('Joined room:', data);
-                roomCode = data.room_code;
-                myMpColor = data.your_color;
-                document.getElementById('mpRoomCode').textContent = roomCode;
-                updateModeUI();
-                setStatus(data.message);
-
-                if (myMpColor === 'white') {
-                    document.getElementById('whitePlayer').innerHTML = '<span class="you">White: You &#9733;</span>';
-                    document.getElementById('blackPlayer').innerHTML = '<span class="disconnected">Black: Waiting...</span>';
-                } else {
-                    document.getElementById('whitePlayer').innerHTML = '<span class="connected">White: Opponent</span>';
-                    document.getElementById('blackPlayer').innerHTML = '<span class="you">Black: You &#9733;</span>';
-                }
-
-                playerColor = myMpColor;
-                updateEvalBarOrientation();
-            });
-
-            socket.on('joined_as_spectator', function(data) {
-                console.log('Joined as spectator:', data);
-                roomCode = data.room_code;
-                document.getElementById('mpRoomCode').textContent = roomCode;
-                updateModeUI();
-                setStatus('Spectating room ' + roomCode);
-
-                currentFEN = data.fen;
-                moveHistory = data.move_history || [];
-                whiteTimeMp = data.white_time || 600;
-                blackTimeMp = data.black_time || 600;
-                mpGameStarted = data.game_started;
-                mpGameOver = data.game_over;
-
-                document.getElementById('whitePlayer').innerHTML = data.players.white ? 
-                    '<span class="connected">White: Player</span>' : '<span class="disconnected">White: Empty</span>';
-                document.getElementById('blackPlayer').innerHTML = data.players.black ? 
-                    '<span class="connected">Black: Player</span>' : '<span class="disconnected">Black: Empty</span>';
-
-                updateMoves();
-                drawBoard();
-                updateMpTimers();
-
-                const chatContainer = document.getElementById('mpChatContainer');
-                chatContainer.innerHTML = '';
-                (data.chat_history || []).forEach(function(msg) {
-                    addChatMessage(msg.sender, msg.message);
-                });
-            });
-
-            socket.on('guest_joined', function(data) {
-                console.log('Guest joined:', data);
-                setStatus('Opponent joined! Starting game...');
-                document.getElementById('blackPlayer').innerHTML = '<span class="connected">Black: Opponent</span>';
-
-                if (myMpColor === 'white') {
-                    setTimeout(function() {
-                        socket.emit('start_game', {});
-                    }, 1000);
-                }
-            });
-
-            socket.on('game_started', function(data) {
-                console.log('Game started:', data);
-                mpGameStarted = true;
-                mpGameOver = false;
-                currentFEN = data.fen;
-                legalMoves = data.legal_moves || [];
-                whiteTimeMp = data.white_time || 600;
-                blackTimeMp = data.black_time || 600;
-                mpActiveTimer = 'white';
-                moveHistory = [];
-                lastMove = null;
-                gameStarted = true;
-
-                setStatus(data.message);
-                updateMoves();
-                drawBoard();
-                updateMpTimers();
-
-                if (!isSpectator) {
-                    startMpTimerSync();
-                }
-            });
-
-            socket.on('move_made', function(data) {
-                console.log('Move made:', data);
-                currentFEN = data.fen;
-                legalMoves = data.legal_moves || [];
-                lastMove = data.last_move;
-                moveHistory = data.move_history || [];
-                whiteTimeMp = data.white_time;
-                blackTimeMp = data.black_time;
-                mpActiveTimer = data.active_timer;
-                isCheck = data.check;
-
-                updateMoves();
-                drawBoard();
-                updateMpTimers();
-
-                if (isCheck) {
-                    playCheckSound();
-                } else {
-                    playMoveSound();
-                }
-
-                if (!isSpectator) {
-                    const isMyTurn = (myMpColor === 'white' && mpActiveTimer === 'white') || 
-                                     (myMpColor === 'black' && mpActiveTimer === 'black');
-                    if (isMyTurn) {
-                        setStatus('Your turn!');
-                    } else {
-                        setStatus('Opponent is thinking...');
-                    }
-                } else {
-                    setStatus((mpActiveTimer === 'white' ? 'White' : 'Black') + ' to move');
-                }
-            });
-
-            socket.on('game_over', function(data) {
-                console.log('Game over:', data);
-                mpGameOver = true;
-                mpActiveTimer = null;
-                stopMpTimerSync();
-
-                const result = data.result;
-                let won = false;
-
-                if (!isSpectator && myMpColor) {
-                    won = (myMpColor === 'white' && result === '1-0') || 
-                          (myMpColor === 'black' && result === '0-1') ||
-                          result === '1/2-1/2';
-                }
-
-                playGameOverSound(won);
-                showGameOver(result, data.message);
-            });
-
-            socket.on('chat_message', function(data) {
-                addChatMessage(data.sender, data.message);
-            });
-
-            socket.on('draw_offered', function(data) {
-                if (!isSpectator && myMpColor && data.offered_by !== myMpColor) {
-                    document.getElementById('drawOfferText').textContent = 
-                        data.offered_by.charAt(0).toUpperCase() + data.offered_by.slice(1) + ' offers a draw.';
-                    document.getElementById('drawOfferOverlay').classList.add('active');
-                }
-            });
-
-            socket.on('draw_declined', function(data) {
-                setStatus('Draw offer declined.');
-            });
-
-            socket.on('player_left', function(data) {
-                setStatus(data.message);
-                if (data.player === 'host') {
-                    document.getElementById('whitePlayer').innerHTML = '<span class="disconnected">White: Left</span>';
-                } else {
-                    document.getElementById('blackPlayer').innerHTML = '<span class="disconnected">Black: Left</span>';
-                }
-            });
-
-            socket.on('spectator_joined', function(data) {
-                addChatMessage('System', 'A spectator joined the room.');
-            });
-
-            socket.on('timer_update', function(data) {
-                whiteTimeMp = data.white_time;
-                blackTimeMp = data.black_time;
-                mpActiveTimer = data.active_timer;
-                updateMpTimers();
-            });
-
-            socket.on('error', function(data) {
-                console.error('Socket error:', data);
-                setStatus('Error: ' + data.message);
-            });
-
-            socket.on('disconnect', function() {
-                console.log('Socket disconnected');
-                setStatus('Connection lost. Reconnecting...');
-            });
-        }
-
-        let mpTimerSyncInterval = null;
-
-        function startMpTimerSync() {
-            stopMpTimerSync();
-            mpTimerSyncInterval = setInterval(function() {
-                if (!mpGameStarted || mpGameOver) return;
-
-                if (mpActiveTimer === 'white') {
-                    whiteTimeMp -= 0.1;
-                    if (whiteTimeMp <= 0) whiteTimeMp = 0;
-                } else if (mpActiveTimer === 'black') {
-                    blackTimeMp -= 0.1;
-                    if (blackTimeMp <= 0) blackTimeMp = 0;
-                }
-
-                updateMpTimers();
-
-                if (Math.floor(Date.now() / 1000) % 2 === 0) {
-                    socket.emit('request_timer_sync', {});
-                }
-            }, 100);
-        }
-
-        function stopMpTimerSync() {
-            if (mpTimerSyncInterval) {
-                clearInterval(mpTimerSyncInterval);
-                mpTimerSyncInterval = null;
-            }
-        }
-
-        function updateMpTimers() {
-            const playerTimer = document.getElementById('playerTimer');
-            const engineTimer = document.getElementById('engineTimer');
-
-            if (isSpectator) {
-                playerTimer.textContent = formatTime(whiteTimeMp);
-                engineTimer.textContent = formatTime(blackTimeMp);
-                playerTimer.classList.toggle('active-turn', mpActiveTimer === 'white');
-                engineTimer.classList.toggle('active-turn', mpActiveTimer === 'black');
-                return;
-            }
-
-            if (myMpColor === 'white') {
-                playerTimer.textContent = formatTime(whiteTimeMp);
-                engineTimer.textContent = formatTime(blackTimeMp);
-                playerTimer.classList.toggle('active-turn', mpActiveTimer === 'white');
-                engineTimer.classList.toggle('active-turn', mpActiveTimer === 'black');
-                playerTimer.classList.toggle('low-time', whiteTimeMp < 30);
-                engineTimer.classList.toggle('low-time', blackTimeMp < 30);
-            } else {
-                playerTimer.textContent = formatTime(blackTimeMp);
-                engineTimer.textContent = formatTime(whiteTimeMp);
-                playerTimer.classList.toggle('active-turn', mpActiveTimer === 'black');
-                engineTimer.classList.toggle('active-turn', mpActiveTimer === 'white');
-                playerTimer.classList.toggle('low-time', blackTimeMp < 30);
-                engineTimer.classList.toggle('low-time', whiteTimeMp < 30);
-            }
-        }
-
-        function addChatMessage(sender, message) {
-            const container = document.getElementById('mpChatContainer');
-            const div = document.createElement('div');
-            div.className = 'mp-chat-message';
-            const isSpec = sender.includes('Spectator');
-            div.innerHTML = '<span class="' + (isSpec ? 'sender-spectator' : 'sender') + '">' + 
-                          sender + '</span>: ' + escapeHtml(message);
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('mpChatInput');
-            const message = input.value.trim();
-            if (!message) return;
-
-            if (socket && roomCode) {
-                socket.emit('send_chat', { message: message });
-            }
-            input.value = '';
-        }
-
-        document.getElementById('mpChatInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendChatMessage();
-            }
-        });
-
-        function copyMpRoomCode() {
-            const code = document.getElementById('mpRoomCode').textContent;
-            navigator.clipboard.writeText(code).then(function() {
-                setStatus('Room code copied!');
-                setTimeout(function() { setStatus(''); }, 2000);
-            });
-        }
-
-        function offerDraw() {
-            if (socket && roomCode && !mpGameOver && !isSpectator) {
-                socket.emit('offer_draw', {});
-                setStatus('Draw offer sent...');
-            }
-        }
-
-        function respondDraw(accepted) {
-            document.getElementById('drawOfferOverlay').classList.remove('active');
-            if (socket && roomCode) {
-                socket.emit('respond_draw', { accepted: accepted });
-            }
-        }
-
-        function resignGame() {
-            if (socket && roomCode && !mpGameOver && !isSpectator) {
-                if (confirm('Are you sure you want to resign?')) {
-                    socket.emit('resign', {});
-                }
-            }
-        }
-
-        function leaveMpGame() {
-            if (confirm('Leave this room?')) {
-                if (socket) {
-                    socket.disconnect();
-                }
-                window.location.href = '/';
-            }
-        }
 
         function formatTime(seconds) {
             if (seconds <= 0) return '0:00';
@@ -1410,6 +816,7 @@
             });
         }
 
+        // ========== EVALUATION BAR ==========
         function toggleEvalBar() {
             evalBarEnabled = !evalBarEnabled;
             const btn = document.getElementById('evalBtn');
@@ -1446,7 +853,7 @@
         }
 
         async function updateEvalBar() {
-            if (!evalBarEnabled || !sessionId || isMultiplayer) return;
+            if (!evalBarEnabled || !sessionId) return;
 
             try {
                 const response = await fetch('/api/chess/eval', {
@@ -1525,6 +932,7 @@
             } catch(e) {}
         }
 
+        // Sound effects using Web Audio API
         function getAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1577,10 +985,10 @@
             soundEnabled = !soundEnabled;
             const btn = document.getElementById('soundBtn');
             if (soundEnabled) {
-                btn.innerHTML = '&#128266; Sound On';
+                btn.textContent = '🔊 Sound On';
                 btn.classList.remove('off');
             } else {
-                btn.innerHTML = '&#128263; Sound Off';
+                btn.textContent = '🔇 Sound Off';
                 btn.classList.add('off');
             }
         }
@@ -1593,11 +1001,8 @@
             } catch (e) {
                 console.log('Theme panel not available:', e);
             }
-            detectMode();
-            if (!isMultiplayer) {
-                updateTimerDisplay();
-                newGame();
-            }
+            updateTimerDisplay();
+            newGame();
         };
 
         function setDiff(d) {
@@ -1613,9 +1018,7 @@
                 b.classList.toggle('active', b.textContent.toLowerCase() === c);
             });
             updateEvalBarOrientation();
-            if (!isMultiplayer) {
-                newGame();
-            }
+            newGame();
         }
 
         function updatePromoImages() {
@@ -1647,15 +1050,6 @@
         }
 
         async function newGame() {
-            if (isMultiplayer) {
-                if (isSpectator) {
-                    setStatus('Spectator mode - watching room ' + roomCode);
-                } else if (mpGameOver) {
-                    window.location.href = '/';
-                }
-                return;
-            }
-
             document.getElementById('promoModal').classList.remove('active');
             document.getElementById('gameOver').classList.remove('active');
             document.getElementById('timeOutOverlay').classList.remove('active');
@@ -1667,7 +1061,6 @@
             isCheck = false;
             gameStarted = false;
             stopTimer();
-            stopMpTimerSync();
 
             playerTime = timeControl.minutes * 60;
             engineTime = timeControl.minutes * 60;
@@ -1766,7 +1159,6 @@
         }
 
         async function undoMove() {
-            if (isMultiplayer) return;
             if (boardHistory.length < 2) return;
 
             isThinking = true;
@@ -1825,9 +1217,7 @@
                 grid.push(row);
             }
 
-            const viewColor = isMultiplayer ? (myMpColor || 'white') : playerColor;
-
-            if (viewColor === 'black') {
+            if (playerColor === 'black') {
                 for (let vRow = 0; vRow < 8; vRow++) {
                     for (let vCol = 0; vCol < 8; vCol++) {
                         const stdRank = 7 - vRow;
@@ -1892,32 +1282,15 @@
             boardEl.appendChild(square);
         }
 
+        // ========== FIXED PROMOTION HANDLING ==========
         function handleClick(square) {
-            if (isSpectator) return;
-
-            if (isMultiplayer && mpGameStarted && !mpGameOver) {
-                // allow
-            } else if (isThinking || !gameStarted) {
-                return;
-            }
-
-            if (isMultiplayer && myMpColor) {
-                const fenParts = currentFEN.split(' ');
-                const activeColor = fenParts[1] || 'w';
-                const expectedTurn = activeColor === 'w' ? 'white' : 'black';
-                if (expectedTurn !== myMpColor) {
-                    setStatus('Not your turn!');
-                    return;
-                }
-            }
+            if (isThinking || !gameStarted) return;
 
             const sq = square.dataset.square;
             const piece = square.querySelector('img');
-            const myColor = isMultiplayer ? myMpColor : playerColor;
-
             const isPlayerPiece = piece && (
-                (myColor === 'white' && piece.src.includes('/w')) ||
-                (myColor === 'black' && piece.src.includes('/b'))
+                (playerColor === 'white' && piece.src.includes('/w')) ||
+                (playerColor === 'black' && piece.src.includes('/b'))
             );
 
             if (!selectedSquare) {
@@ -1943,19 +1316,15 @@
                 const fromSquare = document.querySelector('[data-square="' + selectedSquare + '"]');
                 const fromPiece = fromSquare.querySelector('img');
                 const isPawn = fromPiece && (fromPiece.src.includes('wP') || fromPiece.src.includes('bP'));
-                const promoRank = myColor === 'white' ? '8' : '1';
+                const promoRank = playerColor === 'white' ? '8' : '1';
 
+                // FIX: Always show promotion modal when pawn reaches last rank
                 if (isPawn && sq[1] === promoRank) {
                     pendingPromo = selectedSquare + sq;
                     document.getElementById('promoModal').classList.add('active');
                     return;
                 }
-
-                if (isMultiplayer) {
-                    sendMpMove(matchingMove);
-                } else {
-                    sendMove(matchingMove);
-                }
+                sendMove(matchingMove);
             } else if (isPlayerPiece) {
                 selectedSquare = sq;
                 drawBoard();
@@ -1968,23 +1337,9 @@
         function doPromo(piece) {
             document.getElementById('promoModal').classList.remove('active');
             if (pendingPromo) {
-                const move = pendingPromo + piece;
-                if (isMultiplayer) {
-                    sendMpMove(move);
-                } else {
-                    sendMove(move);
-                }
+                sendMove(pendingPromo + piece);
                 pendingPromo = null;
             }
-        }
-
-        function sendMpMove(move) {
-            selectedSquare = null;
-            if (socket && roomCode) {
-                socket.emit('make_move', { move: move });
-                setStatus('Move sent...');
-            }
-            drawBoard();
         }
 
         async function sendMove(move) {
@@ -2094,31 +1449,18 @@
             });
         }
 
-        function showGameOver(result, customMsg) {
+        function showGameOver(result) {
             const overlay = document.getElementById('gameOver');
             const text = document.getElementById('gameOverText');
 
-            let msg = customMsg || result;
+            let msg = result;
             let color = '#fff';
+            const playerWon = (playerColor === 'white' && result === '1-0') || (playerColor === 'black' && result === '0-1');
+            const playerLost = (playerColor === 'white' && result === '0-1') || (playerColor === 'black' && result === '1-0');
 
-            if (isMultiplayer && myMpColor) {
-                const playerWon = (myMpColor === 'white' && result === '1-0') || (myMpColor === 'black' && result === '0-1');
-                const playerLost = (myMpColor === 'white' && result === '0-1') || (myMpColor === 'black' && result === '1-0');
-
-                if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
-                else if (playerLost) { msg = 'You Lose!'; color = '#e74c3c'; }
-                else { msg = 'Draw!'; color = '#f39c12'; }
-            } else if (isSpectator) {
-                msg = 'Game Over: ' + result;
-                color = '#f39c12';
-            } else {
-                const playerWon = (playerColor === 'white' && result === '1-0') || (playerColor === 'black' && result === '0-1');
-                const playerLost = (playerColor === 'white' && result === '0-1') || (playerColor === 'black' && result === '1-0');
-
-                if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
-                else if (playerLost) { msg = 'MattFish Wins!'; color = '#e74c3c'; }
-                else { msg = 'Draw!'; color = '#f39c12'; }
-            }
+            if (playerWon) { msg = 'You Win!'; color = '#4CAF50'; }
+            else if (playerLost) { msg = 'MattFish Wins!'; color = '#e74c3c'; }
+            else { msg = 'Draw!'; color = '#f39c12'; }
 
             text.textContent = msg;
             text.style.color = color;
