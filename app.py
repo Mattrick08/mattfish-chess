@@ -2,14 +2,75 @@ import os
 from flask import Flask, render_template, jsonify, request
 import secrets
 import chess
+import chess.engine
 from engine import search as local_search, evaluate as static_eval
 import requests
 import chess.pgn
 import io
+import atexit
+import threading
 from collections import defaultdict
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# ========== STOCKFISH ENGINE (with fallback to local Python engine) ==========
+STOCKFISH_PATH = os.environ.get(
+    "STOCKFISH_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "stockfish")
+)
+
+sf_engine = None
+sf_lock = threading.Lock()
+
+def init_stockfish():
+    global sf_engine
+    try:
+        if not os.path.isfile(STOCKFISH_PATH) or not os.access(STOCKFISH_PATH, os.X_OK):
+            print(f"[stockfish] Binary not found/executable at {STOCKFISH_PATH}. Using fallback engine.")
+            return
+        engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
+        engine.configure({"Hash": 16, "Threads": 1})
+        sf_engine = engine
+        print(f"[stockfish] Loaded engine at {STOCKFISH_PATH}")
+    except Exception as e:
+        print(f"[stockfish] Failed to start Stockfish ({e}). Using fallback engine.")
+        sf_engine = None
+
+init_stockfish()
+
+@atexit.register
+def shutdown_stockfish():
+    if sf_engine:
+        try:
+            sf_engine.quit()
+        except Exception:
+            pass
+
+# difficulty -> (skill level 0-20, movetime seconds). Kept short for Render free tier's limited CPU.
+SF_DIFFICULTY = {
+    "Easy":   {"skill": 1,  "movetime": 0.2},
+    "Medium": {"skill": 10, "movetime": 0.6},
+    "Hard":   {"skill": 20, "movetime": 1.5},
+}
+SF_EVAL_MOVETIME = 0.3  # quick, full-strength analysis for the eval bar
+
+def stockfish_get_move(board, difficulty):
+    settings = SF_DIFFICULTY.get(difficulty, SF_DIFFICULTY["Medium"])
+    with sf_lock:
+        sf_engine.configure({"Skill Level": settings["skill"]})
+        result = sf_engine.play(board, chess.engine.Limit(time=settings["movetime"]))
+        return result.move
+
+def stockfish_get_eval(board):
+    """Always uses max strength/short analysis, regardless of play difficulty, for an accurate eval bar."""
+    with sf_lock:
+        sf_engine.configure({"Skill Level": 20})
+        info = sf_engine.analyse(board, chess.engine.Limit(time=SF_EVAL_MOVETIME))
+    score = info["score"].white()
+    if score.is_mate():
+        return None, score.mate()
+    return score.score(), 0
 
 # ========== CHESS GAME (vs Engine) ==========
 games = {}
@@ -63,6 +124,12 @@ def chess_eval():
                 return jsonify({"eval": 9999, "mate": 1})
         return jsonify({"eval": 0, "mate": 0})
 
+    if sf_engine:
+        score, mate = stockfish_get_eval(board)
+        if score is None:
+            return jsonify({"eval": None, "mate": mate})
+        return jsonify({"eval": score, "mate": 0})
+
     score, _ = local_search(board, 3, time_limit=1.0)
     if board.turn == chess.BLACK:
         score = -score
@@ -77,6 +144,12 @@ def chess_eval():
     return jsonify({"eval": score, "mate": 0})
 
 def get_engine_move(board, difficulty):
+    if sf_engine:
+        move = stockfish_get_move(board, difficulty)
+        if move:
+            return move
+        # fall through to local engine if Stockfish somehow returns nothing
+
     depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
     time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
     depth = depth_map.get(difficulty, 5)
@@ -179,6 +252,11 @@ def chess_undo():
         "game_over": False,
         "check": board.is_check()
     })
+
+@app.route("/api/engine/status")
+def engine_status():
+    return jsonify({"stockfish": sf_engine is not None})
+
 
 @app.route("/api/chess/pgn/<session_id>")
 def chess_pgn(session_id):
