@@ -47,26 +47,38 @@ def shutdown_stockfish():
         except Exception:
             pass
 
-# difficulty -> (skill level 0-20, movetime seconds). Kept short for Render free tier's limited CPU.
+# difficulty -> (skill level 0-20, node cap, depth cap, hard time backstop in seconds).
+# Node/depth caps bound actual CPU work done, which is far more reliable than a
+# wall-clock time limit on a throttled/shared CPU like Render's free tier — Stockfish's
+# internal time checks can get delayed by host scheduling, making "movetime" unreliable.
+# The time value is just a hard backstop so a request can never hang indefinitely.
 SF_DIFFICULTY = {
-    "Easy":   {"skill": 1,  "movetime": 0.2},
-    "Medium": {"skill": 10, "movetime": 0.6},
-    "Hard":   {"skill": 20, "movetime": 1.5},
+    "Easy":   {"skill": 1,  "nodes": 2000,   "depth": 4,  "time": 1.5},
+    "Medium": {"skill": 6,  "nodes": 15000,  "depth": 7,  "time": 3.0},
+    "Hard":   {"skill": 14, "nodes": 100000, "depth": 11, "time": 6.0},
 }
-SF_EVAL_MOVETIME = 0.3  # quick, full-strength analysis for the eval bar
+SF_EVAL_NODES = 15000
+SF_EVAL_DEPTH = 9
+SF_EVAL_TIME = 2.0  # backstop only
 
 def stockfish_get_move(board, difficulty):
     settings = SF_DIFFICULTY.get(difficulty, SF_DIFFICULTY["Medium"])
     with sf_lock:
         sf_engine.configure({"Skill Level": settings["skill"]})
-        result = sf_engine.play(board, chess.engine.Limit(time=settings["movetime"]))
+        result = sf_engine.play(
+            board,
+            chess.engine.Limit(nodes=settings["nodes"], depth=settings["depth"], time=settings["time"])
+        )
         return result.move
 
 def stockfish_get_eval(board):
     """Always uses max strength/short analysis, regardless of play difficulty, for an accurate eval bar."""
     with sf_lock:
         sf_engine.configure({"Skill Level": 20})
-        info = sf_engine.analyse(board, chess.engine.Limit(time=SF_EVAL_MOVETIME))
+        info = sf_engine.analyse(
+            board,
+            chess.engine.Limit(nodes=SF_EVAL_NODES, depth=SF_EVAL_DEPTH, time=SF_EVAL_TIME)
+        )
     score = info["score"].white()
     if score.is_mate():
         return None, score.mate()
