@@ -53,13 +53,13 @@ def shutdown_stockfish():
 # internal time checks can get delayed by host scheduling, making "movetime" unreliable.
 # The time value is just a hard backstop so a request can never hang indefinitely.
 SF_DIFFICULTY = {
-    "Easy":   {"skill": 1,  "nodes": 2000,   "depth": 4,  "time": 1.5},
-    "Medium": {"skill": 6,  "nodes": 15000,  "depth": 7,  "time": 3.0},
-    "Hard":   {"skill": 14, "nodes": 100000, "depth": 11, "time": 6.0},
+    "Easy":   {"skill": 1,  "nodes": 300,   "depth": 2, "time": 0.6},
+    "Medium": {"skill": 6,  "nodes": 3000,  "depth": 5, "time": 1.5},
+    "Hard":   {"skill": 14, "nodes": 25000, "depth": 8, "time": 3.0},
 }
-SF_EVAL_NODES = 15000
-SF_EVAL_DEPTH = 9
-SF_EVAL_TIME = 2.0  # backstop only
+SF_EVAL_NODES = 4000
+SF_EVAL_DEPTH = 6
+SF_EVAL_TIME = 1.0  # backstop only
 
 def stockfish_get_move(board, difficulty):
     settings = SF_DIFFICULTY.get(difficulty, SF_DIFFICULTY["Medium"])
@@ -137,10 +137,13 @@ def chess_eval():
         return jsonify({"eval": 0, "mate": 0})
 
     if sf_engine:
-        score, mate = stockfish_get_eval(board)
-        if score is None:
-            return jsonify({"eval": None, "mate": mate})
-        return jsonify({"eval": score, "mate": 0})
+        try:
+            score, mate = stockfish_get_eval(board)
+            if score is None:
+                return jsonify({"eval": None, "mate": mate})
+            return jsonify({"eval": score, "mate": 0})
+        except Exception as e:
+            print(f"[stockfish] eval failed ({e}), falling back to local engine")
 
     score, _ = local_search(board, 3, time_limit=1.0)
     if board.turn == chess.BLACK:
@@ -157,10 +160,13 @@ def chess_eval():
 
 def get_engine_move(board, difficulty):
     if sf_engine:
-        move = stockfish_get_move(board, difficulty)
-        if move:
-            return move
-        # fall through to local engine if Stockfish somehow returns nothing
+        try:
+            move = stockfish_get_move(board, difficulty)
+            if move:
+                return move
+        except Exception as e:
+            print(f"[stockfish] move generation failed ({e}), falling back to local engine")
+        # fall through to local engine if Stockfish errored or returned nothing
 
     depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
     time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
