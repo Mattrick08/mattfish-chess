@@ -2,7 +2,7 @@ import os
 from flask import Flask, render_template, jsonify, request
 import secrets
 import chess
-from engine import search as local_search
+from engine import search as local_search, evaluate as static_eval
 import requests
 import chess.pgn
 import io
@@ -179,6 +179,90 @@ def chess_undo():
         "game_over": False,
         "check": board.is_check()
     })
+
+@app.route("/api/chess/pgn/<session_id>")
+def chess_pgn(session_id):
+    if session_id not in games:
+        return jsonify({"error": "No game found"}), 404
+
+    game_data = games[session_id]
+    board = game_data["board"]
+    player_color = game_data.get("color", "white")
+
+    pgn_game = chess.pgn.Game()
+    pgn_game.headers["Event"] = "MattFish Chess Game"
+    pgn_game.headers["Site"] = "MattFish"
+    pgn_game.headers["White"] = "Player" if player_color == "white" else "MattFish Engine"
+    pgn_game.headers["Black"] = "MattFish Engine" if player_color == "white" else "Player"
+    pgn_game.headers["Result"] = board.result() if board.is_game_over() else "*"
+
+    node = pgn_game
+    for move in board.move_stack:
+        node = node.add_variation(move)
+
+    return jsonify({"pgn": str(pgn_game)})
+
+
+@app.route("/api/chess/review/<session_id>")
+def chess_review(session_id):
+    if session_id not in games:
+        return jsonify({"error": "No game found"}), 404
+
+    game_data = games[session_id]
+    final_board = game_data["board"]
+    moves = list(final_board.move_stack)
+
+    replay = chess.Board()
+    history = []
+    prev_eval = 0  # always from White's perspective, centipawns
+
+    for ply, move in enumerate(moves):
+        white_to_move = replay.turn == chess.WHITE
+        san = replay.san(move)
+        replay.push(move)
+
+        if replay.is_checkmate():
+            cur_eval = -99999 if white_to_move else 99999
+        else:
+            cur_eval = static_eval(replay)
+
+        # "loss" = how much the position swung against the side that just moved
+        if white_to_move:
+            loss = prev_eval - cur_eval
+        else:
+            loss = cur_eval - prev_eval
+
+        if abs(cur_eval) > 90000:
+            classification = "Good"
+        elif loss >= 250:
+            classification = "Blunder"
+        elif loss >= 100:
+            classification = "Mistake"
+        elif loss >= 50:
+            classification = "Inaccuracy"
+        else:
+            classification = "Good"
+
+        display_eval = max(-1000, min(1000, cur_eval)) if abs(cur_eval) <= 90000 else (1000 if cur_eval > 0 else -1000)
+
+        history.append({
+            "ply": ply,
+            "move_uci": move.uci(),
+            "move_san": san,
+            "fen": replay.fen(),
+            "white_to_move_before": white_to_move,
+            "eval": display_eval,
+            "mate": None if abs(cur_eval) <= 90000 else (1 if cur_eval > 0 else -1),
+            "classification": classification
+        })
+
+        prev_eval = cur_eval
+
+    return jsonify({
+        "moves": history,
+        "result": final_board.result() if final_board.is_game_over() else "*"
+    })
+
 
 # ========== CHESS.COM STATS ==========
 headers = {"User-Agent": "Mozilla/5.0"}
