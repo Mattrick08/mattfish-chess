@@ -1,88 +1,18 @@
 import os
 from flask import Flask, render_template, jsonify, request
+from flask_socketio import SocketIO, emit, join_room as sio_join_room, leave_room as sio_leave_room
 import secrets
+import time as time_module
 import chess
-import chess.engine
 from engine import search as local_search, evaluate as static_eval
 import requests
 import chess.pgn
 import io
-import atexit
-import threading
 from collections import defaultdict
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-
-# ========== STOCKFISH ENGINE (with fallback to local Python engine) ==========
-STOCKFISH_PATH = os.environ.get(
-    "STOCKFISH_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "stockfish")
-)
-
-sf_engine = None
-sf_lock = threading.Lock()
-
-def init_stockfish():
-    global sf_engine
-    try:
-        if not os.path.isfile(STOCKFISH_PATH) or not os.access(STOCKFISH_PATH, os.X_OK):
-            print(f"[stockfish] Binary not found/executable at {STOCKFISH_PATH}. Using fallback engine.")
-            return
-        engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
-        engine.configure({"Hash": 16, "Threads": 1})
-        sf_engine = engine
-        print(f"[stockfish] Loaded engine at {STOCKFISH_PATH}")
-    except Exception as e:
-        print(f"[stockfish] Failed to start Stockfish ({e}). Using fallback engine.")
-        sf_engine = None
-
-init_stockfish()
-
-@atexit.register
-def shutdown_stockfish():
-    if sf_engine:
-        try:
-            sf_engine.quit()
-        except Exception:
-            pass
-
-# difficulty -> (skill level 0-20, node cap, depth cap, hard time backstop in seconds).
-# Node/depth caps bound actual CPU work done, which is far more reliable than a
-# wall-clock time limit on a throttled/shared CPU like Render's free tier — Stockfish's
-# internal time checks can get delayed by host scheduling, making "movetime" unreliable.
-# The time value is just a hard backstop so a request can never hang indefinitely.
-SF_DIFFICULTY = {
-    "Easy":   {"skill": 1,  "nodes": 300,   "depth": 2, "time": 0.6},
-    "Medium": {"skill": 6,  "nodes": 3000,  "depth": 5, "time": 1.5},
-    "Hard":   {"skill": 14, "nodes": 25000, "depth": 8, "time": 3.0},
-}
-SF_EVAL_NODES = 4000
-SF_EVAL_DEPTH = 6
-SF_EVAL_TIME = 1.0  # backstop only
-
-def stockfish_get_move(board, difficulty):
-    settings = SF_DIFFICULTY.get(difficulty, SF_DIFFICULTY["Medium"])
-    with sf_lock:
-        sf_engine.configure({"Skill Level": settings["skill"]})
-        result = sf_engine.play(
-            board,
-            chess.engine.Limit(nodes=settings["nodes"], depth=settings["depth"], time=settings["time"])
-        )
-        return result.move
-
-def stockfish_get_eval(board):
-    """Always uses max strength/short analysis, regardless of play difficulty, for an accurate eval bar."""
-    with sf_lock:
-        sf_engine.configure({"Skill Level": 20})
-        info = sf_engine.analyse(
-            board,
-            chess.engine.Limit(nodes=SF_EVAL_NODES, depth=SF_EVAL_DEPTH, time=SF_EVAL_TIME)
-        )
-    score = info["score"].white()
-    if score.is_mate():
-        return None, score.mate()
-    return score.score(), 0
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 # ========== CHESS GAME (vs Engine) ==========
 games = {}
@@ -94,6 +24,10 @@ def index():
 @app.route("/play")
 def play():
     return render_template("chess.html")
+
+@app.route("/multiplayer")
+def multiplayer():
+    return render_template("multiplayer.html")
 
 @app.route("/api/chess/new", methods=["POST"])
 def new_chess_game():
@@ -136,15 +70,6 @@ def chess_eval():
                 return jsonify({"eval": 9999, "mate": 1})
         return jsonify({"eval": 0, "mate": 0})
 
-    if sf_engine:
-        try:
-            score, mate = stockfish_get_eval(board)
-            if score is None:
-                return jsonify({"eval": None, "mate": mate})
-            return jsonify({"eval": score, "mate": 0})
-        except Exception as e:
-            print(f"[stockfish] eval failed ({e}), falling back to local engine")
-
     score, _ = local_search(board, 3, time_limit=1.0)
     if board.turn == chess.BLACK:
         score = -score
@@ -159,15 +84,6 @@ def chess_eval():
     return jsonify({"eval": score, "mate": 0})
 
 def get_engine_move(board, difficulty):
-    if sf_engine:
-        try:
-            move = stockfish_get_move(board, difficulty)
-            if move:
-                return move
-        except Exception as e:
-            print(f"[stockfish] move generation failed ({e}), falling back to local engine")
-        # fall through to local engine if Stockfish errored or returned nothing
-
     depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
     time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
     depth = depth_map.get(difficulty, 5)
@@ -270,11 +186,6 @@ def chess_undo():
         "game_over": False,
         "check": board.is_check()
     })
-
-@app.route("/api/engine/status")
-def engine_status():
-    return jsonify({"stockfish": sf_engine is not None})
-
 
 @app.route("/api/chess/pgn/<session_id>")
 def chess_pgn(session_id):
@@ -478,4 +389,207 @@ def get_openings(username, months):
     return jsonify(openings_list)
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    socketio.run(app, debug=False)
+
+# ========== MULTIPLAYER (Socket.IO) ==========
+rooms = {}       # room_code -> room state dict
+sid_rooms = {}   # sid -> {"code": str, "color": "white"/"black"}
+
+ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous chars (no I,O,0,1)
+
+def generate_room_code():
+    for _ in range(50):
+        code = "".join(secrets.choice(ROOM_CODE_CHARS) for _ in range(6))
+        if code not in rooms:
+            return code
+    raise RuntimeError("Could not generate a unique room code")
+
+def room_public_state(code):
+    room = rooms[code]
+    board = room["board"]
+    return {
+        "code": code,
+        "fen": board.fen(),
+        "white_name": room["names"]["white"],
+        "black_name": room["names"]["black"],
+        "white_connected": room["players"]["white"] is not None,
+        "black_connected": room["players"]["black"] is not None,
+        "clocks": room["clocks"],
+        "time_control": room["time_control"],
+        "check": board.is_check(),
+        "game_over": room["game_over"],
+        "result": room["result"],
+        "legal_moves": [str(m) for m in board.legal_moves] if not room["game_over"] else [],
+        "started": room["started"],
+    }
+
+def sync_clock(room, mover_color):
+    """Subtracts elapsed time from the mover's clock and adds increment. Returns True if they flagged."""
+    now = time_module.time()
+    if room["last_move_time"] is not None:
+        elapsed = now - room["last_move_time"]
+        room["clocks"][mover_color] = max(0, room["clocks"][mover_color] - elapsed)
+    room["last_move_time"] = now
+    if room["clocks"][mover_color] <= 0:
+        return True
+    room["clocks"][mover_color] += room["time_control"]["increment"]
+    return False
+
+@socketio.on("create_room")
+def handle_create_room(data):
+    data = data or {}
+    name = (data.get("name") or "Player 1")[:20]
+    color_pref = data.get("color", "random")
+    minutes = max(1, min(180, int(data.get("minutes", 10))))
+    increment = max(0, min(60, int(data.get("increment", 0))))
+
+    if color_pref not in ("white", "black"):
+        color_pref = secrets.choice(["white", "black"])
+
+    code = generate_room_code()
+    seconds = minutes * 60
+    rooms[code] = {
+        "board": chess.Board(),
+        "players": {"white": None, "black": None},
+        "names": {"white": None, "black": None},
+        "time_control": {"minutes": minutes, "increment": increment},
+        "clocks": {"white": float(seconds), "black": float(seconds)},
+        "last_move_time": None,
+        "started": False,
+        "game_over": False,
+        "result": None,
+    }
+    rooms[code]["players"][color_pref] = request.sid
+    rooms[code]["names"][color_pref] = name
+    sid_rooms[request.sid] = {"code": code, "color": color_pref}
+    sio_join_room(code)
+
+    emit("room_created", {"code": code, "color": color_pref})
+
+@socketio.on("join_room_event")
+def handle_join_room(data):
+    data = data or {}
+    code = (data.get("code") or "").strip().upper()
+    name = (data.get("name") or "Player 2")[:20]
+
+    if code not in rooms:
+        emit("join_error", {"error": "Room not found. Check the code and try again."})
+        return
+
+    room = rooms[code]
+    open_color = None
+    for c in ("white", "black"):
+        if room["players"][c] is None:
+            open_color = c
+            break
+
+    if open_color is None:
+        emit("join_error", {"error": "This room is already full."})
+        return
+
+    room["players"][open_color] = request.sid
+    room["names"][open_color] = name
+    sid_rooms[request.sid] = {"code": code, "color": open_color}
+    sio_join_room(code)
+
+    room["started"] = True
+    room["last_move_time"] = time_module.time()
+
+    socketio.emit("game_start", room_public_state(code), room=code)
+    emit("your_color", {"color": open_color})
+
+@socketio.on("make_move")
+def handle_make_move(data):
+    data = data or {}
+    code = data.get("code")
+    move_uci = data.get("move")
+
+    if code not in rooms:
+        emit("move_error", {"error": "Room not found."})
+        return
+    room = rooms[code]
+    if not room["started"] or room["game_over"]:
+        emit("move_error", {"error": "Game is not active."})
+        return
+
+    info = sid_rooms.get(request.sid)
+    if not info or info["code"] != code:
+        emit("move_error", {"error": "You are not part of this game."})
+        return
+
+    board = room["board"]
+    mover_color = "white" if board.turn == chess.WHITE else "black"
+    if info["color"] != mover_color:
+        emit("move_error", {"error": "It is not your turn."})
+        return
+
+    flagged = sync_clock(room, mover_color)
+    if flagged:
+        room["game_over"] = True
+        room["result"] = "0-1" if mover_color == "white" else "1-0"
+        socketio.emit("game_over", {"result": room["result"], "reason": "timeout", **room_public_state(code)}, room=code)
+        return
+
+    try:
+        move = chess.Move.from_uci(move_uci)
+        if move not in board.legal_moves:
+            emit("move_error", {"error": "Illegal move."})
+            return
+        board.push(move)
+    except Exception:
+        emit("move_error", {"error": "Invalid move format."})
+        return
+
+    state = room_public_state(code)
+    state["last_move"] = move_uci
+
+    if board.is_game_over():
+        room["game_over"] = True
+        room["result"] = board.result()
+        state["game_over"] = True
+        state["result"] = room["result"]
+        socketio.emit("game_over", {"reason": "normal", **state}, room=code)
+    else:
+        socketio.emit("move_made", state, room=code)
+
+@socketio.on("resign")
+def handle_resign(data):
+    data = data or {}
+    code = data.get("code")
+    if code not in rooms:
+        return
+    info = sid_rooms.get(request.sid)
+    if not info or info["code"] != code:
+        return
+    room = rooms[code]
+    if room["game_over"]:
+        return
+    room["game_over"] = True
+    room["result"] = "0-1" if info["color"] == "white" else "1-0"
+    socketio.emit("game_over", {"reason": "resignation", **room_public_state(code)}, room=code)
+
+@socketio.on("send_chat")
+def handle_chat(data):
+    data = data or {}
+    code = data.get("code")
+    text = (data.get("text") or "")[:300]
+    info = sid_rooms.get(request.sid)
+    if not info or info["code"] != code or not text.strip():
+        return
+    room = rooms.get(code)
+    if not room:
+        return
+    sender_name = room["names"].get(info["color"], "Player")
+    socketio.emit("chat_message", {"name": sender_name, "text": text, "color": info["color"]}, room=code)
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    info = sid_rooms.pop(request.sid, None)
+    if not info:
+        return
+    code = info["code"]
+    room = rooms.get(code)
+    if not room:
+        return
+    room["players"][info["color"]] = None
+    socketio.emit("opponent_disconnected", {"color": info["color"]}, room=code)
