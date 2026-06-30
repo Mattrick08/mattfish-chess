@@ -708,7 +708,6 @@
 
     <div class="sidebar">
         <h1>♔ MattFish</h1>
-        <div id="engineBadge" style="font-size:11px; color:#888;"></div>
         <div id="status">Click "New Game" to start</div>
 
         <!-- Player Timer -->
@@ -756,6 +755,7 @@
         <button class="undo-btn" onclick="openReview()" style="border-color:#9C27B0; background:rgba(156,39,176,0.1);">📖 Review Game</button>
         <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">🎨 Personalize</button>
         <div id="themePanelContainer"></div>
+        <a href="/multiplayer" style="color:#2196F3; text-decoration:none; text-align:center;">♟ Play a Friend</a>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
     </div>
 
@@ -1186,20 +1186,7 @@
             }
             updateTimerDisplay();
             newGame();
-            checkEngineStatus();
         };
-
-        async function checkEngineStatus() {
-            const badge = document.getElementById('engineBadge');
-            try {
-                const res = await fetch('/api/engine/status');
-                const data = await res.json();
-                badge.textContent = data.stockfish ? '⚡ Powered by Stockfish' : '🐍 Python engine (fallback)';
-                badge.style.color = data.stockfish ? '#4CAF50' : '#f39c12';
-            } catch (e) {
-                badge.textContent = '';
-            }
-        }
 
         function setDiff(d) {
             difficulty = d;
