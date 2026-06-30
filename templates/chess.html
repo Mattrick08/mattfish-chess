@@ -708,6 +708,7 @@
 
     <div class="sidebar">
         <h1>♔ MattFish</h1>
+        <div id="engineBadge" style="font-size:11px; color:#888;"></div>
         <div id="status">Click "New Game" to start</div>
 
         <!-- Player Timer -->
@@ -1185,7 +1186,20 @@
             }
             updateTimerDisplay();
             newGame();
+            checkEngineStatus();
         };
+
+        async function checkEngineStatus() {
+            const badge = document.getElementById('engineBadge');
+            try {
+                const res = await fetch('/api/engine/status');
+                const data = await res.json();
+                badge.textContent = data.stockfish ? '⚡ Powered by Stockfish' : '🐍 Python engine (fallback)';
+                badge.style.color = data.stockfish ? '#4CAF50' : '#f39c12';
+            } catch (e) {
+                badge.textContent = '';
+            }
+        }
 
         function setDiff(d) {
             difficulty = d;
