@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MattFish Chess — Multiplayer</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        background: #1e1e1e;
+        color: white;
+        font-family: Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+    h1 { color: #e74c3c; margin-bottom: 20px; }
+    a.back-link { color: #4CAF50; text-decoration: none; margin-bottom: 15px; }
+
+    /* ===== LOBBY ===== */
+    .lobby {
+        display: flex;
+        gap: 25px;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 800px;
+    }
+    .lobby-card {
+        background: #2e2e2e;
+        border-radius: 10px;
+        padding: 25px;
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .lobby-card h2 { font-size: 18px; color: #f0d9b5; margin-bottom: 5px; }
+    .lobby-card label { font-size: 12px; color: #aaa; }
+    .lobby-card input, .lobby-card select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #555;
+        background: #1a1a1a;
+        color: white;
+        font-size: 14px;
+    }
+    .color-pick { display: flex; gap: 8px; }
+    .color-pick button {
+        flex: 1;
+        padding: 8px;
+        border: 2px solid #444;
+        background: transparent;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .color-pick button.active { border-color: #4CAF50; background: rgba(76,175,80,0.2); }
+    .tc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .tc-grid button {
+        padding: 8px 4px;
+        border: 2px solid #444;
+        background: transparent;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    .tc-grid button.active { border-color: #2196F3; background: rgba(33,150,243,0.2); }
+    .primary-btn {
+        padding: 12px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        margin-top: 5px;
+    }
+    .primary-btn:hover { background: #c0392b; }
+    .error-text { color: #e74c3c; font-size: 13px; min-height: 16px; }
+
+    .waiting-box {
+        text-align: center;
+        background: #2e2e2e;
+        padding: 30px;
+        border-radius: 10px;
+        max-width: 420px;
+    }
+    .room-code {
+        font-size: 32px;
+        letter-spacing: 6px;
+        font-weight: bold;
+        color: #4CAF50;
+        margin: 15px 0;
+        cursor: pointer;
+    }
+    .copy-hint { font-size: 12px; color: #888; }
+
+    /* ===== GAME ===== */
+    .game-wrap { display: none; gap: 25px; flex-wrap: wrap; justify-content: center; }
+    .game-wrap.active { display: flex; }
+    .game-sidebar {
+        width: 260px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .player-card {
+        background: #2e2e2e;
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .player-card.active-turn { box-shadow: 0 0 0 2px #4CAF50; }
+    .player-name { font-size: 14px; }
+    .player-clock { font-size: 20px; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .clock-low { color: #e74c3c; }
+    .disconnected-tag { font-size: 11px; color: #e74c3c; }
+
+    #board {
+        display: grid;
+        grid-template-columns: repeat(8, 65px);
+        grid-template-rows: repeat(8, 65px);
+        border: 3px solid #555;
+        border-radius: 4px;
+    }
+    .square { width: 65px; height: 65px; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; position: relative; }
+    .square img { width: 56px; height: 56px; pointer-events: none; }
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .square:hover { filter: brightness(1.15); }
+    .selected { background: #f7ec5f !important; }
+    .last-move { box-shadow: inset 0 0 0 4px rgba(255,107,107,0.7); }
+    .legal::after { content: ''; position: absolute; width: 18px; height: 18px; background: rgba(0,0,0,0.25); border-radius: 50%; pointer-events: none; }
+    .check { background: rgba(231,76,60,0.6) !important; }
+
+    .move-history { background: #2e2e2e; padding: 12px; border-radius: 8px; max-height: 110px; overflow-y: auto; }
+    .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
+    .move-pair { background: #1a1a2e; padding: 4px 8px; border-radius: 4px; }
+
+    .chat-box { background: #2e2e2e; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .chat-log { max-height: 140px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+    .chat-msg .who { color: #4CAF50; font-weight: bold; }
+    .chat-row { display: flex; gap: 6px; }
+    .chat-row input { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #1a1a1a; color: white; }
+    .chat-row button { padding: 6px 10px; border: none; border-radius: 6px; background: #2196F3; color: white; cursor: pointer; }
+
+    .resign-btn { padding: 10px; border: 2px solid #e74c3c; background: rgba(231,76,60,0.1); color: white; border-radius: 6px; cursor: pointer; }
+    .resign-btn:hover { background: rgba(231,76,60,0.2); }
+
+    .promotion-modal, .game-over-overlay {
+        display: none; position: fixed; top:0; left:0; right:0; bottom:0;
+        background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000;
+    }
+    .promotion-modal.active, .game-over-overlay.active { display: flex; }
+    .promotion-modal > div { display: flex; gap: 15px; background: #2a2a2a; padding: 25px; border-radius: 12px; border: 2px solid #555; }
+    .promo-piece { width: 70px; height: 70px; cursor: pointer; background: #f0d9b5; border-radius: 10px; display: flex; justify-content: center; align-items: center; border: 3px solid transparent; }
+    .promo-piece:hover { border-color: #e74c3c; }
+    .promo-piece img { width: 58px; height: 58px; }
+    .game-over-overlay { flex-direction: column; }
+    .game-over-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
+    .game-over-overlay button { padding: 12px 30px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2e2e2e; border: 1px solid #555; padding: 10px 18px; border-radius: 8px; font-size: 13px; display: none; }
+    .toast.active { display: block; }
+</style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Stats</a>
+    <h1>♟ MattFish Multiplayer</h1>
+
+    <!-- LOBBY -->
+    <div class="lobby" id="lobby">
+        <div class="lobby-card">
+            <h2>Create a Room</h2>
+            <label>Your Name</label>
+            <input type="text" id="createName" placeholder="Player 1" maxlength="20">
+            <label>Play As</label>
+            <div class="color-pick">
+                <button class="active" onclick="setCreateColor('random', this)">Random</button>
+                <button onclick="setCreateColor('white', this)">White</button>
+                <button onclick="setCreateColor('black', this)">Black</button>
+            </div>
+            <label>Time Control</label>
+            <div class="tc-grid" id="tcGrid">
+                <button data-min="1" data-inc="0" onclick="setTC(1,0,this)">1+0</button>
+                <button data-min="3" data-inc="2" onclick="setTC(3,2,this)">3+2</button>
+                <button data-min="5" data-inc="0" class="active" onclick="setTC(5,0,this)">5+0</button>
+                <button data-min="10" data-inc="0" onclick="setTC(10,0,this)">10+0</button>
+                <button data-min="10" data-inc="5" onclick="setTC(10,5,this)">10+5</button>
+                <button data-min="15" data-inc="10" onclick="setTC(15,10,this)">15+10</button>
+            </div>
+            <button class="primary-btn" onclick="createRoom()">Create Room</button>
+        </div>
+        <div class="lobby-card">
+            <h2>Join a Room</h2>
+            <label>Your Name</label>
+            <input type="text" id="joinName" placeholder="Player 2" maxlength="20">
+            <label>Room Code</label>
+            <input type="text" id="joinCode" placeholder="ABC123" maxlength="6" style="text-transform:uppercase; letter-spacing:3px;">
+            <button class="primary-btn" onclick="joinRoom()">Join Room</button>
+            <div class="error-text" id="joinError"></div>
+        </div>
+    </div>
+
+    <!-- WAITING FOR OPPONENT -->
+    <div class="waiting-box" id="waitingBox" style="display:none;">
+        <div>Share this code with your opponent:</div>
+        <div class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()"></div>
+        <div class="copy-hint">Click the code to copy it</div>
+        <div style="margin-top:15px; color:#aaa;">Waiting for them to join...</div>
+    </div>
+
+    <!-- GAME -->
+    <div class="game-wrap" id="gameWrap">
+        <div class="game-sidebar">
+            <div class="player-card" id="opponentCard">
+                <span class="player-name" id="opponentName">Opponent</span>
+                <span class="player-clock" id="opponentClock">10:00</span>
+            </div>
+            <div id="board"></div>
+            <div class="player-card" id="selfCard">
+                <span class="player-name" id="selfName">You</span>
+                <span class="player-clock" id="selfClock">10:00</span>
+            </div>
+            <button class="resign-btn" onclick="doResign()">🏳 Resign</button>
+        </div>
+        <div class="game-sidebar">
+            <div class="move-history">
+                <div class="moves-list" id="moves"></div>
+            </div>
+            <div class="chat-box">
+                <div class="chat-log" id="chatLog"></div>
+                <div class="chat-row">
+                    <input type="text" id="chatInput" placeholder="Say something..." maxlength="300" onkeydown="if(event.key==='Enter') sendChat();">
+                    <button onclick="sendChat()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="promotion-modal" id="promoModal">
+        <div>
+            <div class="promo-piece" onclick="doPromo('q')"><img id="promoQ" src="/static/pieces/wQ (1).png"></div>
+            <div class="promo-piece" onclick="doPromo('r')"><img id="promoR" src="/static/pieces/wR (1).png"></div>
+            <div class="promo-piece" onclick="doPromo('b')"><img id="promoB" src="/static/pieces/wB (1).png"></div>
+            <div class="promo-piece" onclick="doPromo('n')"><img id="promoN" src="/static/pieces/wN (1).png"></div>
+        </div>
+    </div>
+
+    <div class="game-over-overlay" id="gameOver">
+        <div class="game-over-text" id="gameOverText"></div>
+        <div id="gameOverReason" style="color:#aaa;"></div>
+        <button onclick="location.reload()">Back to Lobby</button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const PIECE_IMAGES = {
+            'P': '/static/pieces/wP (1).png', 'N': '/static/pieces/wN (1).png', 'B': '/static/pieces/wB (1).png',
+            'R': '/static/pieces/wR (1).png', 'Q': '/static/pieces/wQ (1).png', 'K': '/static/pieces/wK (1).png',
+            'p': '/static/pieces/bP (1).png', 'n': '/static/pieces/bN (1).png', 'b': '/static/pieces/bB (1).png',
+            'r': '/static/pieces/bR (1).png', 'q': '/static/pieces/bQ (1).png', 'k': '/static/pieces/bK (1).png'
+        };
+
+        const socket = io();
+
+        let myColor = null;
+        let roomCode = null;
+        let currentFEN = 'start';
+        let legalMoves = [];
+        let selectedSquare = null;
+        let pendingPromo = null;
+        let lastMove = null;
+        let isCheck = false;
+        let moveHistory = [];
+        let clocks = { white: 0, black: 0 };
+        let timeControl = { minutes: 5, increment: 0 };
+        let clockInterval = null;
+        let gameActive = false;
+
+        // ===== LOBBY UI =====
+        let createColor = 'random';
+        function setCreateColor(c, btn) {
+            createColor = c;
+            document.querySelectorAll('.color-pick button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        function setTC(min, inc, btn) {
+            timeControl = { minutes: min, increment: inc };
+            document.querySelectorAll('#tcGrid button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function createRoom() {
+            const name = document.getElementById('createName').value.trim() || 'Player 1';
+            socket.emit('create_room', { name: name, color: createColor, minutes: timeControl.minutes, increment: timeControl.increment });
+        }
+
+        function joinRoom() {
+            const name = document.getElementById('joinName').value.trim() || 'Player 2';
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            document.getElementById('joinError').textContent = '';
+            if (!code) {
+                document.getElementById('joinError').textContent = 'Enter a room code.';
+                return;
+            }
+            socket.emit('join_room_event', { name: name, code: code });
+        }
+
+        function copyRoomCode() {
+            if (!roomCode) return;
+            navigator.clipboard.writeText(roomCode).then(() => showToast('Room code copied!'));
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 2500);
+        }
+
+        // ===== SOCKET EVENTS =====
+        socket.on('room_created', (data) => {
+            roomCode = data.code;
+            myColor = data.color;
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('waitingBox').style.display = 'block';
+            document.getElementById('roomCodeDisplay').textContent = roomCode;
+        });
+
+        socket.on('join_error', (data) => {
+            document.getElementById('joinError').textContent = data.error;
+        });
+
+        socket.on('your_color', (data) => {
+            myColor = data.color;
+        });
+
+        socket.on('game_start', (state) => {
+            roomCode = state.code;
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('waitingBox').style.display = 'none';
+            document.getElementById('gameWrap').classList.add('active');
+            applyState(state);
+            gameActive = true;
+            startClockTicker();
+            document.getElementById('selfName').textContent = myColor === 'white' ? state.white_name : state.black_name;
+            document.getElementById('opponentName').textContent = myColor === 'white' ? state.black_name : state.white_name;
+        });
+
+        socket.on('move_made', (state) => {
+            applyState(state);
+        });
+
+        socket.on('move_error', (data) => {
+            showToast(data.error);
+        });
+
+        socket.on('game_over', (data) => {
+            gameActive = false;
+            applyState(data);
+            stopClockTicker();
+            showGameOver(data.result, data.reason);
+        });
+
+        socket.on('opponent_disconnected', (data) => {
+            showToast('Opponent disconnected.');
+        });
+
+        socket.on('chat_message', (data) => {
+            const log = document.getElementById('chatLog');
+            const div = document.createElement('div');
+            div.className = 'chat-msg';
+            div.innerHTML = '<span class="who">' + data.name + ':</span> ' + escapeHtml(data.text);
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        });
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !roomCode) return;
+            socket.emit('send_chat', { code: roomCode, text: text });
+            input.value = '';
+        }
+
+        // ===== GAME STATE =====
+        function applyState(state) {
+            currentFEN = state.fen;
+            legalMoves = state.legal_moves || [];
+            isCheck = state.check || false;
+            clocks = { white: state.clocks.white, black: state.clocks.black };
+            if (state.last_move) {
+                lastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
+                updateMoves(state.last_move);
+            }
+            drawBoard();
+            updateClockDisplay();
+            updateActiveTurnHighlight();
+        }
+
+        function updateMoves(uci) {
+            moveHistory.push(uci);
+            const container = document.getElementById('moves');
+            const div = document.createElement('div');
+            div.className = 'move-pair';
+            div.textContent = (moveHistory.length) + '. ' + uci;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateActiveTurnHighlight() {
+            const fenParts = currentFEN.split(' ');
+            const activeColor = fenParts[1] || 'w';
+            const myTurn = (activeColor === 'w' && myColor === 'white') || (activeColor === 'b' && myColor === 'black');
+            document.getElementById('selfCard').classList.toggle('active-turn', myTurn && gameActive);
+            document.getElementById('opponentCard').classList.toggle('active-turn', !myTurn && gameActive);
+        }
+
+        function updateClockDisplay() {
+            const selfSeconds = myColor === 'white' ? clocks.white : clocks.black;
+            const oppSeconds = myColor === 'white' ? clocks.black : clocks.white;
+            const selfEl = document.getElementById('selfClock');
+            const oppEl = document.getElementById('opponentClock');
+            selfEl.textContent = formatClock(selfSeconds);
+            oppEl.textContent = formatClock(oppSeconds);
+            selfEl.classList.toggle('clock-low', selfSeconds < 20);
+            oppEl.classList.toggle('clock-low', oppSeconds < 20);
+        }
+
+        function formatClock(seconds) {
+            seconds = Math.max(0, Math.floor(seconds));
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function startClockTicker() {
+            stopClockTicker();
+            clockInterval = setInterval(() => {
+                if (!gameActive) return;
+                const fenParts = currentFEN.split(' ');
+                const activeColor = fenParts[1] === 'w' ? 'white' : 'black';
+                clocks[activeColor] = Math.max(0, clocks[activeColor] - 0.25);
+                updateClockDisplay();
+            }, 250);
+        }
+        function stopClockTicker() {
+            if (clockInterval) clearInterval(clockInterval);
+            clockInterval = null;
+        }
+
+        // ===== BOARD RENDERING =====
+        function drawBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            const fenParts = currentFEN.split(' ');
+            const fenRows = fenParts[0].split('/');
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (const ch of fenRows[r]) {
+                    if (ch >= '1' && ch <= '8') { for (let i=0;i<parseInt(ch);i++) row.push(null); }
+                    else row.push(ch);
+                }
+                grid.push(row);
+            }
+            const flip = myColor === 'black';
+            for (let vRow = 0; vRow < 8; vRow++) {
+                for (let vCol = 0; vCol < 8; vCol++) {
+                    const stdRank = flip ? (7 - vRow) : vRow;
+                    const stdFile = flip ? (7 - vCol) : vCol;
+                    const piece = grid[stdRank][stdFile];
+                    const squareName = (flip ? 'hgfedcba' : 'abcdefgh')[vCol] + (flip ? (vRow + 1) : (8 - vRow));
+                    createSquare(boardEl, vRow, vCol, squareName, piece);
+                }
+            }
+        }
+
+        function createSquare(boardEl, vRow, vCol, squareName, piece) {
+            const square = document.createElement('div');
+            const isLight = (vRow + vCol) % 2 === 0;
+            square.className = 'square ' + (isLight ? 'light' : 'dark');
+            square.dataset.square = squareName;
+
+            if (isCheck && piece && ((piece === 'K' && currentFEN.split(' ')[1] === 'w') || (piece === 'k' && currentFEN.split(' ')[1] === 'b'))) {
+                square.classList.add('check');
+            }
+            if (piece && PIECE_IMAGES[piece]) {
+                const img = document.createElement('img');
+                img.src = PIECE_IMAGES[piece];
+                square.appendChild(img);
+            }
+            if (lastMove && (squareName === lastMove.from || squareName === lastMove.to)) {
+                square.classList.add('last-move');
+            }
+            if (selectedSquare === squareName) square.classList.add('selected');
+            if (selectedSquare) {
+                const isLegal = legalMoves.some(m => m.substring(0,2) === selectedSquare && m.substring(2,4) === squareName);
+                if (isLegal) square.classList.add('legal');
+            }
+            square.addEventListener('click', () => handleClick(square));
+            boardEl.appendChild(square);
+        }
+
+        function handleClick(square) {
+            if (!gameActive) return;
+            const fenParts = currentFEN.split(' ');
+            const activeColor = fenParts[1] || 'w';
+            const myTurn = (activeColor === 'w' && myColor === 'white') || (activeColor === 'b' && myColor === 'black');
+            if (!myTurn) return;
+
+            const sq = square.dataset.square;
+            const piece = square.querySelector('img');
+            const isMyPiece = piece && ((myColor === 'white' && piece.src.includes('/w')) || (myColor === 'black' && piece.src.includes('/b')));
+
+            if (!selectedSquare) {
+                if (isMyPiece) { selectedSquare = sq; drawBoard(); }
+                return;
+            }
+            if (selectedSquare === sq) { selectedSquare = null; drawBoard(); return; }
+
+            const matchingMove = legalMoves.find(m => m.substring(0,2) === selectedSquare && m.substring(2,4) === sq);
+            if (matchingMove) {
+                const fromSquare = document.querySelector('[data-square="' + selectedSquare + '"]');
+                const fromPiece = fromSquare.querySelector('img');
+                const isPawn = fromPiece && (fromPiece.src.includes('wP') || fromPiece.src.includes('bP'));
+                const promoRank = myColor === 'white' ? '8' : '1';
+                if (isPawn && sq[1] === promoRank) {
+                    pendingPromo = selectedSquare + sq;
+                    document.getElementById('promoModal').classList.add('active');
+                    return;
+                }
+                sendMove(matchingMove);
+            } else if (isMyPiece) {
+                selectedSquare = sq; drawBoard();
+            } else {
+                selectedSquare = null; drawBoard();
+            }
+        }
+
+        function doPromo(piece) {
+            document.getElementById('promoModal').classList.remove('active');
+            if (pendingPromo) { sendMove(pendingPromo + piece); pendingPromo = null; }
+        }
+
+        function sendMove(move) {
+            selectedSquare = null;
+            socket.emit('make_move', { code: roomCode, move: move });
+        }
+
+        function doResign() {
+            if (confirm('Are you sure you want to resign?')) {
+                socket.emit('resign', { code: roomCode });
+            }
+        }
+
+        function showGameOver(result, reason) {
+            const overlay = document.getElementById('gameOver');
+            const text = document.getElementById('gameOverText');
+            const reasonEl = document.getElementById('gameOverReason');
+            let msg = result;
+            let color = '#fff';
+            const iWon = (myColor === 'white' && result === '1-0') || (myColor === 'black' && result === '0-1');
+            const iLost = (myColor === 'white' && result === '0-1') || (myColor === 'black' && result === '1-0');
+            if (iWon) { msg = 'You Win!'; color = '#4CAF50'; }
+            else if (iLost) { msg = 'You Lose'; color = '#e74c3c'; }
+            else { msg = 'Draw'; color = '#f39c12'; }
+            text.textContent = msg;
+            text.style.color = color;
+            const reasonText = { timeout: 'on time', resignation: 'by resignation', normal: '' }[reason] || '';
+            reasonEl.textContent = reasonText ? ('(' + reasonText + ')') : '';
+            overlay.classList.add('active');
+        }
+    </script>
+</body>
+</html>
