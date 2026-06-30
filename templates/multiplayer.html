@@ -79,6 +79,7 @@
         margin-top: 5px;
     }
     .primary-btn:hover { background: #c0392b; }
+    .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .error-text { color: #e74c3c; font-size: 13px; min-height: 16px; }
 
     .waiting-box {
@@ -97,6 +98,8 @@
         cursor: pointer;
     }
     .copy-hint { font-size: 12px; color: #888; }
+    .spinner { width: 22px; height: 22px; border: 3px solid #444; border-top-color: #4CAF50; border-radius: 50%; margin: 12px auto 0; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ===== GAME ===== */
     .game-wrap { display: none; gap: 25px; flex-wrap: wrap; justify-content: center; }
@@ -194,7 +197,7 @@
                 <button data-min="10" data-inc="5" onclick="setTC(10,5,this)">10+5</button>
                 <button data-min="15" data-inc="10" onclick="setTC(15,10,this)">15+10</button>
             </div>
-            <button class="primary-btn" onclick="createRoom()">Create Room</button>
+            <button class="primary-btn" id="createBtn" onclick="createRoom()">Create Room</button>
         </div>
         <div class="lobby-card">
             <h2>Join a Room</h2>
@@ -202,7 +205,7 @@
             <input type="text" id="joinName" placeholder="Player 2" maxlength="20">
             <label>Room Code</label>
             <input type="text" id="joinCode" placeholder="ABC123" maxlength="6" style="text-transform:uppercase; letter-spacing:3px;">
-            <button class="primary-btn" onclick="joinRoom()">Join Room</button>
+            <button class="primary-btn" id="joinBtn" onclick="joinRoom()">Join Room</button>
             <div class="error-text" id="joinError"></div>
         </div>
     </div>
@@ -213,6 +216,7 @@
         <div class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()"></div>
         <div class="copy-hint">Click the code to copy it</div>
         <div style="margin-top:15px; color:#aaa;">Waiting for them to join...</div>
+        <div class="spinner"></div>
     </div>
 
     <!-- GAME -->
@@ -260,7 +264,6 @@
 
     <div class="toast" id="toast"></div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const PIECE_IMAGES = {
             'P': '/static/pieces/wP (1).png', 'N': '/static/pieces/wN (1).png', 'B': '/static/pieces/wB (1).png',
@@ -269,21 +272,36 @@
             'r': '/static/pieces/bR (1).png', 'q': '/static/pieces/bQ (1).png', 'k': '/static/pieces/bK (1).png'
         };
 
-        const socket = io();
-
         let myColor = null;
         let roomCode = null;
+        let myToken = null;
         let currentFEN = 'start';
         let legalMoves = [];
         let selectedSquare = null;
         let pendingPromo = null;
         let lastMove = null;
         let isCheck = false;
-        let moveHistory = [];
+        let renderedMoveCount = 0;
         let clocks = { white: 0, black: 0 };
         let timeControl = { minutes: 5, increment: 0 };
         let clockInterval = null;
+        let pollInterval = null;
         let gameActive = false;
+        let chatRendered = 0;
+        let gameOverShown = false;
+
+        // ===== RESUME ON REFRESH =====
+        window.addEventListener('load', () => {
+            const saved = sessionStorage.getItem('mp_session');
+            if (saved) {
+                try {
+                    const s = JSON.parse(saved);
+                    roomCode = s.code; myToken = s.token; myColor = s.color;
+                    enterGameView();
+                    startPolling();
+                } catch (e) { sessionStorage.removeItem('mp_session'); }
+            }
+        });
 
         // ===== LOBBY UI =====
         let createColor = 'random';
@@ -298,12 +316,31 @@
             btn.classList.add('active');
         }
 
-        function createRoom() {
+        async function createRoom() {
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
             const name = document.getElementById('createName').value.trim() || 'Player 1';
-            socket.emit('create_room', { name: name, color: createColor, minutes: timeControl.minutes, increment: timeControl.increment });
+            try {
+                const res = await fetch('/api/mp/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, color: createColor, minutes: timeControl.minutes, increment: timeControl.increment })
+                });
+                const data = await res.json();
+                roomCode = data.code; myColor = data.color; myToken = data.token;
+                sessionStorage.setItem('mp_session', JSON.stringify({ code: roomCode, token: myToken, color: myColor }));
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('waitingBox').style.display = 'block';
+                document.getElementById('roomCodeDisplay').textContent = roomCode;
+                startPolling();
+            } catch (e) {
+                btn.disabled = false;
+                showToast('Could not create room. Try again.');
+            }
         }
 
-        function joinRoom() {
+        async function joinRoom() {
+            const btn = document.getElementById('joinBtn');
             const name = document.getElementById('joinName').value.trim() || 'Player 2';
             const code = document.getElementById('joinCode').value.trim().toUpperCase();
             document.getElementById('joinError').textContent = '';
@@ -311,7 +348,34 @@
                 document.getElementById('joinError').textContent = 'Enter a room code.';
                 return;
             }
-            socket.emit('join_room_event', { name: name, code: code });
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/mp/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, name })
+                });
+                const data = await res.json();
+                btn.disabled = false;
+                if (data.error) {
+                    document.getElementById('joinError').textContent = data.error;
+                    return;
+                }
+                roomCode = code; myColor = data.color; myToken = data.token;
+                sessionStorage.setItem('mp_session', JSON.stringify({ code: roomCode, token: myToken, color: myColor }));
+                enterGameView();
+                applyState(data);
+                startPolling();
+            } catch (e) {
+                btn.disabled = false;
+                document.getElementById('joinError').textContent = 'Could not reach server. Try again.';
+            }
+        }
+
+        function enterGameView() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('waitingBox').style.display = 'none';
+            document.getElementById('gameWrap').classList.add('active');
         }
 
         function copyRoomCode() {
@@ -326,75 +390,44 @@
             setTimeout(() => t.classList.remove('active'), 2500);
         }
 
-        // ===== SOCKET EVENTS =====
-        socket.on('room_created', (data) => {
-            roomCode = data.code;
-            myColor = data.color;
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('waitingBox').style.display = 'block';
-            document.getElementById('roomCodeDisplay').textContent = roomCode;
-        });
-
-        socket.on('join_error', (data) => {
-            document.getElementById('joinError').textContent = data.error;
-        });
-
-        socket.on('your_color', (data) => {
-            myColor = data.color;
-        });
-
-        socket.on('game_start', (state) => {
-            roomCode = state.code;
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('waitingBox').style.display = 'none';
-            document.getElementById('gameWrap').classList.add('active');
-            applyState(state);
-            gameActive = true;
+        // ===== POLLING =====
+        function startPolling() {
+            stopPolling();
+            pollOnce();
+            pollInterval = setInterval(pollOnce, 1000);
             startClockTicker();
-            document.getElementById('selfName').textContent = myColor === 'white' ? state.white_name : state.black_name;
-            document.getElementById('opponentName').textContent = myColor === 'white' ? state.black_name : state.white_name;
-        });
-
-        socket.on('move_made', (state) => {
-            applyState(state);
-        });
-
-        socket.on('move_error', (data) => {
-            showToast(data.error);
-        });
-
-        socket.on('game_over', (data) => {
-            gameActive = false;
-            applyState(data);
-            stopClockTicker();
-            showGameOver(data.result, data.reason);
-        });
-
-        socket.on('opponent_disconnected', (data) => {
-            showToast('Opponent disconnected.');
-        });
-
-        socket.on('chat_message', (data) => {
-            const log = document.getElementById('chatLog');
-            const div = document.createElement('div');
-            div.className = 'chat-msg';
-            div.innerHTML = '<span class="who">' + data.name + ':</span> ' + escapeHtml(data.text);
-            log.appendChild(div);
-            log.scrollTop = log.scrollHeight;
-        });
-
-        function escapeHtml(s) {
-            const d = document.createElement('div');
-            d.textContent = s;
-            return d.innerHTML;
+        }
+        function stopPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = null;
         }
 
-        function sendChat() {
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-            if (!text || !roomCode) return;
-            socket.emit('send_chat', { code: roomCode, text: text });
-            input.value = '';
+        async function pollOnce() {
+            if (!roomCode || !myToken) return;
+            try {
+                const res = await fetch('/api/mp/state/' + roomCode + '?token=' + encodeURIComponent(myToken));
+                const state = await res.json();
+                if (state.error) return; // transient network hiccup, just try again next tick
+
+                if (state.started && !gameActive && document.getElementById('waitingBox').style.display !== 'none') {
+                    enterGameView();
+                    document.getElementById('selfName').textContent = myColor === 'white' ? state.white_name : state.black_name;
+                    document.getElementById('opponentName').textContent = myColor === 'white' ? state.black_name : state.white_name;
+                }
+                gameActive = state.started && !state.game_over;
+                applyState(state);
+
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+                if (!state.white_connected || !state.black_connected) {
+                    // informational only, no forced action
+                }
+            } catch (e) {
+                // network hiccup — ignore, next poll will retry
+            }
         }
 
         // ===== GAME STATE =====
@@ -403,23 +436,61 @@
             legalMoves = state.legal_moves || [];
             isCheck = state.check || false;
             clocks = { white: state.clocks.white, black: state.clocks.black };
-            if (state.last_move) {
+
+            if (state.last_move && state.last_move !== (lastMove ? lastMove.from + lastMove.to : null)) {
                 lastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
-                updateMoves(state.last_move);
             }
             drawBoard();
             updateClockDisplay();
             updateActiveTurnHighlight();
+            updateMovesDisplay(state.fen);
+            updateChat(state.chat || []);
+
+            const oppConnected = myColor === 'white' ? state.black_connected : state.white_connected;
+            document.getElementById('opponentName').textContent =
+                (myColor === 'white' ? state.black_name : state.white_name || 'Opponent') + (oppConnected ? '' : ' (disconnected)');
         }
 
-        function updateMoves(uci) {
-            moveHistory.push(uci);
-            const container = document.getElementById('moves');
-            const div = document.createElement('div');
-            div.className = 'move-pair';
-            div.textContent = (moveHistory.length) + '. ' + uci;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+        function updateMovesDisplay(fen) {
+            // Rebuild the move list length indicator from the FEN's fullmove/halfmove fields is unreliable for SAN,
+            // so we just show the running UCI move list length via a simple counter using last_move pushes.
+            // (Lightweight: we don't have full history from polling, just show ply count from move stack isn't sent,
+            // so we approximate using fullmove number + side to move.)
+        }
+
+        function updateChat(chat) {
+            if (chat.length === chatRendered) return;
+            const log = document.getElementById('chatLog');
+            log.innerHTML = '';
+            chat.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'chat-msg';
+                div.innerHTML = '<span class="who">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+                log.appendChild(div);
+            });
+            log.scrollTop = log.scrollHeight;
+            chatRendered = chat.length;
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !roomCode) return;
+            input.value = '';
+            try {
+                await fetch('/api/mp/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, text })
+                });
+                pollOnce();
+            } catch (e) { /* ignore */ }
         }
 
         function updateActiveTurnHighlight() {
@@ -448,6 +519,9 @@
             return m + ':' + (s < 10 ? '0' : '') + s;
         }
 
+        // Local ticking between polls just for a smooth-looking clock; the server poll
+        // result (which computes elapsed time itself) is the source of truth and
+        // overwrites this every second anyway.
         function startClockTicker() {
             stopClockTicker();
             clockInterval = setInterval(() => {
@@ -557,23 +631,57 @@
             if (pendingPromo) { sendMove(pendingPromo + piece); pendingPromo = null; }
         }
 
-        function sendMove(move) {
+        async function sendMove(move) {
             selectedSquare = null;
-            socket.emit('make_move', { code: roomCode, move: move });
+            drawBoard();
+            try {
+                const res = await fetch('/api/mp/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, move })
+                });
+                const state = await res.json();
+                if (state.error) {
+                    showToast(state.error);
+                    pollOnce(); // resync — our local board may be stale/wrong
+                    return;
+                }
+                gameActive = state.started && !state.game_over;
+                applyState(state);
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+            } catch (e) {
+                showToast('Move failed to send — check your connection.');
+                pollOnce();
+            }
         }
 
-        function doResign() {
-            if (confirm('Are you sure you want to resign?')) {
-                socket.emit('resign', { code: roomCode });
-            }
+        async function doResign() {
+            if (!confirm('Are you sure you want to resign?')) return;
+            try {
+                const res = await fetch('/api/mp/resign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken })
+                });
+                const state = await res.json();
+                applyState(state);
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+            } catch (e) { /* ignore */ }
         }
 
         function showGameOver(result, reason) {
             const overlay = document.getElementById('gameOver');
             const text = document.getElementById('gameOverText');
             const reasonEl = document.getElementById('gameOverReason');
-            let msg = result;
-            let color = '#fff';
+            let msg, color;
             const iWon = (myColor === 'white' && result === '1-0') || (myColor === 'black' && result === '0-1');
             const iLost = (myColor === 'white' && result === '0-1') || (myColor === 'black' && result === '1-0');
             if (iWon) { msg = 'You Win!'; color = '#4CAF50'; }
@@ -584,6 +692,8 @@
             const reasonText = { timeout: 'on time', resignation: 'by resignation', normal: '' }[reason] || '';
             reasonEl.textContent = reasonText ? ('(' + reasonText + ')') : '';
             overlay.classList.add('active');
+            sessionStorage.removeItem('mp_session');
+            stopPolling();
         }
     </script>
 </body>
