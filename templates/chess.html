@@ -539,6 +539,155 @@
             font-size: 11px;
             color: #aaa;
         }
+        /* ========== GAME REVIEW MODAL ========== */
+        .review-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1100;
+        }
+        .review-modal.active { display: flex; }
+        .review-content {
+            background: #1e1e1e;
+            border: 2px solid #444;
+            border-radius: 12px;
+            padding: 20px;
+            width: 95%;
+            max-width: 1000px;
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .review-header h2 { color: #e74c3c; }
+        .review-close-btn {
+            background: transparent;
+            border: 2px solid #555;
+            color: white;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .review-close-btn:hover { border-color: #e74c3c; }
+        .review-body {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+        .review-board-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        #reviewBoard {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            border: 3px solid #555;
+            border-radius: 4px;
+        }
+        #reviewBoard .square {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #reviewBoard .square img { width: 42px; height: 42px; pointer-events: none; }
+        #reviewBoard .light { background: #f0d9b5; }
+        #reviewBoard .dark { background: #b58863; }
+        #reviewBoard .review-last-move { box-shadow: inset 0 0 0 3px rgba(255, 107, 107, 0.7); }
+        .review-move-info {
+            background: #2e2e2e;
+            border-radius: 8px;
+            padding: 10px 15px;
+            min-width: 250px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .review-nav-btns { display: flex; gap: 8px; }
+        .review-nav-btns button {
+            padding: 8px 14px;
+            border: 2px solid #444;
+            background: transparent;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .review-nav-btns button:hover { border-color: #666; }
+        .review-sidebar {
+            flex: 1;
+            min-width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .eval-graph {
+            display: flex;
+            align-items: flex-end;
+            height: 80px;
+            background: #2e2e2e;
+            border-radius: 6px;
+            padding: 4px;
+            gap: 1px;
+            overflow-x: auto;
+        }
+        .eval-graph-bar {
+            flex: 1;
+            min-width: 3px;
+            cursor: pointer;
+            border-radius: 1px;
+        }
+        .eval-graph-bar.selected { outline: 2px solid #4CAF50; }
+        .review-moves-list {
+            background: #2e2e2e;
+            border-radius: 8px;
+            padding: 10px;
+            max-height: 320px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .review-move-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .review-move-row:hover { background: #3a3a3a; }
+        .review-move-row.selected { background: rgba(76,175,80,0.25); }
+        .tag-Blunder { color: #e74c3c; font-weight: bold; }
+        .tag-Mistake { color: #f39c12; font-weight: bold; }
+        .tag-Inaccuracy { color: #f1c40f; }
+        .tag-Good { color: #777; }
+        .review-actions { display: flex; gap: 10px; }
+        .review-actions button { flex: 1; }
+        .pgn-textarea {
+            width: 100%;
+            min-height: 90px;
+            background: #111;
+            color: #4CAF50;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
         .time-out-overlay {
             display: none;
             position: fixed;
@@ -603,6 +752,7 @@
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
+        <button class="undo-btn" onclick="openReview()" style="border-color:#9C27B0; background:rgba(156,39,176,0.1);">📖 Review Game</button>
         <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">🎨 Personalize</button>
         <div id="themePanelContainer"></div>
         <a href="/" style="color:#4CAF50; text-decoration:none; text-align:center;">← Back to Stats</a>
@@ -657,11 +807,43 @@
     <div class="game-over-overlay" id="gameOver">
         <div class="game-over-text" id="gameOverText"></div>
         <button class="play-again-btn" onclick="newGame()">Play Again</button>
+        <button class="play-again-btn" style="background:#9C27B0; margin-top:10px;" onclick="openReview()">📖 Review Game</button>
     </div>
 
     <div class="time-out-overlay" id="timeOutOverlay">
         <div class="time-out-text" id="timeOutText"></div>
         <button class="play-again-btn" onclick="newGame()">Play Again</button>
+    </div>
+
+    <!-- GAME REVIEW MODAL -->
+    <div class="review-modal" id="reviewModal">
+        <div class="review-content">
+            <div class="review-header">
+                <h2>📖 Game Review</h2>
+                <button class="review-close-btn" onclick="closeReview()">✕</button>
+            </div>
+            <div class="review-body">
+                <div class="review-board-area">
+                    <div id="reviewBoard"></div>
+                    <div class="review-move-info" id="reviewMoveInfo">No moves yet</div>
+                    <div class="review-nav-btns">
+                        <button onclick="reviewStep(-1000)">⏮</button>
+                        <button onclick="reviewStep(-1)">◀</button>
+                        <button onclick="reviewStep(1)">▶</button>
+                        <button onclick="reviewStep(1000)">⏭</button>
+                    </div>
+                </div>
+                <div class="review-sidebar">
+                    <div class="eval-graph" id="evalGraph"></div>
+                    <div class="review-moves-list" id="reviewMovesList"></div>
+                    <div class="review-actions">
+                        <button class="new-game-btn" onclick="copyPGN()">📋 Copy PGN</button>
+                        <button class="new-game-btn" onclick="downloadPGN()">⬇ Download PGN</button>
+                    </div>
+                    <textarea class="pgn-textarea" id="pgnTextarea" readonly placeholder="PGN will appear here..."></textarea>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1471,6 +1653,187 @@
 
         function setStatus(text) {
             document.getElementById('status').textContent = text;
+        }
+        // ========== GAME REVIEW ==========
+        let reviewData = [];
+        let reviewIndex = -1; // -1 = starting position
+
+        async function openReview() {
+            if (!sessionId) {
+                setStatus('Start a game first to review it.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/chess/review/' + sessionId);
+                const data = await res.json();
+                if (data.error) {
+                    setStatus('Error: ' + data.error);
+                    return;
+                }
+                reviewData = data.moves || [];
+                if (reviewData.length === 0) {
+                    setStatus('No moves played yet — nothing to review.');
+                    return;
+                }
+                reviewIndex = reviewData.length - 1;
+                renderEvalGraph();
+                renderReviewMovesList();
+                showReviewMove(reviewIndex);
+                document.getElementById('pgnTextarea').value = '';
+                document.getElementById('reviewModal').classList.add('active');
+            } catch (err) {
+                setStatus('Error loading review: ' + err.message);
+            }
+        }
+
+        function closeReview() {
+            document.getElementById('reviewModal').classList.remove('active');
+        }
+
+        function reviewStep(delta) {
+            if (reviewData.length === 0) return;
+            let target = reviewIndex + delta;
+            if (delta <= -1000) target = 0;
+            if (delta >= 1000) target = reviewData.length - 1;
+            target = Math.max(0, Math.min(reviewData.length - 1, target));
+            showReviewMove(target);
+        }
+
+        function showReviewMove(i) {
+            reviewIndex = i;
+            const entry = reviewData[i];
+            const fromSq = entry.move_uci.substring(0, 2);
+            const toSq = entry.move_uci.substring(2, 4);
+            renderStaticBoard(entry.fen, { from: fromSq, to: toSq });
+
+            let evalText;
+            if (entry.mate) {
+                evalText = 'Mate in ' + Math.abs(entry.mate);
+            } else {
+                evalText = (entry.eval / 100).toFixed(2);
+            }
+            const moveNum = Math.floor(i / 2) + 1;
+            const side = entry.white_to_move_before ? 'White' : 'Black';
+            document.getElementById('reviewMoveInfo').innerHTML =
+                '<strong>Move ' + moveNum + (entry.white_to_move_before ? '.' : '...') + ' ' + entry.move_san + '</strong> (' + side + ')<br>' +
+                'Eval: ' + evalText + ' &nbsp;|&nbsp; <span class="tag-' + entry.classification + '">' + entry.classification + '</span>';
+
+            document.querySelectorAll('.review-move-row').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === i);
+            });
+            document.querySelectorAll('.eval-graph-bar').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === i);
+            });
+        }
+
+        function renderEvalGraph() {
+            const graph = document.getElementById('evalGraph');
+            graph.innerHTML = '';
+            reviewData.forEach((entry, i) => {
+                const bar = document.createElement('div');
+                bar.className = 'eval-graph-bar';
+                const pct = Math.max(2, Math.min(100, 50 + (entry.eval / 1000) * 50));
+                bar.style.height = pct + '%';
+                bar.style.background = entry.eval >= 0 ? '#f0d9b5' : '#b58863';
+                if (entry.classification === 'Blunder') bar.style.background = '#e74c3c';
+                else if (entry.classification === 'Mistake') bar.style.background = '#f39c12';
+                bar.title = entry.move_san + ' (' + (entry.eval / 100).toFixed(2) + ')';
+                bar.addEventListener('click', () => showReviewMove(i));
+                graph.appendChild(bar);
+            });
+        }
+
+        function renderReviewMovesList() {
+            const list = document.getElementById('reviewMovesList');
+            list.innerHTML = '';
+            reviewData.forEach((entry, i) => {
+                const row = document.createElement('div');
+                row.className = 'review-move-row';
+                const moveNum = Math.floor(i / 2) + 1;
+                const label = moveNum + (entry.white_to_move_before ? '.' : '...') + ' ' + entry.move_san;
+                row.innerHTML = '<span>' + label + '</span>' +
+                    '<span class="tag-' + entry.classification + '">' + entry.classification + '</span>';
+                row.addEventListener('click', () => showReviewMove(i));
+                list.appendChild(row);
+            });
+        }
+
+        // Renders a read-only board into #reviewBoard from a FEN string (always White's-perspective)
+        function renderStaticBoard(fen, lastMoveSquares) {
+            const boardEl = document.getElementById('reviewBoard');
+            boardEl.innerHTML = '';
+            const fenRows = fen.split(' ')[0].split('/');
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (const char of fenRows[r]) {
+                    if (char >= '1' && char <= '8') {
+                        for (let i = 0; i < parseInt(char); i++) row.push(null);
+                    } else {
+                        row.push(char);
+                    }
+                }
+                grid.push(row);
+            }
+            for (let vRow = 0; vRow < 8; vRow++) {
+                for (let vCol = 0; vCol < 8; vCol++) {
+                    const piece = grid[vRow][vCol];
+                    const squareName = 'abcdefgh'[vCol] + (8 - vRow);
+                    const square = document.createElement('div');
+                    const isLight = (vRow + vCol) % 2 === 0;
+                    square.className = 'square ' + (isLight ? 'light' : 'dark');
+                    if (lastMoveSquares && (squareName === lastMoveSquares.from || squareName === lastMoveSquares.to)) {
+                        square.classList.add('review-last-move');
+                    }
+                    if (piece && PIECE_IMAGES[piece]) {
+                        const img = document.createElement('img');
+                        img.src = PIECE_IMAGES[piece];
+                        img.alt = piece;
+                        square.appendChild(img);
+                    }
+                    boardEl.appendChild(square);
+                }
+            }
+        }
+
+        async function fetchPGN() {
+            if (!sessionId) return null;
+            const res = await fetch('/api/chess/pgn/' + sessionId);
+            const data = await res.json();
+            return data.pgn || null;
+        }
+
+        async function copyPGN() {
+            const pgn = await fetchPGN();
+            if (!pgn) {
+                setStatus('No PGN available.');
+                return;
+            }
+            document.getElementById('pgnTextarea').value = pgn;
+            try {
+                await navigator.clipboard.writeText(pgn);
+                setStatus('PGN copied to clipboard!');
+            } catch (e) {
+                setStatus('PGN ready below — copy manually.');
+            }
+        }
+
+        async function downloadPGN() {
+            const pgn = await fetchPGN();
+            if (!pgn) {
+                setStatus('No PGN available.');
+                return;
+            }
+            document.getElementById('pgnTextarea').value = pgn;
+            const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mattfish-game.pgn';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
