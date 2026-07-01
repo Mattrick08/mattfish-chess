@@ -533,6 +533,27 @@ def mp_join():
 
     return jsonify({"color": open_color, "token": token, **room_public_state(room, code)})
 
+@app.route("/api/mp/spectate/<code>")
+def mp_spectate(code):
+    """Token-free read-only state endpoint for spectators."""
+    code = code.strip().upper()
+    room, err = get_room_or_error(code)
+    if err:
+        return err
+    check_and_apply_timeout(room)
+    state = room_public_state(room, code)
+    state["spectating"] = True
+
+    # Build SAN move list for the spectate move history panel
+    replay = chess.Board()
+    san_moves = []
+    for move in room["board"].move_stack:
+        san_moves.append(replay.san(move))
+        replay.push(move)
+    state["san_moves"] = san_moves
+
+    return jsonify(state)
+
 @app.route("/api/mp/state/<code>")
 def mp_state(code):
     code = code.strip().upper()
