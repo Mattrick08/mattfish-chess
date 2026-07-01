@@ -415,9 +415,9 @@
         let gameActive = false;
         let chatRendered = 0;
         let gameOverShown = false;
-        // premove: stores { from, to, promo } set during opponent's turn
-        let premove = null;
-        let premoveSelectFrom = null; // first click during opponent's turn
+        // premoveQueue: array of { from, to, promo } set during opponent's turn, fires one per our turn
+        let premoveQueue = [];
+        let premoveBuilding = null; // the 'from' square currently being selected for next premove
 
         // ===== RESUME ON REFRESH =====
         window.addEventListener('load', () => {
@@ -577,18 +577,19 @@
                 lastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
             }
 
-            // Fire a queued premove if it just became our turn
+            // Fire the next queued premove if it just became our turn
             const nowMyTurn = isMyTurn();
-            if (!wasMyTurn && nowMyTurn && premove && !state.game_over) {
-                const pm = premove;
-                premove = null;
-                premoveSelectFrom = null;
-                // Validate it's still legal before firing
+            if (!wasMyTurn && nowMyTurn && premoveQueue.length > 0 && !state.game_over) {
+                const pm = premoveQueue.shift();
+                premoveBuilding = null;
                 const uci = pm.from + pm.to + (pm.promo || '');
+                // Validate it's still legal before firing
                 if (legalMoves.includes(uci) || legalMoves.some(m => m.startsWith(pm.from + pm.to))) {
                     setTimeout(() => sendMove(uci), 30);
-                    return; // drawBoard will be called after sendMove resolves
+                    return;
                 }
+                // Illegal — cancel rest of the queue too
+                premoveQueue = [];
             }
 
             drawBoard();
@@ -768,10 +769,12 @@
                 const isLegal = legalMoves.some(m => m.substring(0,2) === selectedSquare && m.substring(2,4) === squareName);
                 if (isLegal) square.classList.add('legal');
             }
-            // Premove highlights (blue) — override last-move but don't override selected
-            if (premove && squareName === premove.from) square.classList.add('premove-from');
-            if (premove && squareName === premove.to)   square.classList.add('premove-to');
-            if (premoveSelectFrom === squareName)        square.classList.add('premove-from');
+            // Premove highlights (blue) — show all queued premoves + the one being built
+            if (premoveBuilding === squareName) square.classList.add('premove-from');
+            for (const pm of premoveQueue) {
+                if (squareName === pm.from) square.classList.add('premove-from');
+                if (squareName === pm.to)   square.classList.add('premove-to');
+            }
 
             square.addEventListener('click', () => handleClick(square));
             boardEl.appendChild(square);
@@ -786,37 +789,42 @@
 
             // ---- PREMOVE (opponent's turn) ----
             if (!myTurn) {
-                if (!premoveSelectFrom) {
-                    if (isMyPiece) { premoveSelectFrom = sq; drawBoard(); }
+                if (!premoveBuilding) {
+                    if (isMyPiece) { premoveBuilding = sq; drawBoard(); }
                     return;
                 }
-                if (premoveSelectFrom === sq) {
-                    premoveSelectFrom = null; premove = null; drawBoard(); return;
+                if (premoveBuilding === sq) {
+                    // Deselect — cancel everything
+                    premoveBuilding = null; premoveQueue = []; drawBoard(); return;
                 }
                 if (isMyPiece) {
-                    premoveSelectFrom = sq; premove = null; drawBoard(); return;
+                    // Switch selected piece
+                    premoveBuilding = sq; drawBoard(); return;
                 }
-                // Set premove — we'll validate legality when it fires
-                const isPawn = (() => {
-                    const fromSqEl = document.querySelector('[data-square="' + premoveSelectFrom + '"]');
-                    const fp = fromSqEl && fromSqEl.querySelector('img');
-                    return fp && (fp.src.includes('wP') || fp.src.includes('bP'));
-                })();
+                // Queue this premove
+                const fromSqEl = document.querySelector('[data-square="' + premoveBuilding + '"]');
+                const fp = fromSqEl && fromSqEl.querySelector('img');
+                const isPawn = fp && (fp.src.includes('wP') || fp.src.includes('bP'));
                 const promoRank = myColor === 'white' ? '8' : '1';
-                if (isPawn && sq[1] === promoRank) {
-                    premove = { from: premoveSelectFrom, to: sq, promo: 'q' }; // default queen promo on premove
-                } else {
-                    premove = { from: premoveSelectFrom, to: sq, promo: null };
-                }
-                premoveSelectFrom = null;
+                const pm = {
+                    from: premoveBuilding,
+                    to: sq,
+                    promo: (isPawn && sq[1] === promoRank) ? 'q' : null
+                };
+                premoveQueue.push(pm);
+                // After queuing, the destination becomes the new "from" so you can chain more moves
+                premoveBuilding = sq;
                 drawBoard();
-                showToast('Premove set — will fire when it\'s your turn.');
+                if (premoveQueue.length === 1) showToast('Premove queued (' + premoveQueue.length + ')');
+                else showToast(premoveQueue.length + ' premoves queued');
                 return;
             }
 
             // ---- NORMAL TURN ----
-            // Clear any queued premove when player starts moving on their turn
-            if (premove || premoveSelectFrom) { premove = null; premoveSelectFrom = null; }
+            // Clear any queued premoves when player starts moving manually on their turn
+            if (premoveQueue.length > 0 || premoveBuilding) {
+                premoveQueue = []; premoveBuilding = null;
+            }
 
             if (!selectedSquare) {
                 if (isMyPiece) { selectedSquare = sq; drawBoard(); }
@@ -1095,7 +1103,8 @@
                     return;
                 }
                 if (data.waiting) {
-                    // Still waiting for opponent — polling will detect when they click too
+                    // Still waiting for opponent — restart polling so we detect when they accept
+                    startPolling();
                     return;
                 }
                 // Both players voted — game restarted
@@ -1117,8 +1126,8 @@
             gameActive = true;
             selectedSquare = null;
             lastMove = null;
-            premove = null;
-            premoveSelectFrom = null;
+            premoveQueue = [];
+            premoveBuilding = null;
             reviewHistory = [];
             chatRendered = 0;
 
