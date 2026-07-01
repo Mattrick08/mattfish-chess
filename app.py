@@ -457,6 +457,7 @@ def room_public_state(room, code):
         "chat": room["chat"][-50:],
         "draw_offer": room.get("draw_offer"),
         "undo_offer": room.get("undo_offer"),
+        "rematch_votes": list(room.get("rematch_votes") or []),
     }
 
 @app.route("/multiplayer")
@@ -492,8 +493,9 @@ def mp_create():
         "game_over_reason": None,
         "last_move": None,
         "chat": [],
-        "draw_offer": None,  # "white" or "black" if that side has offered a draw
-        "undo_offer": None,  # "white" or "black" if that side has requested an undo
+        "draw_offer": None,
+        "undo_offer": None,
+        "rematch_votes": set(),
         "created_at": time_module.time(),
     }
     rooms[code]["tokens"][color_pref] = token
@@ -731,6 +733,62 @@ def mp_history(code):
         "black_name": room["names"].get("black") or "Black",
         "result": board.result() if board.is_game_over() else "*",
     })
+
+
+@app.route("/api/mp/rematch", methods=["POST"])
+def mp_rematch():
+    data = request.get_json() or {}
+    code = (data.get("code") or "").strip().upper()
+    token = data.get("token", "")
+
+    room, err = get_room_or_error(code)
+    if err:
+        return err
+
+    color = color_for_token(room, token)
+    if not color:
+        return jsonify({"error": "Invalid token."}), 403
+
+    if not room["game_over"]:
+        return jsonify({"error": "Game is not over yet."}), 400
+
+    # Track who requested rematch; start as soon as both have accepted
+    if "rematch_votes" not in room:
+        room["rematch_votes"] = set()
+    room["rematch_votes"].add(color)
+
+    if len(room["rematch_votes"]) < 2:
+        # Still waiting for the other player
+        return jsonify({"waiting": True, "voted": color})
+
+    # Both voted — swap colors and reset everything
+    old_white_token = room["tokens"]["white"]
+    old_black_token = room["tokens"]["black"]
+    old_white_name  = room["names"]["white"]
+    old_black_name  = room["names"]["black"]
+    seconds = room["time_control"]["minutes"] * 60
+
+    room["board"]            = chess.Board()
+    room["tokens"]["white"]  = old_black_token
+    room["tokens"]["black"]  = old_white_token
+    room["names"]["white"]   = old_black_name
+    room["names"]["black"]   = old_white_name
+    room["clocks"]           = {"white": float(seconds), "black": float(seconds)}
+    room["last_move_time"]   = time_module.time()
+    room["started"]          = True
+    room["game_over"]        = False
+    room["result"]           = None
+    room["game_over_reason"] = None
+    room["last_move"]        = None
+    room["draw_offer"]       = None
+    room["undo_offer"]       = None
+    room["rematch_votes"]    = set()
+
+    state = room_public_state(room, code)
+    # Tell each player their new color
+    new_color = "white" if old_black_token == room["tokens"]["white"] else "black"
+    state["your_new_color"] = "white" if color == "black" else "black"
+    return jsonify(state)
 
 
 @app.route("/api/mp/draw_offer", methods=["POST"])
