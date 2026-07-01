@@ -157,6 +157,8 @@
     .resign-btn:hover { background: rgba(231,76,60,0.2); }
     .draw-btn { flex: 1; padding: 10px; border: 2px solid #f39c12; background: rgba(243,156,18,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
     .draw-btn:hover { background: rgba(243,156,18,0.2); }
+    .undo-btn-mp { flex: 1; padding: 10px; border: 2px solid #9C27B0; background: rgba(156,39,176,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .undo-btn-mp:hover { background: rgba(156,39,176,0.2); }
 
     .move-history { background: #2e2e2e; padding: 12px; border-radius: 8px; max-height: 130px; overflow-y: auto; }
     .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
@@ -169,11 +171,12 @@
     .chat-row input { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #1a1a1a; color: white; }
     .chat-row button { padding: 6px 10px; border: none; border-radius: 6px; background: #2196F3; color: white; cursor: pointer; }
 
-    .promotion-modal, .game-over-overlay, .draw-offer-overlay {
+    .promotion-modal, .game-over-overlay, .draw-offer-overlay, .undo-offer-overlay, .review-modal {
         display: none; position: fixed; top:0; left:0; right:0; bottom:0;
         background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000;
     }
-    .promotion-modal.active, .game-over-overlay.active, .draw-offer-overlay.active { display: flex; }
+    .promotion-modal.active, .game-over-overlay.active, .draw-offer-overlay.active,
+    .undo-offer-overlay.active, .review-modal.active { display: flex; }
     .promotion-modal > div { display: flex; gap: 15px; background: #2a2a2a; padding: 25px; border-radius: 12px; border: 2px solid #555; }
     .promo-piece { width: 70px; height: 70px; cursor: pointer; background: #f0d9b5; border-radius: 10px; display: flex; justify-content: center; align-items: center; border: 3px solid transparent; }
     .promo-piece:hover { border-color: #e74c3c; }
@@ -188,6 +191,37 @@
     .btn-accept { background: #4CAF50; }
     .btn-decline { background: #555; }
     .btn-lobby { background: #4CAF50; padding: 12px 30px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; }
+
+    /* ===== REVIEW MODAL ===== */
+    .review-content {
+        background: #1e1e1e; border: 2px solid #444; border-radius: 12px;
+        padding: 20px; width: 95%; max-width: 900px; max-height: 92vh; overflow-y: auto;
+    }
+    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .review-header h2 { color: #9C27B0; }
+    .review-close-btn { background: transparent; border: 2px solid #555; color: white; border-radius: 6px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; }
+    .review-close-btn:hover { border-color: #9C27B0; }
+    .review-body { display: flex; gap: 22px; flex-wrap: wrap; }
+    .review-board-area { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    #reviewBoard { display: grid; grid-template-columns: repeat(8, 48px); grid-template-rows: repeat(8, 48px); border: 3px solid #555; border-radius: 4px; }
+    #reviewBoard .sq { width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; }
+    #reviewBoard .sq img { width: 40px; height: 40px; pointer-events: none; }
+    #reviewBoard .rl { background: #f0d9b5; }
+    #reviewBoard .rd { background: #b58863; }
+    #reviewBoard .rv-last { box-shadow: inset 0 0 0 3px rgba(255,107,107,0.7); }
+    .review-nav-btns { display: flex; gap: 8px; }
+    .review-nav-btns button { padding: 7px 12px; border: 2px solid #444; background: transparent; color: white; border-radius: 6px; cursor: pointer; }
+    .review-nav-btns button:hover { border-color: #666; }
+    .review-move-info { background: #2e2e2e; border-radius: 8px; padding: 8px 14px; font-size: 13px; min-width: 220px; text-align: center; }
+    .review-sidebar-r { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 10px; }
+    .review-moves-list { background: #2e2e2e; border-radius: 8px; padding: 10px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+    .rv-move-row { display: flex; gap: 8px; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .rv-move-row:hover { background: #3a3a3a; }
+    .rv-move-row.selected { background: rgba(156,39,176,0.25); }
+    .pgn-textarea { width: 100%; min-height: 80px; background: #111; color: #4CAF50; border: 1px solid #444; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 12px; resize: vertical; }
+    .review-actions { display: flex; gap: 8px; }
+    .review-actions button { flex: 1; padding: 9px; border: 2px solid #555; background: transparent; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .review-actions button:hover { border-color: #9C27B0; }
 
     @media (max-width: 800px) {
         .game-wrap { flex-direction: column; align-items: center; }
@@ -256,7 +290,8 @@
             </div>
             <div class="action-row">
                 <button class="resign-btn" onclick="doResign()">🏳 Resign</button>
-                <button class="draw-btn" onclick="offerDraw()">🤝 Offer Draw</button>
+                <button class="draw-btn" onclick="offerDraw()">🤝 Draw</button>
+                <button class="undo-btn-mp" onclick="requestUndo()">↩ Undo</button>
             </div>
         </div>
         <div class="controls-col">
@@ -270,6 +305,7 @@
                     <button onclick="sendChat()">Send</button>
                 </div>
             </div>
+            <button style="padding:10px; border:2px solid #9C27B0; background:rgba(156,39,176,0.1); color:white; border-radius:6px; cursor:pointer;" onclick="openReview()">📖 Review Game</button>
         </div>
     </div>
 
@@ -286,17 +322,61 @@
         <div class="overlay-card">
             <div class="game-over-text" id="gameOverText"></div>
             <div id="gameOverReason" style="color:#aaa; font-size:15px;"></div>
-            <button class="btn-lobby" onclick="location.reload()">Back to Lobby</button>
+            <div class="overlay-btns">
+                <button class="btn-lobby" onclick="location.reload()">Back to Lobby</button>
+                <button style="background:#9C27B0; padding:10px 24px; font-size:15px; border:none; border-radius:8px; cursor:pointer; color:white;" onclick="openReview()">📖 Review Game</button>
+            </div>
         </div>
     </div>
 
     <div class="draw-offer-overlay" id="drawOfferOverlay">
         <div class="overlay-card">
             <h2>🤝 Draw Offer</h2>
-            <p id="drawOfferText">Your opponent is offering a draw.</p>
+            <p>Your opponent is offering a draw.</p>
             <div class="overlay-btns">
                 <button class="btn-accept" onclick="respondDraw(true)">Accept</button>
                 <button class="btn-decline" onclick="respondDraw(false)">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="undo-offer-overlay" id="undoOfferOverlay">
+        <div class="overlay-card">
+            <h2>↩ Undo Request</h2>
+            <p>Your opponent wants to take back their last move.</p>
+            <div class="overlay-btns">
+                <button class="btn-accept" onclick="respondUndo(true)">Accept</button>
+                <button class="btn-decline" onclick="respondUndo(false)">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REVIEW MODAL -->
+    <div class="review-modal" id="reviewModal">
+        <div class="review-content">
+            <div class="review-header">
+                <h2>📖 Game Review</h2>
+                <button class="review-close-btn" onclick="closeReview()">✕</button>
+            </div>
+            <div class="review-body">
+                <div class="review-board-area">
+                    <div id="reviewBoard"></div>
+                    <div class="review-move-info" id="reviewMoveInfo">Select a move</div>
+                    <div class="review-nav-btns">
+                        <button onclick="reviewStep(-1000)">⏮</button>
+                        <button onclick="reviewStep(-1)">◀</button>
+                        <button onclick="reviewStep(1)">▶</button>
+                        <button onclick="reviewStep(1000)">⏭</button>
+                    </div>
+                </div>
+                <div class="review-sidebar-r">
+                    <div class="review-moves-list" id="reviewMovesList"></div>
+                    <div class="review-actions">
+                        <button onclick="copyMpPGN()">📋 Copy PGN</button>
+                        <button onclick="downloadMpPGN()">⬇ Download PGN</button>
+                    </div>
+                    <textarea class="pgn-textarea" id="mpPgnTextarea" readonly placeholder="PGN will appear here..."></textarea>
+                </div>
             </div>
         </div>
     </div>
@@ -490,6 +570,13 @@
                 document.getElementById('drawOfferOverlay').classList.add('active');
             } else {
                 document.getElementById('drawOfferOverlay').classList.remove('active');
+            }
+
+            // Show undo request overlay if opponent requested undo (and not us)
+            if (state.undo_offer && state.undo_offer !== myColor) {
+                document.getElementById('undoOfferOverlay').classList.add('active');
+            } else {
+                document.getElementById('undoOfferOverlay').classList.remove('active');
             }
 
             const oppConnected = myColor === 'white' ? state.black_connected : state.white_connected;
@@ -753,6 +840,154 @@
                 }
                 if (!accept) showToast('Draw offer declined.');
             } catch (e) { /* ignore */ }
+        }
+
+        async function requestUndo() {
+            try {
+                const res = await fetch('/api/mp/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'request' })
+                });
+                const state = await res.json();
+                if (state.error) { showToast(state.error); return; }
+                applyState(state);
+                showToast('Undo request sent.');
+            } catch (e) { showToast('Could not send undo request.'); }
+        }
+
+        async function respondUndo(accept) {
+            document.getElementById('undoOfferOverlay').classList.remove('active');
+            try {
+                const res = await fetch('/api/mp/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'respond', accept })
+                });
+                const state = await res.json();
+                applyState(state);
+                if (!accept) showToast('Undo request declined.');
+            } catch (e) { /* ignore */ }
+        }
+
+        // ===== REVIEW MODAL =====
+        let reviewHistory = [];
+        let reviewIndex = 0;
+
+        async function openReview() {
+            if (!roomCode) return;
+            try {
+                const res = await fetch('/api/mp/history/' + roomCode);
+                const data = await res.json();
+                if (data.error || !data.moves || data.moves.length === 0) {
+                    showToast('No moves to review yet.');
+                    return;
+                }
+                reviewHistory = data.moves;
+                reviewIndex = reviewHistory.length - 1;
+                renderReviewList();
+                showReviewMove(reviewIndex);
+                document.getElementById('mpPgnTextarea').value = '';
+                document.getElementById('reviewModal').classList.add('active');
+            } catch (e) { showToast('Could not load review.'); }
+        }
+
+        function closeReview() {
+            document.getElementById('reviewModal').classList.remove('active');
+        }
+
+        function reviewStep(delta) {
+            if (!reviewHistory.length) return;
+            let t = reviewIndex + delta;
+            if (delta <= -1000) t = 0;
+            if (delta >= 1000) t = reviewHistory.length - 1;
+            t = Math.max(0, Math.min(reviewHistory.length - 1, t));
+            showReviewMove(t);
+        }
+
+        function showReviewMove(i) {
+            reviewIndex = i;
+            const entry = reviewHistory[i];
+            renderReviewBoard(entry.fen, entry.move_uci);
+            const moveNum = Math.floor(i / 2) + 1;
+            const label = moveNum + (entry.white_to_move_before ? '.' : '...') + ' ' + entry.move_san;
+            document.getElementById('reviewMoveInfo').textContent = label;
+            document.querySelectorAll('.rv-move-row').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === i);
+                if (idx === i) el.scrollIntoView({ block: 'nearest' });
+            });
+        }
+
+        function renderReviewList() {
+            const list = document.getElementById('reviewMovesList');
+            list.innerHTML = '';
+            reviewHistory.forEach((entry, i) => {
+                const row = document.createElement('div');
+                row.className = 'rv-move-row';
+                const moveNum = Math.floor(i / 2) + 1;
+                const label = moveNum + (entry.white_to_move_before ? '.' : '...') + ' ' + entry.move_san;
+                row.textContent = label;
+                row.addEventListener('click', () => showReviewMove(i));
+                list.appendChild(row);
+            });
+        }
+
+        function renderReviewBoard(fen, lastMoveUci) {
+            const el = document.getElementById('reviewBoard');
+            el.innerHTML = '';
+            const fenRows = fen.split(' ')[0].split('/');
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (const ch of fenRows[r]) {
+                    if (ch >= '1' && ch <= '8') { for (let i = 0; i < parseInt(ch); i++) row.push(null); }
+                    else row.push(ch);
+                }
+                grid.push(row);
+            }
+            const fromSq = lastMoveUci ? lastMoveUci.substring(0, 2) : null;
+            const toSq   = lastMoveUci ? lastMoveUci.substring(2, 4) : null;
+            for (let vRow = 0; vRow < 8; vRow++) {
+                for (let vCol = 0; vCol < 8; vCol++) {
+                    const piece = grid[vRow][vCol];
+                    const sqName = 'abcdefgh'[vCol] + (8 - vRow);
+                    const sq = document.createElement('div');
+                    sq.className = 'sq ' + ((vRow + vCol) % 2 === 0 ? 'rl' : 'rd');
+                    if (sqName === fromSq || sqName === toSq) sq.classList.add('rv-last');
+                    if (piece && PIECE_IMAGES[piece]) {
+                        const img = document.createElement('img');
+                        img.src = PIECE_IMAGES[piece];
+                        sq.appendChild(img);
+                    }
+                    el.appendChild(sq);
+                }
+            }
+        }
+
+        async function fetchMpPGN() {
+            const res = await fetch('/api/mp/pgn/' + roomCode);
+            const data = await res.json();
+            return data.pgn || null;
+        }
+
+        async function copyMpPGN() {
+            const pgn = await fetchMpPGN();
+            if (!pgn) { showToast('No PGN available.'); return; }
+            document.getElementById('mpPgnTextarea').value = pgn;
+            try { await navigator.clipboard.writeText(pgn); showToast('PGN copied!'); }
+            catch (e) { showToast('PGN ready below — copy manually.'); }
+        }
+
+        async function downloadMpPGN() {
+            const pgn = await fetchMpPGN();
+            if (!pgn) { showToast('No PGN available.'); return; }
+            document.getElementById('mpPgnTextarea').value = pgn;
+            const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'mattfish-mp-game.pgn';
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
         }
 
         function showGameOver(result, reason) {
