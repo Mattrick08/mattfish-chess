@@ -270,6 +270,13 @@
             <button class="primary-btn" id="joinBtn" onclick="joinRoom()">Join Room</button>
             <div class="error-text" id="joinError"></div>
         </div>
+        <div class="lobby-card">
+            <h2>👁 Spectate a Game</h2>
+            <label>Room Code</label>
+            <input type="text" id="spectateCode" placeholder="ABC123" maxlength="6" style="text-transform:uppercase; letter-spacing:3px;">
+            <button class="primary-btn" id="spectateBtn" onclick="startSpectate()" style="background:#607D8B;">Watch Game</button>
+            <div class="error-text" id="spectateError"></div>
+        </div>
     </div>
 
     <!-- WAITING FOR OPPONENT -->
@@ -279,6 +286,42 @@
         <div class="copy-hint">Click the code to copy it</div>
         <div style="margin-top:15px; color:#aaa;">Waiting for them to join...</div>
         <div class="spinner"></div>
+    </div>
+
+    <!-- SPECTATE VIEW -->
+    <div id="spectateWrap" style="display:none; flex-direction:column; align-items:center; gap:18px; width:100%; max-width:1000px;">
+        <div style="color:#607D8B; font-size:13px;">👁 Spectating — read only</div>
+        <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
+            <div class="board-col">
+                <div class="player-card" id="specBlackCard">
+                    <span class="player-name" id="specBlackName">Black</span>
+                    <span class="player-clock" id="specBlackClock">—</span>
+                </div>
+                <div id="specBoard" style="display:grid; grid-template-columns:repeat(8,58px); grid-template-rows:repeat(8,58px); border:3px solid #555; border-radius:4px;"></div>
+                <div class="player-card" id="specWhiteCard">
+                    <span class="player-name" id="specWhiteName">White</span>
+                    <span class="player-clock" id="specWhiteClock">—</span>
+                </div>
+                <div style="display:flex; gap:8px; width:100%;">
+                    <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="toggleSpecFlip()">🔄 Flip Board</button>
+                    <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="location.reload()">🚪 Leave</button>
+                </div>
+            </div>
+            <div style="width:240px; display:flex; flex-direction:column; gap:12px;">
+                <div style="background:#2e2e2e; border-radius:8px; padding:12px; font-size:13px; color:#aaa; text-align:center;" id="specStatus">Waiting for game to start…</div>
+                <div class="move-history">
+                    <div class="moves-list" id="specMoves"></div>
+                </div>
+                <div class="chat-box">
+                    <div class="chat-log" id="specChatLog"></div>
+                </div>
+            </div>
+        </div>
+        <div id="specGameOver" style="display:none; background:#2a2a2a; border:2px solid #555; border-radius:12px; padding:24px 36px; text-align:center;">
+            <div id="specGameOverText" style="font-size:28px; font-weight:bold; margin-bottom:8px;"></div>
+            <div id="specGameOverReason" style="color:#aaa; font-size:14px; margin-bottom:16px;"></div>
+            <button class="btn-lobby" onclick="location.reload()">🏠 Back to Lobby</button>
+        </div>
     </div>
 
     <!-- GAME -->
@@ -1141,6 +1184,186 @@
 
             applyState(state);
             startPolling(); // restarts poll + clock ticker (showGameOver stopped them)
+        }
+
+        // ===== SPECTATE =====
+        let spectateCode = null;
+        let specPollInterval = null;
+        let specClockInterval = null;
+        let specClocks = { white: 0, black: 0 };
+        let specFEN = null;
+        let specLastMove = null;
+        let specFlipped = false;
+        let specChatRendered = 0;
+        let specGameOverShown = false;
+        let specActiveTurn = 'white';
+
+        async function startSpectate() {
+            const btn = document.getElementById('spectateBtn');
+            const code = document.getElementById('spectateCode').value.trim().toUpperCase();
+            const errEl = document.getElementById('spectateError');
+            errEl.textContent = '';
+            if (!code) { errEl.textContent = 'Enter a room code.'; return; }
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/mp/spectate/' + code);
+                const data = await res.json();
+                btn.disabled = false;
+                if (data.error) { errEl.textContent = data.error; return; }
+                spectateCode = code;
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('spectateWrap').style.display = 'flex';
+                applySpecState(data);
+                specPollInterval = setInterval(specPollOnce, 1000);
+                specClockInterval = setInterval(specTickClock, 250);
+            } catch (e) {
+                btn.disabled = false;
+                errEl.textContent = 'Could not reach server. Try again.';
+            }
+        }
+
+        async function specPollOnce() {
+            if (!spectateCode) return;
+            try {
+                const res = await fetch('/api/mp/spectate/' + spectateCode);
+                const data = await res.json();
+                if (data.error) return;
+                applySpecState(data);
+            } catch (e) { /* ignore */ }
+        }
+
+        function applySpecState(state) {
+            specFEN = state.fen;
+            specClocks = { white: state.clocks.white, black: state.clocks.black };
+            specActiveTurn = (state.fen.split(' ')[1] || 'w') === 'w' ? 'white' : 'black';
+
+            if (state.last_move && (!specLastMove || state.last_move !== specLastMove.from + specLastMove.to)) {
+                specLastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
+            }
+
+            // Names and clocks
+            document.getElementById('specWhiteName').textContent = state.white_name || 'White';
+            document.getElementById('specBlackName').textContent = state.black_name || 'Black';
+            updateSpecClocks();
+
+            // Active turn highlight
+            document.getElementById('specWhiteCard').classList.toggle('active-turn', !state.game_over && specActiveTurn === 'white' && state.started);
+            document.getElementById('specBlackCard').classList.toggle('active-turn', !state.game_over && specActiveTurn === 'black' && state.started);
+
+            // Status bar
+            const statusEl = document.getElementById('specStatus');
+            if (!state.started) statusEl.textContent = '⏳ Waiting for players to join…';
+            else if (state.game_over) statusEl.textContent = 'Game over';
+            else statusEl.textContent = (specActiveTurn === 'white' ? (state.white_name || 'White') : (state.black_name || 'Black')) + "'s turn";
+
+            drawSpecBoard();
+            updateSpecMoves(state.san_moves || []);
+            updateSpecChat(state.chat || []);
+
+            if (state.game_over && !specGameOverShown) {
+                specGameOverShown = true;
+                clearInterval(specPollInterval);
+                clearInterval(specClockInterval);
+                showSpecGameOver(state.result, state.game_over_reason, state.white_name, state.black_name);
+            }
+        }
+
+        function updateSpecClocks() {
+            document.getElementById('specWhiteClock').textContent = formatClock(specClocks.white);
+            document.getElementById('specBlackClock').textContent = formatClock(specClocks.black);
+            document.getElementById('specWhiteClock').classList.toggle('clock-low', specClocks.white < 20);
+            document.getElementById('specBlackClock').classList.toggle('clock-low', specClocks.black < 20);
+        }
+
+        function specTickClock() {
+            if (!specFEN || specGameOverShown) return;
+            specClocks[specActiveTurn] = Math.max(0, specClocks[specActiveTurn] - 0.25);
+            updateSpecClocks();
+        }
+
+        function toggleSpecFlip() {
+            specFlipped = !specFlipped;
+            drawSpecBoard();
+        }
+
+        function drawSpecBoard() {
+            if (!specFEN) return;
+            const el = document.getElementById('specBoard');
+            el.innerHTML = '';
+            const fenRows = specFEN.split(' ')[0].split('/');
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (const ch of fenRows[r]) {
+                    if (ch >= '1' && ch <= '8') { for (let i = 0; i < parseInt(ch); i++) row.push(null); }
+                    else row.push(ch);
+                }
+                grid.push(row);
+            }
+            const flip = specFlipped;
+            for (let vRow = 0; vRow < 8; vRow++) {
+                for (let vCol = 0; vCol < 8; vCol++) {
+                    const stdRank = flip ? (7 - vRow) : vRow;
+                    const stdFile = flip ? (7 - vCol) : vCol;
+                    const piece = grid[stdRank][stdFile];
+                    const sqName = (flip ? 'hgfedcba' : 'abcdefgh')[vCol] + (flip ? (vRow + 1) : (8 - vRow));
+                    const sq = document.createElement('div');
+                    const isLight = (vRow + vCol) % 2 === 0;
+                    sq.className = 'square ' + (isLight ? 'light' : 'dark');
+                    if (specLastMove && (sqName === specLastMove.from || sqName === specLastMove.to)) sq.classList.add('last-move');
+                    if (piece && PIECE_IMAGES[piece]) {
+                        const img = document.createElement('img');
+                        img.src = PIECE_IMAGES[piece];
+                        sq.appendChild(img);
+                    }
+                    el.appendChild(sq);
+                }
+            }
+        }
+
+        let specMoveCount = 0;
+        function updateSpecMoves(sanMoves) {
+            if (!sanMoves || sanMoves.length === specMoveCount) return;
+            specMoveCount = sanMoves.length;
+            const el = document.getElementById('specMoves');
+            el.innerHTML = '';
+            for (let i = 0; i < sanMoves.length; i += 2) {
+                const pair = document.createElement('div');
+                pair.className = 'move-pair';
+                const moveNum = Math.floor(i / 2) + 1;
+                pair.textContent = moveNum + '. ' + sanMoves[i] + (sanMoves[i+1] ? '  ' + sanMoves[i+1] : '');
+                el.appendChild(pair);
+            }
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function updateSpecChat(chat) {
+            if (chat.length === specChatRendered) return;
+            const log = document.getElementById('specChatLog');
+            log.innerHTML = '';
+            chat.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'chat-msg';
+                div.innerHTML = '<span class="who">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+                log.appendChild(div);
+            });
+            log.scrollTop = log.scrollHeight;
+            specChatRendered = chat.length;
+        }
+
+        function showSpecGameOver(result, reason, whiteName, blackName) {
+            const el = document.getElementById('specGameOver');
+            const text = document.getElementById('specGameOverText');
+            const reasonEl = document.getElementById('specGameOverReason');
+            let msg, color;
+            if (result === '1-0') { msg = (whiteName || 'White') + ' wins!'; color = '#f0d9b5'; }
+            else if (result === '0-1') { msg = (blackName || 'Black') + ' wins!'; color = '#b58863'; }
+            else { msg = 'Draw'; color = '#f39c12'; }
+            text.textContent = msg;
+            text.style.color = color;
+            const reasonText = { timeout: 'on time', resignation: 'by resignation', normal: '', draw_agreement: 'by agreement' }[reason] || '';
+            reasonEl.textContent = reasonText ? ('(' + reasonText + ')') : '';
+            el.style.display = 'block';
         }
 
         function showGameOver(result, reason) {
