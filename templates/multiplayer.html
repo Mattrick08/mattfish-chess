@@ -102,10 +102,21 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ===== GAME ===== */
-    .game-wrap { display: none; gap: 25px; flex-wrap: wrap; justify-content: center; }
+    .game-wrap { display: none; gap: 18px; align-items: flex-start; justify-content: center; width: 100%; max-width: 1100px; }
     .game-wrap.active { display: flex; }
-    .game-sidebar {
-        width: 260px;
+
+    /* Left sidebar: player cards + board + resign */
+    .board-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    /* Right sidebar: move history + chat + draw */
+    .controls-col {
+        width: 240px;
+        flex-shrink: 0;
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -117,59 +128,71 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        width: 100%;
     }
     .player-card.active-turn { box-shadow: 0 0 0 2px #4CAF50; }
     .player-name { font-size: 14px; }
     .player-clock { font-size: 20px; font-weight: bold; font-variant-numeric: tabular-nums; }
     .clock-low { color: #e74c3c; }
-    .disconnected-tag { font-size: 11px; color: #e74c3c; }
 
     #board {
         display: grid;
-        grid-template-columns: repeat(8, 65px);
-        grid-template-rows: repeat(8, 65px);
+        grid-template-columns: repeat(8, 58px);
+        grid-template-rows: repeat(8, 58px);
         border: 3px solid #555;
         border-radius: 4px;
     }
-    .square { width: 65px; height: 65px; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; position: relative; }
-    .square img { width: 56px; height: 56px; pointer-events: none; }
+    .square { width: 58px; height: 58px; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; position: relative; }
+    .square img { width: 50px; height: 50px; pointer-events: none; }
     .light { background: #f0d9b5; }
     .dark { background: #b58863; }
     .square:hover { filter: brightness(1.15); }
     .selected { background: #f7ec5f !important; }
     .last-move { box-shadow: inset 0 0 0 4px rgba(255,107,107,0.7); }
-    .legal::after { content: ''; position: absolute; width: 18px; height: 18px; background: rgba(0,0,0,0.25); border-radius: 50%; pointer-events: none; }
+    .legal::after { content: ''; position: absolute; width: 16px; height: 16px; background: rgba(0,0,0,0.25); border-radius: 50%; pointer-events: none; }
     .check { background: rgba(231,76,60,0.6) !important; }
 
-    .move-history { background: #2e2e2e; padding: 12px; border-radius: 8px; max-height: 110px; overflow-y: auto; }
+    .action-row { display: flex; gap: 8px; width: 100%; }
+    .resign-btn { flex: 1; padding: 10px; border: 2px solid #e74c3c; background: rgba(231,76,60,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .resign-btn:hover { background: rgba(231,76,60,0.2); }
+    .draw-btn { flex: 1; padding: 10px; border: 2px solid #f39c12; background: rgba(243,156,18,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .draw-btn:hover { background: rgba(243,156,18,0.2); }
+
+    .move-history { background: #2e2e2e; padding: 12px; border-radius: 8px; max-height: 130px; overflow-y: auto; }
     .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
     .move-pair { background: #1a1a2e; padding: 4px 8px; border-radius: 4px; }
 
     .chat-box { background: #2e2e2e; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-    .chat-log { max-height: 140px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+    .chat-log { max-height: 160px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
     .chat-msg .who { color: #4CAF50; font-weight: bold; }
     .chat-row { display: flex; gap: 6px; }
     .chat-row input { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #1a1a1a; color: white; }
     .chat-row button { padding: 6px 10px; border: none; border-radius: 6px; background: #2196F3; color: white; cursor: pointer; }
 
-    .resign-btn { padding: 10px; border: 2px solid #e74c3c; background: rgba(231,76,60,0.1); color: white; border-radius: 6px; cursor: pointer; }
-    .resign-btn:hover { background: rgba(231,76,60,0.2); }
-
-    .promotion-modal, .game-over-overlay {
+    .promotion-modal, .game-over-overlay, .draw-offer-overlay {
         display: none; position: fixed; top:0; left:0; right:0; bottom:0;
         background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000;
     }
-    .promotion-modal.active, .game-over-overlay.active { display: flex; }
+    .promotion-modal.active, .game-over-overlay.active, .draw-offer-overlay.active { display: flex; }
     .promotion-modal > div { display: flex; gap: 15px; background: #2a2a2a; padding: 25px; border-radius: 12px; border: 2px solid #555; }
     .promo-piece { width: 70px; height: 70px; cursor: pointer; background: #f0d9b5; border-radius: 10px; display: flex; justify-content: center; align-items: center; border: 3px solid transparent; }
     .promo-piece:hover { border-color: #e74c3c; }
     .promo-piece img { width: 58px; height: 58px; }
-    .game-over-overlay { flex-direction: column; }
-    .game-over-text { font-size: 36px; font-weight: bold; margin-bottom: 20px; }
-    .game-over-overlay button { padding: 12px 30px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+    .game-over-overlay, .draw-offer-overlay { flex-direction: column; gap: 16px; }
+    .game-over-text { font-size: 36px; font-weight: bold; }
+    .overlay-card { background: #2a2a2a; padding: 30px 40px; border-radius: 12px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .overlay-card h2 { font-size: 22px; color: #f0d9b5; }
+    .overlay-card p { color: #aaa; font-size: 14px; }
+    .overlay-btns { display: flex; gap: 12px; }
+    .overlay-btns button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; }
+    .btn-accept { background: #4CAF50; }
+    .btn-decline { background: #555; }
+    .btn-lobby { background: #4CAF50; padding: 12px 30px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; }
 
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2e2e2e; border: 1px solid #555; padding: 10px 18px; border-radius: 8px; font-size: 13px; display: none; }
-    .toast.active { display: block; }
+    @media (max-width: 800px) {
+        .game-wrap { flex-direction: column; align-items: center; }
+        .controls-col { width: 100%; max-width: 470px; }
+    }
 </style>
 </head>
 <body>
@@ -221,7 +244,7 @@
 
     <!-- GAME -->
     <div class="game-wrap" id="gameWrap">
-        <div class="game-sidebar">
+        <div class="board-col">
             <div class="player-card" id="opponentCard">
                 <span class="player-name" id="opponentName">Opponent</span>
                 <span class="player-clock" id="opponentClock">10:00</span>
@@ -231,9 +254,12 @@
                 <span class="player-name" id="selfName">You</span>
                 <span class="player-clock" id="selfClock">10:00</span>
             </div>
-            <button class="resign-btn" onclick="doResign()">🏳 Resign</button>
+            <div class="action-row">
+                <button class="resign-btn" onclick="doResign()">🏳 Resign</button>
+                <button class="draw-btn" onclick="offerDraw()">🤝 Offer Draw</button>
+            </div>
         </div>
-        <div class="game-sidebar">
+        <div class="controls-col">
             <div class="move-history">
                 <div class="moves-list" id="moves"></div>
             </div>
@@ -257,9 +283,22 @@
     </div>
 
     <div class="game-over-overlay" id="gameOver">
-        <div class="game-over-text" id="gameOverText"></div>
-        <div id="gameOverReason" style="color:#aaa;"></div>
-        <button onclick="location.reload()">Back to Lobby</button>
+        <div class="overlay-card">
+            <div class="game-over-text" id="gameOverText"></div>
+            <div id="gameOverReason" style="color:#aaa; font-size:15px;"></div>
+            <button class="btn-lobby" onclick="location.reload()">Back to Lobby</button>
+        </div>
+    </div>
+
+    <div class="draw-offer-overlay" id="drawOfferOverlay">
+        <div class="overlay-card">
+            <h2>🤝 Draw Offer</h2>
+            <p id="drawOfferText">Your opponent is offering a draw.</p>
+            <div class="overlay-btns">
+                <button class="btn-accept" onclick="respondDraw(true)">Accept</button>
+                <button class="btn-decline" onclick="respondDraw(false)">Decline</button>
+            </div>
+        </div>
     </div>
 
     <div class="toast" id="toast"></div>
@@ -445,6 +484,13 @@
             updateActiveTurnHighlight();
             updateMovesDisplay(state.fen);
             updateChat(state.chat || []);
+
+            // Show draw offer overlay if opponent offered a draw (and not us)
+            if (state.draw_offer && state.draw_offer !== myColor) {
+                document.getElementById('drawOfferOverlay').classList.add('active');
+            } else {
+                document.getElementById('drawOfferOverlay').classList.remove('active');
+            }
 
             const oppConnected = myColor === 'white' ? state.black_connected : state.white_connected;
             document.getElementById('opponentName').textContent =
@@ -677,6 +723,38 @@
             } catch (e) { /* ignore */ }
         }
 
+        async function offerDraw() {
+            try {
+                const res = await fetch('/api/mp/draw_offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'offer' })
+                });
+                const state = await res.json();
+                applyState(state);
+                showToast('Draw offer sent.');
+            } catch (e) { showToast('Could not send draw offer.'); }
+        }
+
+        async function respondDraw(accept) {
+            document.getElementById('drawOfferOverlay').classList.remove('active');
+            try {
+                const res = await fetch('/api/mp/draw_offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'respond', accept })
+                });
+                const state = await res.json();
+                applyState(state);
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+                if (!accept) showToast('Draw offer declined.');
+            } catch (e) { /* ignore */ }
+        }
+
         function showGameOver(result, reason) {
             const overlay = document.getElementById('gameOver');
             const text = document.getElementById('gameOverText');
@@ -689,7 +767,7 @@
             else { msg = 'Draw'; color = '#f39c12'; }
             text.textContent = msg;
             text.style.color = color;
-            const reasonText = { timeout: 'on time', resignation: 'by resignation', normal: '' }[reason] || '';
+            const reasonText = { timeout: 'on time', resignation: 'by resignation', normal: '', draw_agreement: 'by agreement' }[reason] || '';
             reasonEl.textContent = reasonText ? ('(' + reasonText + ')') : '';
             overlay.classList.add('active');
             sessionStorage.removeItem('mp_session');
