@@ -454,7 +454,8 @@ def room_public_state(room, code):
         "legal_moves": [str(m) for m in board.legal_moves] if not room["game_over"] else [],
         "started": room["started"],
         "last_move": room["last_move"],
-        "chat": room["chat"][-50:],  # last 50 messages is plenty for polling
+        "chat": room["chat"][-50:],
+        "draw_offer": room.get("draw_offer"),
     }
 
 @app.route("/multiplayer")
@@ -490,6 +491,7 @@ def mp_create():
         "game_over_reason": None,
         "last_move": None,
         "chat": [],
+        "draw_offer": None,  # "white" or "black" if that side has offered a draw
         "created_at": time_module.time(),
     }
     rooms[code]["tokens"][color_pref] = token
@@ -594,6 +596,7 @@ def mp_move():
         return jsonify({"error": "Invalid move format."}), 400
 
     room["last_move"] = move_uci
+    room["draw_offer"] = None  # moving cancels any pending draw offer
 
     if board.is_game_over():
         room["game_over"] = True
@@ -622,6 +625,42 @@ def mp_resign():
         room["game_over_reason"] = "resignation"
 
     return jsonify(room_public_state(room, code))
+
+@app.route("/api/mp/draw_offer", methods=["POST"])
+def mp_draw_offer():
+    data = request.get_json() or {}
+    code = (data.get("code") or "").strip().upper()
+    token = data.get("token", "")
+    action = data.get("action", "offer")  # "offer" or "respond"
+    accept = data.get("accept", False)
+
+    room, err = get_room_or_error(code)
+    if err:
+        return err
+
+    color = color_for_token(room, token)
+    if not color:
+        return jsonify({"error": "Invalid token."}), 403
+
+    if not room["started"] or room["game_over"]:
+        return jsonify({"error": "Game is not active."}), 400
+
+    if action == "offer":
+        room["draw_offer"] = color
+        return jsonify(room_public_state(room, code))
+
+    if action == "respond":
+        if room["draw_offer"] is None or room["draw_offer"] == color:
+            return jsonify({"error": "No draw offer to respond to."}), 400
+        if accept:
+            room["game_over"] = True
+            room["result"] = "1/2-1/2"
+            room["game_over_reason"] = "draw_agreement"
+        room["draw_offer"] = None
+        return jsonify(room_public_state(room, code))
+
+    return jsonify({"error": "Unknown action."}), 400
+
 
 @app.route("/api/mp/chat", methods=["POST"])
 def mp_chat():
