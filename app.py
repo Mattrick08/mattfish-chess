@@ -456,6 +456,7 @@ def room_public_state(room, code):
         "last_move": room["last_move"],
         "chat": room["chat"][-50:],
         "draw_offer": room.get("draw_offer"),
+        "undo_offer": room.get("undo_offer"),
     }
 
 @app.route("/multiplayer")
@@ -492,6 +493,7 @@ def mp_create():
         "last_move": None,
         "chat": [],
         "draw_offer": None,  # "white" or "black" if that side has offered a draw
+        "undo_offer": None,  # "white" or "black" if that side has requested an undo
         "created_at": time_module.time(),
     }
     rooms[code]["tokens"][color_pref] = token
@@ -597,6 +599,7 @@ def mp_move():
 
     room["last_move"] = move_uci
     room["draw_offer"] = None  # moving cancels any pending draw offer
+    room["undo_offer"] = None  # moving cancels any pending undo request
 
     if board.is_game_over():
         room["game_over"] = True
@@ -625,6 +628,110 @@ def mp_resign():
         room["game_over_reason"] = "resignation"
 
     return jsonify(room_public_state(room, code))
+
+@app.route("/api/mp/undo", methods=["POST"])
+def mp_undo():
+    data = request.get_json() or {}
+    code = (data.get("code") or "").strip().upper()
+    token = data.get("token", "")
+    action = data.get("action", "request")  # "request" or "respond"
+    accept = data.get("accept", False)
+
+    room, err = get_room_or_error(code)
+    if err:
+        return err
+
+    color = color_for_token(room, token)
+    if not color:
+        return jsonify({"error": "Invalid token."}), 403
+
+    if not room["started"] or room["game_over"]:
+        return jsonify({"error": "Game is not active."}), 400
+
+    board = room["board"]
+
+    if action == "request":
+        if len(board.move_stack) == 0:
+            return jsonify({"error": "No moves to undo."}), 400
+        room["undo_offer"] = color
+        return jsonify(room_public_state(room, code))
+
+    if action == "respond":
+        if room["undo_offer"] is None or room["undo_offer"] == color:
+            return jsonify({"error": "No undo request to respond to."}), 400
+        if accept:
+            # Pop 2 half-moves so the requesting player gets to move again;
+            # if only 1 move was played, pop just that one
+            pops = 2 if len(board.move_stack) >= 2 else 1
+            for _ in range(pops):
+                if board.move_stack:
+                    board.pop()
+            room["last_move"] = board.move_stack[-1].uci() if board.move_stack else None
+            room["undo_offer"] = None
+            return jsonify(room_public_state(room, code))
+        else:
+            room["undo_offer"] = None
+            return jsonify(room_public_state(room, code))
+
+    return jsonify({"error": "Unknown action."}), 400
+
+
+@app.route("/api/mp/pgn/<code>")
+def mp_pgn(code):
+    code = code.strip().upper()
+    room, err = get_room_or_error(code)
+    if err:
+        return err
+
+    board = room["board"]
+    white_name = room["names"].get("white") or "White"
+    black_name = room["names"].get("black") or "Black"
+
+    pgn_game = chess.pgn.Game()
+    pgn_game.headers["Event"] = "MattFish Multiplayer"
+    pgn_game.headers["Site"] = "MattFish"
+    pgn_game.headers["White"] = white_name
+    pgn_game.headers["Black"] = black_name
+    pgn_game.headers["Result"] = board.result() if board.is_game_over() else "*"
+
+    node = pgn_game
+    for move in board.move_stack:
+        node = node.add_variation(move)
+
+    return jsonify({"pgn": str(pgn_game)})
+
+
+@app.route("/api/mp/history/<code>")
+def mp_history(code):
+    code = code.strip().upper()
+    room, err = get_room_or_error(code)
+    if err:
+        return err
+
+    board = room["board"]
+    moves = list(board.move_stack)
+
+    replay = chess.Board()
+    history = []
+    for ply, move in enumerate(moves):
+        white_to_move = replay.turn == chess.WHITE
+        san = replay.san(move)
+        replay.push(move)
+        history.append({
+            "ply": ply,
+            "move_uci": move.uci(),
+            "move_san": san,
+            "fen": replay.fen(),
+            "white_to_move_before": white_to_move,
+        })
+
+    return jsonify({
+        "moves": history,
+        "white_name": room["names"].get("white") or "White",
+        "black_name": room["names"].get("black") or "Black",
+        "result": board.result() if board.is_game_over() else "*",
+    })
+
 
 @app.route("/api/mp/draw_offer", methods=["POST"])
 def mp_draw_offer():
