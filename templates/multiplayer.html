@@ -1,855 +1,1157 @@
-import os
-from flask import Flask, render_template, jsonify, request
-import secrets
-import time as time_module
-import chess
-from engine import search as local_search, evaluate as static_eval
-import requests
-import chess.pgn
-import io
-from collections import defaultdict
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-
-# ========== CHESS GAME (vs Engine) ==========
-games = {}
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/play")
-def play():
-    return render_template("chess.html")
-
-@app.route("/api/chess/new", methods=["POST"])
-def new_chess_game():
-    data = request.get_json() or {}
-    session_id = data.get("session_id")
-    if not session_id:
-        session_id = secrets.token_hex(16)
-    player_color = data.get("color", "white")
-
-    board = chess.Board()
-    games[session_id] = {
-        "board": board,
-        "color": player_color
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MattFish Chess — Multiplayer</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        background: #1e1e1e;
+        color: white;
+        font-family: Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
     }
+    h1 { color: #e74c3c; margin-bottom: 20px; }
+    a.back-link { color: #4CAF50; text-decoration: none; margin-bottom: 15px; }
 
-    return jsonify({
-        "fen": board.fen(),
-        "legal_moves": [str(m) for m in board.legal_moves],
-        "game_over": False,
-        "check": False,
-        "session_id": session_id
-    })
-
-@app.route("/api/chess/eval", methods=["POST"])
-def chess_eval():
-    data = request.get_json() or {}
-    session_id = data.get("session_id")
-
-    if not session_id or session_id not in games:
-        return jsonify({"error": "No game found"}), 400
-
-    game_data = games[session_id]
-    board = game_data["board"]
-
-    if board.is_game_over():
-        if board.is_checkmate():
-            if board.turn == chess.WHITE:
-                return jsonify({"eval": -9999, "mate": -1})
-            else:
-                return jsonify({"eval": 9999, "mate": 1})
-        return jsonify({"eval": 0, "mate": 0})
-
-    score, _ = local_search(board, 3, time_limit=1.0)
-    if board.turn == chess.BLACK:
-        score = -score
-
-    if abs(score) > 90000:
-        mate_in = (99999 - abs(score)) // 2 + 1
-        if score > 0:
-            return jsonify({"eval": None, "mate": mate_in})
-        else:
-            return jsonify({"eval": None, "mate": -mate_in})
-
-    return jsonify({"eval": score, "mate": 0})
-
-def get_engine_move(board, difficulty):
-    depth_map = {"Easy": 3, "Medium": 5, "Hard": 8}
-    time_limit_map = {"Easy": 1.0, "Medium": 3.0, "Hard": 8.0}
-    depth = depth_map.get(difficulty, 5)
-
-    _, engine_move = local_search(board, depth, time_limit=time_limit_map.get(difficulty, 3.0))
-    return engine_move
-
-@app.route("/api/chess/move", methods=["POST"])
-def chess_move():
-    data = request.get_json() or {}
-    session_id = data.get("session_id")
-    if not session_id:
-        return jsonify({"error": "No session ID provided"}), 400
-    player_move = data.get("move")
-    difficulty = data.get("difficulty", "Medium")
-
-    if session_id not in games:
-        return jsonify({"error": "No game found"}), 400
-
-    game_data = games[session_id]
-    board = game_data["board"]
-    player_color = game_data.get("color", "white")
-
-    if player_move == "engine":
-        if board.turn == chess.WHITE:
-            engine_move = get_engine_move(board, difficulty)
-            if engine_move:
-                board.push(engine_move)
-
-            game_over = board.is_game_over()
-            return jsonify({
-                "fen": board.fen(),
-                "player_move": None,
-                "engine_move": str(engine_move) if engine_move else None,
-                "game_over": game_over,
-                "result": board.result() if game_over else None,
-                "legal_moves": [str(m) for m in board.legal_moves] if not game_over else [],
-                "check": board.is_check()
-            })
-
-    if not player_move:
-        return jsonify({"error": "No move provided"}), 400
-
-    try:
-        move = chess.Move.from_uci(player_move)
-        if move not in board.legal_moves:
-            return jsonify({"error": "Illegal move", "fen": board.fen(), "check": board.is_check()}), 400
-        board.push(move)
-    except Exception as e:
-        return jsonify({"error": str(e), "fen": board.fen(), "check": board.is_check()}), 400
-
-    if board.is_game_over():
-        return jsonify({
-            "fen": board.fen(),
-            "player_move": player_move,
-            "engine_move": None,
-            "game_over": True,
-            "result": board.result(),
-            "legal_moves": [],
-            "check": False
-        })
-
-    engine_move = None
-    if (player_color == "white" and board.turn == chess.BLACK) or (player_color == "black" and board.turn == chess.WHITE):
-        engine_move = get_engine_move(board, difficulty)
-        if engine_move:
-            board.push(engine_move)
-
-    game_over = board.is_game_over()
-
-    return jsonify({
-        "fen": board.fen(),
-        "player_move": player_move,
-        "engine_move": str(engine_move) if engine_move else None,
-        "game_over": game_over,
-        "result": board.result() if game_over else None,
-        "legal_moves": [str(m) for m in board.legal_moves] if not game_over else [],
-        "check": board.is_check()
-    })
-
-@app.route("/api/chess/undo", methods=["POST"])
-def chess_undo():
-    data = request.get_json() or {}
-    session_id = data.get("session_id")
-    if not session_id or session_id not in games:
-        return jsonify({"error": "No game found"}), 400
-
-    game_data = games[session_id]
-    board = game_data["board"]
-
-    if len(board.move_stack) >= 2:
-        board.pop()
-        board.pop()
-    elif len(board.move_stack) == 1:
-        board.pop()
-
-    return jsonify({
-        "fen": board.fen(),
-        "legal_moves": [str(m) for m in board.legal_moves],
-        "game_over": False,
-        "check": board.is_check()
-    })
-
-@app.route("/api/chess/pgn/<session_id>")
-def chess_pgn(session_id):
-    if session_id not in games:
-        return jsonify({"error": "No game found"}), 404
-
-    game_data = games[session_id]
-    board = game_data["board"]
-    player_color = game_data.get("color", "white")
-
-    pgn_game = chess.pgn.Game()
-    pgn_game.headers["Event"] = "MattFish Chess Game"
-    pgn_game.headers["Site"] = "MattFish"
-    pgn_game.headers["White"] = "Player" if player_color == "white" else "MattFish Engine"
-    pgn_game.headers["Black"] = "MattFish Engine" if player_color == "white" else "Player"
-    pgn_game.headers["Result"] = board.result() if board.is_game_over() else "*"
-
-    node = pgn_game
-    for move in board.move_stack:
-        node = node.add_variation(move)
-
-    return jsonify({"pgn": str(pgn_game)})
-
-
-@app.route("/api/chess/review/<session_id>")
-def chess_review(session_id):
-    if session_id not in games:
-        return jsonify({"error": "No game found"}), 404
-
-    game_data = games[session_id]
-    final_board = game_data["board"]
-    moves = list(final_board.move_stack)
-
-    replay = chess.Board()
-    history = []
-    prev_eval = 0  # always from White's perspective, centipawns
-
-    for ply, move in enumerate(moves):
-        white_to_move = replay.turn == chess.WHITE
-        san = replay.san(move)
-        replay.push(move)
-
-        if replay.is_checkmate():
-            cur_eval = -99999 if white_to_move else 99999
-        else:
-            cur_eval = static_eval(replay)
-
-        # "loss" = how much the position swung against the side that just moved
-        if white_to_move:
-            loss = prev_eval - cur_eval
-        else:
-            loss = cur_eval - prev_eval
-
-        if abs(cur_eval) > 90000:
-            classification = "Good"
-        elif loss >= 250:
-            classification = "Blunder"
-        elif loss >= 100:
-            classification = "Mistake"
-        elif loss >= 50:
-            classification = "Inaccuracy"
-        else:
-            classification = "Good"
-
-        display_eval = max(-1000, min(1000, cur_eval)) if abs(cur_eval) <= 90000 else (1000 if cur_eval > 0 else -1000)
-
-        history.append({
-            "ply": ply,
-            "move_uci": move.uci(),
-            "move_san": san,
-            "fen": replay.fen(),
-            "white_to_move_before": white_to_move,
-            "eval": display_eval,
-            "mate": None if abs(cur_eval) <= 90000 else (1 if cur_eval > 0 else -1),
-            "classification": classification
-        })
-
-        prev_eval = cur_eval
-
-    return jsonify({
-        "moves": history,
-        "result": final_board.result() if final_board.is_game_over() else "*"
-    })
-
-
-# ========== CHESS.COM STATS ==========
-headers = {"User-Agent": "Mozilla/5.0"}
-
-@app.route("/stats/<username>")
-def get_stats(username):
-    url = f"https://api.chess.com/pub/player/{username}/stats"
-    response = requests.get(url, headers=headers)
-    data = response.json()
-
-    profile_url = f"https://api.chess.com/pub/player/{username}"
-    profile_response = requests.get(profile_url, headers=headers)
-    profile_data = profile_response.json()
-    avatar = profile_data.get("avatar", None)
-
-    result = {}
-    time_classes = {
-        "Rapid": "chess_rapid",
-        "Blitz": "chess_blitz",
-        "Bullet": "chess_bullet"
+    /* ===== LOBBY ===== */
+    .lobby {
+        display: flex;
+        gap: 25px;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 800px;
     }
+    .lobby-card {
+        background: #2e2e2e;
+        border-radius: 10px;
+        padding: 25px;
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .lobby-card h2 { font-size: 18px; color: #f0d9b5; margin-bottom: 5px; }
+    .lobby-card label { font-size: 12px; color: #aaa; }
+    .lobby-card input, .lobby-card select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #555;
+        background: #1a1a1a;
+        color: white;
+        font-size: 14px;
+    }
+    .color-pick { display: flex; gap: 8px; }
+    .color-pick button {
+        flex: 1;
+        padding: 8px;
+        border: 2px solid #444;
+        background: transparent;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .color-pick button.active { border-color: #4CAF50; background: rgba(76,175,80,0.2); }
+    .tc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .tc-grid button {
+        padding: 8px 4px;
+        border: 2px solid #444;
+        background: transparent;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    .tc-grid button.active { border-color: #2196F3; background: rgba(33,150,243,0.2); }
+    .primary-btn {
+        padding: 12px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        margin-top: 5px;
+    }
+    .primary-btn:hover { background: #c0392b; }
+    .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error-text { color: #e74c3c; font-size: 13px; min-height: 16px; }
 
-    for name, key in time_classes.items():
-        section = data.get(key, {})
-        if section:
-            result[name] = {
-                "current": section.get("last", {}).get("rating", "N/A"),
-                "best": section.get("best", {}).get("rating", "N/A"),
-                "wins": section.get("record", {}).get("win", 0),
-                "draws": section.get("record", {}).get("draw", 0),
-                "losses": section.get("record", {}).get("loss", 0),
+    .waiting-box {
+        text-align: center;
+        background: #2e2e2e;
+        padding: 30px;
+        border-radius: 10px;
+        max-width: 420px;
+    }
+    .room-code {
+        font-size: 32px;
+        letter-spacing: 6px;
+        font-weight: bold;
+        color: #4CAF50;
+        margin: 15px 0;
+        cursor: pointer;
+    }
+    .copy-hint { font-size: 12px; color: #888; }
+    .spinner { width: 22px; height: 22px; border: 3px solid #444; border-top-color: #4CAF50; border-radius: 50%; margin: 12px auto 0; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== GAME ===== */
+    .game-wrap { display: none; gap: 18px; align-items: flex-start; justify-content: center; width: 100%; max-width: 1100px; }
+    .game-wrap.active { display: flex; }
+
+    /* Left sidebar: player cards + board + resign */
+    .board-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    /* Right sidebar: move history + chat + draw */
+    .controls-col {
+        width: 240px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .player-card {
+        background: #2e2e2e;
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    .player-card.active-turn { box-shadow: 0 0 0 2px #4CAF50; }
+    .player-name { font-size: 14px; }
+    .player-clock { font-size: 20px; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .clock-low { color: #e74c3c; }
+
+    #board {
+        display: grid;
+        grid-template-columns: repeat(8, 58px);
+        grid-template-rows: repeat(8, 58px);
+        border: 3px solid #555;
+        border-radius: 4px;
+    }
+    .square { width: 58px; height: 58px; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; position: relative; }
+    .square img { width: 50px; height: 50px; pointer-events: none; }
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .square:hover { filter: brightness(1.15); }
+    .selected { background: #f7ec5f !important; }
+    .last-move { box-shadow: inset 0 0 0 4px rgba(255,107,107,0.7); }
+    .legal::after { content: ''; position: absolute; width: 16px; height: 16px; background: rgba(0,0,0,0.25); border-radius: 50%; pointer-events: none; }
+    .check { background: rgba(231,76,60,0.6) !important; }
+
+    .action-row { display: flex; gap: 8px; width: 100%; }
+    .resign-btn { flex: 1; padding: 10px; border: 2px solid #e74c3c; background: rgba(231,76,60,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .resign-btn:hover { background: rgba(231,76,60,0.2); }
+    .draw-btn { flex: 1; padding: 10px; border: 2px solid #f39c12; background: rgba(243,156,18,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .draw-btn:hover { background: rgba(243,156,18,0.2); }
+    .undo-btn-mp { flex: 1; padding: 10px; border: 2px solid #9C27B0; background: rgba(156,39,176,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .undo-btn-mp:hover { background: rgba(156,39,176,0.2); }
+
+    .move-history { background: #2e2e2e; padding: 12px; border-radius: 8px; max-height: 130px; overflow-y: auto; }
+    .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
+    .move-pair { background: #1a1a2e; padding: 4px 8px; border-radius: 4px; }
+
+    .chat-box { background: #2e2e2e; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .chat-log { max-height: 160px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+    .chat-msg .who { color: #4CAF50; font-weight: bold; }
+    .chat-row { display: flex; gap: 6px; }
+    .chat-row input { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #1a1a1a; color: white; }
+    .chat-row button { padding: 6px 10px; border: none; border-radius: 6px; background: #2196F3; color: white; cursor: pointer; }
+
+    .promotion-modal, .game-over-overlay, .draw-offer-overlay, .undo-offer-overlay, .review-modal {
+        display: none; position: fixed; top:0; left:0; right:0; bottom:0;
+        background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000;
+    }
+    .promotion-modal.active, .game-over-overlay.active, .draw-offer-overlay.active,
+    .undo-offer-overlay.active, .review-modal.active { display: flex; }
+    .promotion-modal > div { display: flex; gap: 15px; background: #2a2a2a; padding: 25px; border-radius: 12px; border: 2px solid #555; }
+    .promo-piece { width: 70px; height: 70px; cursor: pointer; background: #f0d9b5; border-radius: 10px; display: flex; justify-content: center; align-items: center; border: 3px solid transparent; }
+    .promo-piece:hover { border-color: #e74c3c; }
+    .promo-piece img { width: 58px; height: 58px; }
+    .game-over-overlay, .draw-offer-overlay { flex-direction: column; gap: 16px; }
+    .game-over-text { font-size: 36px; font-weight: bold; }
+    .overlay-card { background: #2a2a2a; padding: 30px 40px; border-radius: 12px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .overlay-card h2 { font-size: 22px; color: #f0d9b5; }
+    .overlay-card p { color: #aaa; font-size: 14px; }
+    .overlay-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .overlay-btns button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; }
+    .btn-accept { background: #4CAF50; }
+    .btn-decline { background: #555; }
+    .btn-lobby { background: #4CAF50; padding: 12px 30px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; }
+    .btn-rematch { background: #2196F3; padding: 12px 30px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; }
+    .btn-rematch:disabled { background: #555; cursor: default; }
+    /* premove highlight — blue tint so it looks distinct from the normal yellow selected */
+    .premove-from { background: rgba(33,150,243,0.5) !important; }
+    .premove-to   { background: rgba(33,150,243,0.35) !important; }
+
+    /* ===== REVIEW MODAL ===== */
+    .review-content {
+        background: #1e1e1e; border: 2px solid #444; border-radius: 12px;
+        padding: 20px; width: 95%; max-width: 900px; max-height: 92vh; overflow-y: auto;
+    }
+    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .review-header h2 { color: #9C27B0; }
+    .review-close-btn { background: transparent; border: 2px solid #555; color: white; border-radius: 6px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; }
+    .review-close-btn:hover { border-color: #9C27B0; }
+    .review-body { display: flex; gap: 22px; flex-wrap: wrap; }
+    .review-board-area { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    #reviewBoard { display: grid; grid-template-columns: repeat(8, 48px); grid-template-rows: repeat(8, 48px); border: 3px solid #555; border-radius: 4px; }
+    #reviewBoard .sq { width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; }
+    #reviewBoard .sq img { width: 40px; height: 40px; pointer-events: none; }
+    #reviewBoard .rl { background: #f0d9b5; }
+    #reviewBoard .rd { background: #b58863; }
+    #reviewBoard .rv-last { box-shadow: inset 0 0 0 3px rgba(255,107,107,0.7); }
+    .review-nav-btns { display: flex; gap: 8px; }
+    .review-nav-btns button { padding: 7px 12px; border: 2px solid #444; background: transparent; color: white; border-radius: 6px; cursor: pointer; }
+    .review-nav-btns button:hover { border-color: #666; }
+    .review-move-info { background: #2e2e2e; border-radius: 8px; padding: 8px 14px; font-size: 13px; min-width: 220px; text-align: center; }
+    .review-sidebar-r { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 10px; }
+    .review-moves-list { background: #2e2e2e; border-radius: 8px; padding: 10px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+    .rv-move-row { display: flex; gap: 8px; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .rv-move-row:hover { background: #3a3a3a; }
+    .rv-move-row.selected { background: rgba(156,39,176,0.25); }
+    .pgn-textarea { width: 100%; min-height: 80px; background: #111; color: #4CAF50; border: 1px solid #444; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 12px; resize: vertical; }
+    .review-actions { display: flex; gap: 8px; }
+    .review-actions button { flex: 1; padding: 9px; border: 2px solid #555; background: transparent; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .review-actions button:hover { border-color: #9C27B0; }
+
+    @media (max-width: 800px) {
+        .game-wrap { flex-direction: column; align-items: center; }
+        .controls-col { width: 100%; max-width: 470px; }
+    }
+</style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Stats</a>
+    <h1>♟ MattFish Multiplayer</h1>
+
+    <!-- LOBBY -->
+    <div class="lobby" id="lobby">
+        <div class="lobby-card">
+            <h2>Create a Room</h2>
+            <label>Your Name</label>
+            <input type="text" id="createName" placeholder="Player 1" maxlength="20">
+            <label>Play As</label>
+            <div class="color-pick">
+                <button class="active" onclick="setCreateColor('random', this)">Random</button>
+                <button onclick="setCreateColor('white', this)">White</button>
+                <button onclick="setCreateColor('black', this)">Black</button>
+            </div>
+            <label>Time Control</label>
+            <div class="tc-grid" id="tcGrid">
+                <button data-min="1" data-inc="0" onclick="setTC(1,0,this)">1+0</button>
+                <button data-min="3" data-inc="2" onclick="setTC(3,2,this)">3+2</button>
+                <button data-min="5" data-inc="0" class="active" onclick="setTC(5,0,this)">5+0</button>
+                <button data-min="10" data-inc="0" onclick="setTC(10,0,this)">10+0</button>
+                <button data-min="10" data-inc="5" onclick="setTC(10,5,this)">10+5</button>
+                <button data-min="15" data-inc="10" onclick="setTC(15,10,this)">15+10</button>
+            </div>
+            <button class="primary-btn" id="createBtn" onclick="createRoom()">Create Room</button>
+        </div>
+        <div class="lobby-card">
+            <h2>Join a Room</h2>
+            <label>Your Name</label>
+            <input type="text" id="joinName" placeholder="Player 2" maxlength="20">
+            <label>Room Code</label>
+            <input type="text" id="joinCode" placeholder="ABC123" maxlength="6" style="text-transform:uppercase; letter-spacing:3px;">
+            <button class="primary-btn" id="joinBtn" onclick="joinRoom()">Join Room</button>
+            <div class="error-text" id="joinError"></div>
+        </div>
+    </div>
+
+    <!-- WAITING FOR OPPONENT -->
+    <div class="waiting-box" id="waitingBox" style="display:none;">
+        <div>Share this code with your opponent:</div>
+        <div class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()"></div>
+        <div class="copy-hint">Click the code to copy it</div>
+        <div style="margin-top:15px; color:#aaa;">Waiting for them to join...</div>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- GAME -->
+    <div class="game-wrap" id="gameWrap">
+        <div class="board-col">
+            <div class="player-card" id="opponentCard">
+                <span class="player-name" id="opponentName">Opponent</span>
+                <span class="player-clock" id="opponentClock">10:00</span>
+            </div>
+            <div id="board"></div>
+            <div class="player-card" id="selfCard">
+                <span class="player-name" id="selfName">You</span>
+                <span class="player-clock" id="selfClock">10:00</span>
+            </div>
+            <div class="action-row">
+                <button class="resign-btn" onclick="doResign()">🏳 Resign</button>
+                <button class="draw-btn" onclick="offerDraw()">🤝 Draw</button>
+                <button class="undo-btn-mp" onclick="requestUndo()">↩ Undo</button>
+            </div>
+        </div>
+        <div class="controls-col">
+            <div class="move-history">
+                <div class="moves-list" id="moves"></div>
+            </div>
+            <div class="chat-box">
+                <div class="chat-log" id="chatLog"></div>
+                <div class="chat-row">
+                    <input type="text" id="chatInput" placeholder="Say something..." maxlength="300" onkeydown="if(event.key==='Enter') sendChat();">
+                    <button onclick="sendChat()">Send</button>
+                </div>
+            </div>
+            <button style="padding:10px; border:2px solid #9C27B0; background:rgba(156,39,176,0.1); color:white; border-radius:6px; cursor:pointer;" onclick="openReview()">📖 Review Game</button>
+        </div>
+    </div>
+
+    <div class="promotion-modal" id="promoModal">
+        <div>
+            <div class="promo-piece" onclick="doPromo('q')"><img id="promoQ" src="/static/pieces/wQ (1).png"></div>
+            <div class="promo-piece" onclick="doPromo('r')"><img id="promoR" src="/static/pieces/wR (1).png"></div>
+            <div class="promo-piece" onclick="doPromo('b')"><img id="promoB" src="/static/pieces/wB (1).png"></div>
+            <div class="promo-piece" onclick="doPromo('n')"><img id="promoN" src="/static/pieces/wN (1).png"></div>
+        </div>
+    </div>
+
+    <div class="game-over-overlay" id="gameOver">
+        <div class="overlay-card">
+            <div class="game-over-text" id="gameOverText"></div>
+            <div id="gameOverReason" style="color:#aaa; font-size:15px;"></div>
+            <div class="overlay-btns">
+                <button class="btn-lobby" onclick="location.reload()">Back to Lobby</button>
+                <button id="rematchBtn" style="background:#2196F3; padding:10px 24px; font-size:15px; border:none; border-radius:8px; cursor:pointer; color:white;" onclick="requestRematch()">🔄 Rematch</button>
+                <button style="background:#9C27B0; padding:10px 24px; font-size:15px; border:none; border-radius:8px; cursor:pointer; color:white;" onclick="openReview()">📖 Review Game</button>
+            </div>
+            <div id="rematchStatus" style="color:#aaa; font-size:13px; margin-top:6px;"></div>
+        </div>
+    </div>
+
+    <div class="draw-offer-overlay" id="drawOfferOverlay">
+        <div class="overlay-card">
+            <h2>🤝 Draw Offer</h2>
+            <p>Your opponent is offering a draw.</p>
+            <div class="overlay-btns">
+                <button class="btn-accept" onclick="respondDraw(true)">Accept</button>
+                <button class="btn-decline" onclick="respondDraw(false)">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="undo-offer-overlay" id="undoOfferOverlay">
+        <div class="overlay-card">
+            <h2>↩ Undo Request</h2>
+            <p>Your opponent wants to take back their last move.</p>
+            <div class="overlay-btns">
+                <button class="btn-accept" onclick="respondUndo(true)">Accept</button>
+                <button class="btn-decline" onclick="respondUndo(false)">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REVIEW MODAL -->
+    <div class="review-modal" id="reviewModal">
+        <div class="review-content">
+            <div class="review-header">
+                <h2>📖 Game Review</h2>
+                <button class="review-close-btn" onclick="closeReview()">✕</button>
+            </div>
+            <div class="review-body">
+                <div class="review-board-area">
+                    <div id="reviewBoard"></div>
+                    <div class="review-move-info" id="reviewMoveInfo">Select a move</div>
+                    <div class="review-nav-btns">
+                        <button onclick="reviewStep(-1000)">⏮</button>
+                        <button onclick="reviewStep(-1)">◀</button>
+                        <button onclick="reviewStep(1)">▶</button>
+                        <button onclick="reviewStep(1000)">⏭</button>
+                    </div>
+                </div>
+                <div class="review-sidebar-r">
+                    <div class="review-moves-list" id="reviewMovesList"></div>
+                    <div class="review-actions">
+                        <button onclick="copyMpPGN()">📋 Copy PGN</button>
+                        <button onclick="downloadMpPGN()">⬇ Download PGN</button>
+                    </div>
+                    <textarea class="pgn-textarea" id="mpPgnTextarea" readonly placeholder="PGN will appear here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const PIECE_IMAGES = {
+            'P': '/static/pieces/wP (1).png', 'N': '/static/pieces/wN (1).png', 'B': '/static/pieces/wB (1).png',
+            'R': '/static/pieces/wR (1).png', 'Q': '/static/pieces/wQ (1).png', 'K': '/static/pieces/wK (1).png',
+            'p': '/static/pieces/bP (1).png', 'n': '/static/pieces/bN (1).png', 'b': '/static/pieces/bB (1).png',
+            'r': '/static/pieces/bR (1).png', 'q': '/static/pieces/bQ (1).png', 'k': '/static/pieces/bK (1).png'
+        };
+
+        let myColor = null;
+        let roomCode = null;
+        let myToken = null;
+        let currentFEN = 'start';
+        let legalMoves = [];
+        let selectedSquare = null;
+        let pendingPromo = null;
+        let lastMove = null;
+        let isCheck = false;
+        let renderedMoveCount = 0;
+        let clocks = { white: 0, black: 0 };
+        let timeControl = { minutes: 5, increment: 0 };
+        let clockInterval = null;
+        let pollInterval = null;
+        let gameActive = false;
+        let chatRendered = 0;
+        let gameOverShown = false;
+        // premove: stores { from, to, promo } set during opponent's turn
+        let premove = null;
+        let premoveSelectFrom = null; // first click during opponent's turn
+
+        // ===== RESUME ON REFRESH =====
+        window.addEventListener('load', () => {
+            const saved = sessionStorage.getItem('mp_session');
+            if (saved) {
+                try {
+                    const s = JSON.parse(saved);
+                    roomCode = s.code; myToken = s.token; myColor = s.color;
+                    enterGameView();
+                    startPolling();
+                } catch (e) { sessionStorage.removeItem('mp_session'); }
+            }
+        });
+
+        // ===== LOBBY UI =====
+        let createColor = 'random';
+        function setCreateColor(c, btn) {
+            createColor = c;
+            document.querySelectorAll('.color-pick button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        function setTC(min, inc, btn) {
+            timeControl = { minutes: min, increment: inc };
+            document.querySelectorAll('#tcGrid button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        async function createRoom() {
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            const name = document.getElementById('createName').value.trim() || 'Player 1';
+            try {
+                const res = await fetch('/api/mp/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, color: createColor, minutes: timeControl.minutes, increment: timeControl.increment })
+                });
+                const data = await res.json();
+                roomCode = data.code; myColor = data.color; myToken = data.token;
+                sessionStorage.setItem('mp_session', JSON.stringify({ code: roomCode, token: myToken, color: myColor }));
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('waitingBox').style.display = 'block';
+                document.getElementById('roomCodeDisplay').textContent = roomCode;
+                startPolling();
+            } catch (e) {
+                btn.disabled = false;
+                showToast('Could not create room. Try again.');
+            }
+        }
+
+        async function joinRoom() {
+            const btn = document.getElementById('joinBtn');
+            const name = document.getElementById('joinName').value.trim() || 'Player 2';
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            document.getElementById('joinError').textContent = '';
+            if (!code) {
+                document.getElementById('joinError').textContent = 'Enter a room code.';
+                return;
+            }
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/mp/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, name })
+                });
+                const data = await res.json();
+                btn.disabled = false;
+                if (data.error) {
+                    document.getElementById('joinError').textContent = data.error;
+                    return;
+                }
+                roomCode = code; myColor = data.color; myToken = data.token;
+                sessionStorage.setItem('mp_session', JSON.stringify({ code: roomCode, token: myToken, color: myColor }));
+                enterGameView();
+                applyState(data);
+                startPolling();
+            } catch (e) {
+                btn.disabled = false;
+                document.getElementById('joinError').textContent = 'Could not reach server. Try again.';
+            }
+        }
+
+        function enterGameView() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('waitingBox').style.display = 'none';
+            document.getElementById('gameWrap').classList.add('active');
+        }
+
+        function copyRoomCode() {
+            if (!roomCode) return;
+            navigator.clipboard.writeText(roomCode).then(() => showToast('Room code copied!'));
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 2500);
+        }
+
+        // ===== POLLING =====
+        function startPolling() {
+            stopPolling();
+            pollOnce();
+            pollInterval = setInterval(pollOnce, 1000);
+            startClockTicker();
+        }
+        function stopPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = null;
+        }
+
+        async function pollOnce() {
+            if (!roomCode || !myToken) return;
+            try {
+                const res = await fetch('/api/mp/state/' + roomCode + '?token=' + encodeURIComponent(myToken));
+                const state = await res.json();
+                if (state.error) return; // transient network hiccup, just try again next tick
+
+                if (state.started && !gameActive && document.getElementById('waitingBox').style.display !== 'none') {
+                    enterGameView();
+                    document.getElementById('selfName').textContent = myColor === 'white' ? state.white_name : state.black_name;
+                    document.getElementById('opponentName').textContent = myColor === 'white' ? state.black_name : state.white_name;
+                }
+                gameActive = state.started && !state.game_over;
+                applyState(state);
+
+                // If we had voted for rematch and now the game is no longer over, the opponent accepted
+                if (gameOverShown && !state.game_over && state.started) {
+                    startRematch(state);
+                    return;
+                }
+
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+                if (!state.white_connected || !state.black_connected) {
+                    // informational only, no forced action
+                }
+            } catch (e) {
+                // network hiccup — ignore, next poll will retry
+            }
+        }
+
+        // ===== GAME STATE =====
+        function applyState(state) {
+            const wasMyTurn = isMyTurn();
+            currentFEN = state.fen;
+            legalMoves = state.legal_moves || [];
+            isCheck = state.check || false;
+            clocks = { white: state.clocks.white, black: state.clocks.black };
+
+            if (state.last_move && state.last_move !== (lastMove ? lastMove.from + lastMove.to : null)) {
+                lastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
             }
 
-    return jsonify({"stats": result, "avatar": avatar})
-
-@app.route("/history/<username>/<int:months>")
-def get_history(username, months):
-    archives_url = f"https://api.chess.com/pub/player/{username}/games/archives"
-    archives_response = requests.get(archives_url, headers=headers)
-    archives_data = archives_response.json()
-    archives = archives_data["archives"][-months:]
-
-    rapid, blitz, bullet = [], [], []
-
-    for archive in archives:
-        games_response = requests.get(archive, headers=headers)
-        games_data = games_response.json()
-
-        for game in games_data["games"]:
-            time_class = game.get("time_class")
-            if game["white"]["username"].lower() == username.lower():
-                rating = game["white"]["rating"]
-            else:
-                rating = game["black"]["rating"]
-
-            if rating > 100:
-                if time_class == "rapid":
-                    rapid.append(rating)
-                elif time_class == "blitz":
-                    blitz.append(rating)
-                elif time_class == "bullet":
-                    bullet.append(rating)
-
-    return jsonify({"rapid": rapid, "blitz": blitz, "bullet": bullet})
-
-@app.route("/openings/<username>/<int:months>")
-def get_openings(username, months):
-    archives_url = f"https://api.chess.com/pub/player/{username}/games/archives"
-    archives_response = requests.get(archives_url, headers=headers)
-    archives_data = archives_response.json()
-    archives = archives_data["archives"][-months:]
-
-    openings = defaultdict(lambda: {"wins": 0, "draws": 0, "losses": 0})
-
-    for archive in archives:
-        games_response = requests.get(archive, headers=headers)
-        games_data = games_response.json()
-
-        for game in games_data["games"]:
-            pgn = game.get("pgn", "")
-            if not pgn:
-                continue
-
-            pgn_io = io.StringIO(pgn)
-            parsed_game = chess.pgn.read_game(pgn_io)
-            if not parsed_game:
-                continue
-
-            opening = parsed_game.headers.get("ECOUrl", "")
-            if not opening:
-                continue
-
-            opening_name = opening.split("/")[-1].replace("-", " ").title()
-            white = game["white"]["username"].lower()
-            result = game["white"]["result"] if white == username.lower() else game["black"]["result"]
-
-            if result == "win":
-                openings[opening_name]["wins"] += 1
-            elif result in ["drawn", "stalemate", "agreed", "repetition", "insufficient", "timevsinsufficient"]:
-                openings[opening_name]["draws"] += 1
-            else:
-                openings[opening_name]["losses"] += 1
-
-    openings_list = []
-    for name, record in openings.items():
-        total = record["wins"] + record["draws"] + record["losses"]
-        winrate = (record["wins"] + record["draws"] * 0.5) / total * 100 if total > 0 else 0
-        openings_list.append({
-            "name": name,
-            "wins": record["wins"],
-            "draws": record["draws"],
-            "losses": record["losses"],
-            "total": total,
-            "winrate": round(winrate, 1)
-        })
-
-    return jsonify(openings_list)
-
-# ========== MULTIPLAYER (polling-based, no websockets) ==========
-rooms = {}  # room_code -> room state dict
-
-ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous chars (no I,O,0,1)
-ROOM_MAX_AGE_SECONDS = 6 * 60 * 60  # cleanup rooms older than 6 hours
-
-def generate_room_code():
-    for _ in range(50):
-        code = "".join(secrets.choice(ROOM_CODE_CHARS) for _ in range(6))
-        if code not in rooms:
-            return code
-    raise RuntimeError("Could not generate a unique room code")
-
-def cleanup_old_rooms():
-    now = time_module.time()
-    stale = [c for c, r in rooms.items() if now - r["created_at"] > ROOM_MAX_AGE_SECONDS]
-    for c in stale:
-        del rooms[c]
-
-def get_room_or_error(code):
-    if code not in rooms:
-        return None, (jsonify({"error": "Room not found."}), 404)
-    return rooms[code], None
-
-def color_for_token(room, token):
-    for color in ("white", "black"):
-        if room["tokens"][color] == token:
-            return color
-    return None
-
-def check_and_apply_timeout(room):
-    """If it's currently someone's turn and their clock has run out, end the game. Read+mutate."""
-    if not room["started"] or room["game_over"] or room["last_move_time"] is None:
-        return
-    board = room["board"]
-    mover_color = "white" if board.turn == chess.WHITE else "black"
-    elapsed = time_module.time() - room["last_move_time"]
-    remaining = room["clocks"][mover_color] - elapsed
-    if remaining <= 0:
-        room["clocks"][mover_color] = 0
-        room["game_over"] = True
-        room["result"] = "0-1" if mover_color == "white" else "1-0"
-        room["game_over_reason"] = "timeout"
-
-def live_clocks(room):
-    """Clocks as they should currently display, without permanently mutating stored state."""
-    clocks = dict(room["clocks"])
-    if room["started"] and not room["game_over"] and room["last_move_time"] is not None:
-        board = room["board"]
-        mover_color = "white" if board.turn == chess.WHITE else "black"
-        elapsed = time_module.time() - room["last_move_time"]
-        clocks[mover_color] = max(0, clocks[mover_color] - elapsed)
-    return clocks
-
-def room_public_state(room, code):
-    board = room["board"]
-    return {
-        "code": code,
-        "fen": board.fen(),
-        "white_name": room["names"]["white"],
-        "black_name": room["names"]["black"],
-        "white_connected": room["tokens"]["white"] is not None,
-        "black_connected": room["tokens"]["black"] is not None,
-        "clocks": live_clocks(room),
-        "time_control": room["time_control"],
-        "check": board.is_check(),
-        "game_over": room["game_over"],
-        "result": room["result"],
-        "game_over_reason": room.get("game_over_reason"),
-        "legal_moves": [str(m) for m in board.legal_moves] if not room["game_over"] else [],
-        "started": room["started"],
-        "last_move": room["last_move"],
-        "chat": room["chat"][-50:],
-        "draw_offer": room.get("draw_offer"),
-        "undo_offer": room.get("undo_offer"),
-        "rematch_votes": list(room.get("rematch_votes") or []),
-    }
-
-@app.route("/multiplayer")
-def multiplayer_page():
-    return render_template("multiplayer.html")
-
-@app.route("/api/mp/create", methods=["POST"])
-def mp_create():
-    cleanup_old_rooms()
-    data = request.get_json() or {}
-    name = (data.get("name") or "Player 1")[:20]
-    color_pref = data.get("color", "random")
-    minutes = max(1, min(180, int(data.get("minutes", 10))))
-    increment = max(0, min(60, int(data.get("increment", 0))))
-
-    if color_pref not in ("white", "black"):
-        color_pref = secrets.choice(["white", "black"])
-
-    code = generate_room_code()
-    seconds = minutes * 60
-    token = secrets.token_hex(12)
-
-    rooms[code] = {
-        "board": chess.Board(),
-        "tokens": {"white": None, "black": None},
-        "names": {"white": None, "black": None},
-        "time_control": {"minutes": minutes, "increment": increment},
-        "clocks": {"white": float(seconds), "black": float(seconds)},
-        "last_move_time": None,
-        "started": False,
-        "game_over": False,
-        "result": None,
-        "game_over_reason": None,
-        "last_move": None,
-        "chat": [],
-        "draw_offer": None,
-        "undo_offer": None,
-        "rematch_votes": set(),
-        "created_at": time_module.time(),
-    }
-    rooms[code]["tokens"][color_pref] = token
-    rooms[code]["names"][color_pref] = name
-
-    return jsonify({"code": code, "color": color_pref, "token": token})
-
-@app.route("/api/mp/join", methods=["POST"])
-def mp_join():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    name = (data.get("name") or "Player 2")[:20]
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    # Rejoining with an existing token (e.g. page refresh) just re-confirms identity
-    existing_color = None
-    open_color = None
-    for c in ("white", "black"):
-        if room["tokens"][c] is None and open_color is None:
-            open_color = c
-
-    if open_color is None:
-        return jsonify({"error": "This room is already full."}), 400
-
-    token = secrets.token_hex(12)
-    room["tokens"][open_color] = token
-    room["names"][open_color] = name
-
-    if room["tokens"]["white"] and room["tokens"]["black"]:
-        room["started"] = True
-        room["last_move_time"] = time_module.time()
-
-    return jsonify({"color": open_color, "token": token, **room_public_state(room, code)})
-
-@app.route("/api/mp/state/<code>")
-def mp_state(code):
-    code = code.strip().upper()
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    token = request.args.get("token", "")
-    color = color_for_token(room, token)
-    if not color:
-        return jsonify({"error": "Invalid token for this room."}), 403
-
-    check_and_apply_timeout(room)
-    state = room_public_state(room, code)
-    state["your_color"] = color
-    return jsonify(state)
-
-@app.route("/api/mp/move", methods=["POST"])
-def mp_move():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    token = data.get("token", "")
-    move_uci = data.get("move")
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    color = color_for_token(room, token)
-    if not color:
-        return jsonify({"error": "Invalid token for this room."}), 403
-
-    if not room["started"] or room["game_over"]:
-        return jsonify({"error": "Game is not active."}), 400
-
-    check_and_apply_timeout(room)
-    if room["game_over"]:
-        return jsonify(room_public_state(room, code))
-
-    board = room["board"]
-    mover_color = "white" if board.turn == chess.WHITE else "black"
-    if color != mover_color:
-        return jsonify({"error": "It is not your turn."}), 400
-
-    # Commit the elapsed time against the mover's clock, then add increment
-    now = time_module.time()
-    if room["last_move_time"] is not None:
-        elapsed = now - room["last_move_time"]
-        room["clocks"][mover_color] = max(0, room["clocks"][mover_color] - elapsed)
-    room["last_move_time"] = now
-    if room["clocks"][mover_color] <= 0:
-        room["clocks"][mover_color] = 0
-        room["game_over"] = True
-        room["result"] = "0-1" if mover_color == "white" else "1-0"
-        room["game_over_reason"] = "timeout"
-        return jsonify(room_public_state(room, code))
-    room["clocks"][mover_color] += room["time_control"]["increment"]
-
-    try:
-        move = chess.Move.from_uci(move_uci)
-        if move not in board.legal_moves:
-            return jsonify({"error": "Illegal move."}), 400
-        board.push(move)
-    except Exception:
-        return jsonify({"error": "Invalid move format."}), 400
-
-    room["last_move"] = move_uci
-    room["draw_offer"] = None  # moving cancels any pending draw offer
-    room["undo_offer"] = None  # moving cancels any pending undo request
-
-    if board.is_game_over():
-        room["game_over"] = True
-        room["result"] = board.result()
-        room["game_over_reason"] = "normal"
-
-    return jsonify(room_public_state(room, code))
-
-@app.route("/api/mp/resign", methods=["POST"])
-def mp_resign():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    token = data.get("token", "")
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    color = color_for_token(room, token)
-    if not color:
-        return jsonify({"error": "Invalid token for this room."}), 403
-
-    if not room["game_over"]:
-        room["game_over"] = True
-        room["result"] = "0-1" if color == "white" else "1-0"
-        room["game_over_reason"] = "resignation"
-
-    return jsonify(room_public_state(room, code))
-
-@app.route("/api/mp/undo", methods=["POST"])
-def mp_undo():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    token = data.get("token", "")
-    action = data.get("action", "request")  # "request" or "respond"
-    accept = data.get("accept", False)
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    color = color_for_token(room, token)
-    if not color:
-        return jsonify({"error": "Invalid token."}), 403
-
-    if not room["started"] or room["game_over"]:
-        return jsonify({"error": "Game is not active."}), 400
-
-    board = room["board"]
-
-    if action == "request":
-        if len(board.move_stack) == 0:
-            return jsonify({"error": "No moves to undo."}), 400
-        room["undo_offer"] = color
-        return jsonify(room_public_state(room, code))
-
-    if action == "respond":
-        if room["undo_offer"] is None or room["undo_offer"] == color:
-            return jsonify({"error": "No undo request to respond to."}), 400
-        if accept:
-            # Pop 2 half-moves so the requesting player gets to move again;
-            # if only 1 move was played, pop just that one
-            pops = 2 if len(board.move_stack) >= 2 else 1
-            for _ in range(pops):
-                if board.move_stack:
-                    board.pop()
-            room["last_move"] = board.move_stack[-1].uci() if board.move_stack else None
-            room["undo_offer"] = None
-            return jsonify(room_public_state(room, code))
-        else:
-            room["undo_offer"] = None
-            return jsonify(room_public_state(room, code))
-
-    return jsonify({"error": "Unknown action."}), 400
-
-
-@app.route("/api/mp/pgn/<code>")
-def mp_pgn(code):
-    code = code.strip().upper()
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    board = room["board"]
-    white_name = room["names"].get("white") or "White"
-    black_name = room["names"].get("black") or "Black"
-
-    pgn_game = chess.pgn.Game()
-    pgn_game.headers["Event"] = "MattFish Multiplayer"
-    pgn_game.headers["Site"] = "MattFish"
-    pgn_game.headers["White"] = white_name
-    pgn_game.headers["Black"] = black_name
-    pgn_game.headers["Result"] = board.result() if board.is_game_over() else "*"
-
-    node = pgn_game
-    for move in board.move_stack:
-        node = node.add_variation(move)
-
-    return jsonify({"pgn": str(pgn_game)})
-
-
-@app.route("/api/mp/history/<code>")
-def mp_history(code):
-    code = code.strip().upper()
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    board = room["board"]
-    moves = list(board.move_stack)
-
-    replay = chess.Board()
-    history = []
-    for ply, move in enumerate(moves):
-        white_to_move = replay.turn == chess.WHITE
-        san = replay.san(move)
-        replay.push(move)
-        history.append({
-            "ply": ply,
-            "move_uci": move.uci(),
-            "move_san": san,
-            "fen": replay.fen(),
-            "white_to_move_before": white_to_move,
-        })
-
-    return jsonify({
-        "moves": history,
-        "white_name": room["names"].get("white") or "White",
-        "black_name": room["names"].get("black") or "Black",
-        "result": board.result() if board.is_game_over() else "*",
-    })
-
-
-@app.route("/api/mp/rematch", methods=["POST"])
-def mp_rematch():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    token = data.get("token", "")
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    color = color_for_token(room, token)
-    if not color:
-        return jsonify({"error": "Invalid token."}), 403
-
-    if not room["game_over"]:
-        return jsonify({"error": "Game is not over yet."}), 400
-
-    # Track who requested rematch; start as soon as both have accepted
-    if "rematch_votes" not in room:
-        room["rematch_votes"] = set()
-    room["rematch_votes"].add(color)
-
-    if len(room["rematch_votes"]) < 2:
-        # Still waiting for the other player
-        return jsonify({"waiting": True, "voted": color})
-
-    # Both voted — swap colors and reset everything
-    old_white_token = room["tokens"]["white"]
-    old_black_token = room["tokens"]["black"]
-    old_white_name  = room["names"]["white"]
-    old_black_name  = room["names"]["black"]
-    seconds = room["time_control"]["minutes"] * 60
-
-    room["board"]            = chess.Board()
-    room["tokens"]["white"]  = old_black_token
-    room["tokens"]["black"]  = old_white_token
-    room["names"]["white"]   = old_black_name
-    room["names"]["black"]   = old_white_name
-    room["clocks"]           = {"white": float(seconds), "black": float(seconds)}
-    room["last_move_time"]   = time_module.time()
-    room["started"]          = True
-    room["game_over"]        = False
-    room["result"]           = None
-    room["game_over_reason"] = None
-    room["last_move"]        = None
-    room["draw_offer"]       = None
-    room["undo_offer"]       = None
-    room["rematch_votes"]    = set()
-
-    state = room_public_state(room, code)
-    # Tell each player their new color
-    new_color = "white" if old_black_token == room["tokens"]["white"] else "black"
-    state["your_new_color"] = "white" if color == "black" else "black"
-    return jsonify(state)
-
-
-@app.route("/api/mp/draw_offer", methods=["POST"])
-def mp_draw_offer():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    token = data.get("token", "")
-    action = data.get("action", "offer")  # "offer" or "respond"
-    accept = data.get("accept", False)
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    color = color_for_token(room, token)
-    if not color:
-        return jsonify({"error": "Invalid token."}), 403
-
-    if not room["started"] or room["game_over"]:
-        return jsonify({"error": "Game is not active."}), 400
-
-    if action == "offer":
-        room["draw_offer"] = color
-        return jsonify(room_public_state(room, code))
-
-    if action == "respond":
-        if room["draw_offer"] is None or room["draw_offer"] == color:
-            return jsonify({"error": "No draw offer to respond to."}), 400
-        if accept:
-            room["game_over"] = True
-            room["result"] = "1/2-1/2"
-            room["game_over_reason"] = "draw_agreement"
-        room["draw_offer"] = None
-        return jsonify(room_public_state(room, code))
-
-    return jsonify({"error": "Unknown action."}), 400
-
-
-@app.route("/api/mp/chat", methods=["POST"])
-def mp_chat():
-    data = request.get_json() or {}
-    code = (data.get("code") or "").strip().upper()
-    token = data.get("token", "")
-    text = (data.get("text") or "").strip()[:300]
-
-    room, err = get_room_or_error(code)
-    if err:
-        return err
-
-    color = color_for_token(room, token)
-    if not color or not text:
-        return jsonify({"error": "Invalid request."}), 400
-
-    room["chat"].append({
-        "name": room["names"].get(color, "Player"),
-        "text": text,
-        "color": color,
-        "ts": time_module.time(),
-    })
-
-    return jsonify({"ok": True})
-
-if __name__ == "__main__":
-    app.run(debug=False)
+            // Fire a queued premove if it just became our turn
+            const nowMyTurn = isMyTurn();
+            if (!wasMyTurn && nowMyTurn && premove && !state.game_over) {
+                const pm = premove;
+                premove = null;
+                premoveSelectFrom = null;
+                // Validate it's still legal before firing
+                const uci = pm.from + pm.to + (pm.promo || '');
+                if (legalMoves.includes(uci) || legalMoves.some(m => m.startsWith(pm.from + pm.to))) {
+                    setTimeout(() => sendMove(uci), 30);
+                    return; // drawBoard will be called after sendMove resolves
+                }
+            }
+
+            drawBoard();
+            updateClockDisplay();
+            updateActiveTurnHighlight();
+            updateChat(state.chat || []);
+
+            // Rematch status
+            if (state.game_over && (state.rematch_votes || []).length > 0) {
+                const myVoted = (state.rematch_votes || []).includes(myColor);
+                const bothVoted = (state.rematch_votes || []).length >= 2;
+                const statusEl = document.getElementById('rematchStatus');
+                if (bothVoted) statusEl.textContent = '';
+                else if (myVoted) statusEl.textContent = 'Waiting for opponent to accept rematch…';
+                else statusEl.textContent = 'Opponent wants a rematch!';
+                if (myVoted) document.getElementById('rematchBtn').disabled = true;
+            }
+
+            // Show draw offer overlay if opponent offered a draw (and not us)
+            if (state.draw_offer && state.draw_offer !== myColor) {
+                document.getElementById('drawOfferOverlay').classList.add('active');
+            } else {
+                document.getElementById('drawOfferOverlay').classList.remove('active');
+            }
+
+            // Show undo request overlay if opponent requested undo (and not us)
+            if (state.undo_offer && state.undo_offer !== myColor) {
+                document.getElementById('undoOfferOverlay').classList.add('active');
+            } else {
+                document.getElementById('undoOfferOverlay').classList.remove('active');
+            }
+
+            const oppConnected = myColor === 'white' ? state.black_connected : state.white_connected;
+            document.getElementById('opponentName').textContent =
+                (myColor === 'white' ? state.black_name : state.white_name || 'Opponent') + (oppConnected ? '' : ' (disconnected)');
+        }
+
+        function isMyTurn() {
+            const fenParts = currentFEN.split(' ');
+            const active = fenParts[1] || 'w';
+            return (active === 'w' && myColor === 'white') || (active === 'b' && myColor === 'black');
+        }
+
+        function updateMovesDisplay(fen) {
+            // Rebuild the move list length indicator from the FEN's fullmove/halfmove fields is unreliable for SAN,
+            // so we just show the running UCI move list length via a simple counter using last_move pushes.
+            // (Lightweight: we don't have full history from polling, just show ply count from move stack isn't sent,
+            // so we approximate using fullmove number + side to move.)
+        }
+
+        function updateChat(chat) {
+            if (chat.length === chatRendered) return;
+            const log = document.getElementById('chatLog');
+            log.innerHTML = '';
+            chat.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'chat-msg';
+                div.innerHTML = '<span class="who">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+                log.appendChild(div);
+            });
+            log.scrollTop = log.scrollHeight;
+            chatRendered = chat.length;
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !roomCode) return;
+            input.value = '';
+            try {
+                await fetch('/api/mp/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, text })
+                });
+                pollOnce();
+            } catch (e) { /* ignore */ }
+        }
+
+        function updateActiveTurnHighlight() {
+            const fenParts = currentFEN.split(' ');
+            const activeColor = fenParts[1] || 'w';
+            const myTurn = (activeColor === 'w' && myColor === 'white') || (activeColor === 'b' && myColor === 'black');
+            document.getElementById('selfCard').classList.toggle('active-turn', myTurn && gameActive);
+            document.getElementById('opponentCard').classList.toggle('active-turn', !myTurn && gameActive);
+        }
+
+        function updateClockDisplay() {
+            const selfSeconds = myColor === 'white' ? clocks.white : clocks.black;
+            const oppSeconds = myColor === 'white' ? clocks.black : clocks.white;
+            const selfEl = document.getElementById('selfClock');
+            const oppEl = document.getElementById('opponentClock');
+            selfEl.textContent = formatClock(selfSeconds);
+            oppEl.textContent = formatClock(oppSeconds);
+            selfEl.classList.toggle('clock-low', selfSeconds < 20);
+            oppEl.classList.toggle('clock-low', oppSeconds < 20);
+        }
+
+        function formatClock(seconds) {
+            seconds = Math.max(0, Math.floor(seconds));
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        // Local ticking between polls just for a smooth-looking clock; the server poll
+        // result (which computes elapsed time itself) is the source of truth and
+        // overwrites this every second anyway.
+        function startClockTicker() {
+            stopClockTicker();
+            clockInterval = setInterval(() => {
+                if (!gameActive) return;
+                const fenParts = currentFEN.split(' ');
+                const activeColor = fenParts[1] === 'w' ? 'white' : 'black';
+                clocks[activeColor] = Math.max(0, clocks[activeColor] - 0.25);
+                updateClockDisplay();
+            }, 250);
+        }
+        function stopClockTicker() {
+            if (clockInterval) clearInterval(clockInterval);
+            clockInterval = null;
+        }
+
+        // ===== BOARD RENDERING =====
+        function drawBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            const fenParts = currentFEN.split(' ');
+            const fenRows = fenParts[0].split('/');
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (const ch of fenRows[r]) {
+                    if (ch >= '1' && ch <= '8') { for (let i=0;i<parseInt(ch);i++) row.push(null); }
+                    else row.push(ch);
+                }
+                grid.push(row);
+            }
+            const flip = myColor === 'black';
+            for (let vRow = 0; vRow < 8; vRow++) {
+                for (let vCol = 0; vCol < 8; vCol++) {
+                    const stdRank = flip ? (7 - vRow) : vRow;
+                    const stdFile = flip ? (7 - vCol) : vCol;
+                    const piece = grid[stdRank][stdFile];
+                    const squareName = (flip ? 'hgfedcba' : 'abcdefgh')[vCol] + (flip ? (vRow + 1) : (8 - vRow));
+                    createSquare(boardEl, vRow, vCol, squareName, piece);
+                }
+            }
+        }
+
+        function createSquare(boardEl, vRow, vCol, squareName, piece) {
+            const square = document.createElement('div');
+            const isLight = (vRow + vCol) % 2 === 0;
+            square.className = 'square ' + (isLight ? 'light' : 'dark');
+            square.dataset.square = squareName;
+
+            if (isCheck && piece && ((piece === 'K' && currentFEN.split(' ')[1] === 'w') || (piece === 'k' && currentFEN.split(' ')[1] === 'b'))) {
+                square.classList.add('check');
+            }
+            if (piece && PIECE_IMAGES[piece]) {
+                const img = document.createElement('img');
+                img.src = PIECE_IMAGES[piece];
+                square.appendChild(img);
+            }
+            if (lastMove && (squareName === lastMove.from || squareName === lastMove.to)) {
+                square.classList.add('last-move');
+            }
+            // Normal move selection highlights
+            if (selectedSquare === squareName) square.classList.add('selected');
+            if (selectedSquare) {
+                const isLegal = legalMoves.some(m => m.substring(0,2) === selectedSquare && m.substring(2,4) === squareName);
+                if (isLegal) square.classList.add('legal');
+            }
+            // Premove highlights (blue) — override last-move but don't override selected
+            if (premove && squareName === premove.from) square.classList.add('premove-from');
+            if (premove && squareName === premove.to)   square.classList.add('premove-to');
+            if (premoveSelectFrom === squareName)        square.classList.add('premove-from');
+
+            square.addEventListener('click', () => handleClick(square));
+            boardEl.appendChild(square);
+        }
+
+        function handleClick(square) {
+            if (!gameActive) return;
+            const myTurn = isMyTurn();
+            const sq = square.dataset.square;
+            const piece = square.querySelector('img');
+            const isMyPiece = piece && ((myColor === 'white' && piece.src.includes('/w')) || (myColor === 'black' && piece.src.includes('/b')));
+
+            // ---- PREMOVE (opponent's turn) ----
+            if (!myTurn) {
+                if (!premoveSelectFrom) {
+                    if (isMyPiece) { premoveSelectFrom = sq; drawBoard(); }
+                    return;
+                }
+                if (premoveSelectFrom === sq) {
+                    premoveSelectFrom = null; premove = null; drawBoard(); return;
+                }
+                if (isMyPiece) {
+                    premoveSelectFrom = sq; premove = null; drawBoard(); return;
+                }
+                // Set premove — we'll validate legality when it fires
+                const isPawn = (() => {
+                    const fromSqEl = document.querySelector('[data-square="' + premoveSelectFrom + '"]');
+                    const fp = fromSqEl && fromSqEl.querySelector('img');
+                    return fp && (fp.src.includes('wP') || fp.src.includes('bP'));
+                })();
+                const promoRank = myColor === 'white' ? '8' : '1';
+                if (isPawn && sq[1] === promoRank) {
+                    premove = { from: premoveSelectFrom, to: sq, promo: 'q' }; // default queen promo on premove
+                } else {
+                    premove = { from: premoveSelectFrom, to: sq, promo: null };
+                }
+                premoveSelectFrom = null;
+                drawBoard();
+                showToast('Premove set — will fire when it\'s your turn.');
+                return;
+            }
+
+            // ---- NORMAL TURN ----
+            // Clear any queued premove when player starts moving on their turn
+            if (premove || premoveSelectFrom) { premove = null; premoveSelectFrom = null; }
+
+            if (!selectedSquare) {
+                if (isMyPiece) { selectedSquare = sq; drawBoard(); }
+                return;
+            }
+            if (selectedSquare === sq) { selectedSquare = null; drawBoard(); return; }
+
+            const matchingMove = legalMoves.find(m => m.substring(0,2) === selectedSquare && m.substring(2,4) === sq);
+            if (matchingMove) {
+                const fromSquare = document.querySelector('[data-square="' + selectedSquare + '"]');
+                const fromPiece = fromSquare.querySelector('img');
+                const isPawn = fromPiece && (fromPiece.src.includes('wP') || fromPiece.src.includes('bP'));
+                const promoRank = myColor === 'white' ? '8' : '1';
+                if (isPawn && sq[1] === promoRank) {
+                    pendingPromo = selectedSquare + sq;
+                    document.getElementById('promoModal').classList.add('active');
+                    return;
+                }
+                sendMove(matchingMove);
+            } else if (isMyPiece) {
+                selectedSquare = sq; drawBoard();
+            } else {
+                selectedSquare = null; drawBoard();
+            }
+        }
+
+        function doPromo(piece) {
+            document.getElementById('promoModal').classList.remove('active');
+            if (pendingPromo) { sendMove(pendingPromo + piece); pendingPromo = null; }
+        }
+
+        async function sendMove(move) {
+            selectedSquare = null;
+            drawBoard();
+            try {
+                const res = await fetch('/api/mp/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, move })
+                });
+                const state = await res.json();
+                if (state.error) {
+                    showToast(state.error);
+                    pollOnce(); // resync — our local board may be stale/wrong
+                    return;
+                }
+                gameActive = state.started && !state.game_over;
+                applyState(state);
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+            } catch (e) {
+                showToast('Move failed to send — check your connection.');
+                pollOnce();
+            }
+        }
+
+        async function doResign() {
+            if (!confirm('Are you sure you want to resign?')) return;
+            try {
+                const res = await fetch('/api/mp/resign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken })
+                });
+                const state = await res.json();
+                applyState(state);
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        async function offerDraw() {
+            try {
+                const res = await fetch('/api/mp/draw_offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'offer' })
+                });
+                const state = await res.json();
+                applyState(state);
+                showToast('Draw offer sent.');
+            } catch (e) { showToast('Could not send draw offer.'); }
+        }
+
+        async function respondDraw(accept) {
+            document.getElementById('drawOfferOverlay').classList.remove('active');
+            try {
+                const res = await fetch('/api/mp/draw_offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'respond', accept })
+                });
+                const state = await res.json();
+                applyState(state);
+                if (state.game_over && !gameOverShown) {
+                    gameOverShown = true;
+                    stopClockTicker();
+                    showGameOver(state.result, state.game_over_reason);
+                }
+                if (!accept) showToast('Draw offer declined.');
+            } catch (e) { /* ignore */ }
+        }
+
+        async function requestUndo() {
+            try {
+                const res = await fetch('/api/mp/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'request' })
+                });
+                const state = await res.json();
+                if (state.error) { showToast(state.error); return; }
+                applyState(state);
+                showToast('Undo request sent.');
+            } catch (e) { showToast('Could not send undo request.'); }
+        }
+
+        async function respondUndo(accept) {
+            document.getElementById('undoOfferOverlay').classList.remove('active');
+            try {
+                const res = await fetch('/api/mp/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken, action: 'respond', accept })
+                });
+                const state = await res.json();
+                applyState(state);
+                if (!accept) showToast('Undo request declined.');
+            } catch (e) { /* ignore */ }
+        }
+
+        // ===== REVIEW MODAL =====
+        let reviewHistory = [];
+        let reviewIndex = 0;
+
+        async function openReview() {
+            if (!roomCode) return;
+            try {
+                const res = await fetch('/api/mp/history/' + roomCode);
+                const data = await res.json();
+                if (data.error || !data.moves || data.moves.length === 0) {
+                    showToast('No moves to review yet.');
+                    return;
+                }
+                reviewHistory = data.moves;
+                reviewIndex = reviewHistory.length - 1;
+                renderReviewList();
+                showReviewMove(reviewIndex);
+                document.getElementById('mpPgnTextarea').value = '';
+                document.getElementById('reviewModal').classList.add('active');
+            } catch (e) { showToast('Could not load review.'); }
+        }
+
+        function closeReview() {
+            document.getElementById('reviewModal').classList.remove('active');
+        }
+
+        function reviewStep(delta) {
+            if (!reviewHistory.length) return;
+            let t = reviewIndex + delta;
+            if (delta <= -1000) t = 0;
+            if (delta >= 1000) t = reviewHistory.length - 1;
+            t = Math.max(0, Math.min(reviewHistory.length - 1, t));
+            showReviewMove(t);
+        }
+
+        function showReviewMove(i) {
+            reviewIndex = i;
+            const entry = reviewHistory[i];
+            renderReviewBoard(entry.fen, entry.move_uci);
+            const moveNum = Math.floor(i / 2) + 1;
+            const label = moveNum + (entry.white_to_move_before ? '.' : '...') + ' ' + entry.move_san;
+            document.getElementById('reviewMoveInfo').textContent = label;
+            document.querySelectorAll('.rv-move-row').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === i);
+                if (idx === i) el.scrollIntoView({ block: 'nearest' });
+            });
+        }
+
+        function renderReviewList() {
+            const list = document.getElementById('reviewMovesList');
+            list.innerHTML = '';
+            reviewHistory.forEach((entry, i) => {
+                const row = document.createElement('div');
+                row.className = 'rv-move-row';
+                const moveNum = Math.floor(i / 2) + 1;
+                const label = moveNum + (entry.white_to_move_before ? '.' : '...') + ' ' + entry.move_san;
+                row.textContent = label;
+                row.addEventListener('click', () => showReviewMove(i));
+                list.appendChild(row);
+            });
+        }
+
+        function renderReviewBoard(fen, lastMoveUci) {
+            const el = document.getElementById('reviewBoard');
+            el.innerHTML = '';
+            const fenRows = fen.split(' ')[0].split('/');
+            const grid = [];
+            for (let r = 0; r < 8; r++) {
+                const row = [];
+                for (const ch of fenRows[r]) {
+                    if (ch >= '1' && ch <= '8') { for (let i = 0; i < parseInt(ch); i++) row.push(null); }
+                    else row.push(ch);
+                }
+                grid.push(row);
+            }
+            const fromSq = lastMoveUci ? lastMoveUci.substring(0, 2) : null;
+            const toSq   = lastMoveUci ? lastMoveUci.substring(2, 4) : null;
+            for (let vRow = 0; vRow < 8; vRow++) {
+                for (let vCol = 0; vCol < 8; vCol++) {
+                    const piece = grid[vRow][vCol];
+                    const sqName = 'abcdefgh'[vCol] + (8 - vRow);
+                    const sq = document.createElement('div');
+                    sq.className = 'sq ' + ((vRow + vCol) % 2 === 0 ? 'rl' : 'rd');
+                    if (sqName === fromSq || sqName === toSq) sq.classList.add('rv-last');
+                    if (piece && PIECE_IMAGES[piece]) {
+                        const img = document.createElement('img');
+                        img.src = PIECE_IMAGES[piece];
+                        sq.appendChild(img);
+                    }
+                    el.appendChild(sq);
+                }
+            }
+        }
+
+        async function fetchMpPGN() {
+            const res = await fetch('/api/mp/pgn/' + roomCode);
+            const data = await res.json();
+            return data.pgn || null;
+        }
+
+        async function copyMpPGN() {
+            const pgn = await fetchMpPGN();
+            if (!pgn) { showToast('No PGN available.'); return; }
+            document.getElementById('mpPgnTextarea').value = pgn;
+            try { await navigator.clipboard.writeText(pgn); showToast('PGN copied!'); }
+            catch (e) { showToast('PGN ready below — copy manually.'); }
+        }
+
+        async function downloadMpPGN() {
+            const pgn = await fetchMpPGN();
+            if (!pgn) { showToast('No PGN available.'); return; }
+            document.getElementById('mpPgnTextarea').value = pgn;
+            const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'mattfish-mp-game.pgn';
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        async function requestRematch() {
+            const btn = document.getElementById('rematchBtn');
+            const status = document.getElementById('rematchStatus');
+            btn.disabled = true;
+            btn.textContent = '⏳ Waiting...';
+            status.textContent = 'Waiting for your opponent to accept...';
+            try {
+                const res = await fetch('/api/mp/rematch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: roomCode, token: myToken })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showToast(data.error);
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Rematch';
+                    status.textContent = '';
+                    return;
+                }
+                if (data.waiting) {
+                    // Still waiting for opponent — polling will detect when they click too
+                    return;
+                }
+                // Both players voted — game restarted
+                startRematch(data);
+            } catch (e) {
+                showToast('Could not request rematch.');
+                btn.disabled = false;
+                btn.textContent = '🔄 Rematch';
+                status.textContent = '';
+            }
+        }
+
+        function startRematch(state) {
+            myColor = state.your_new_color || (myColor === 'white' ? 'black' : 'white');
+            sessionStorage.setItem('mp_session', JSON.stringify({ code: roomCode, token: myToken, color: myColor }));
+
+            // Reset all game UI state
+            gameOverShown = false;
+            gameActive = true;
+            selectedSquare = null;
+            lastMove = null;
+            premove = null;
+            premoveSelectFrom = null;
+            reviewHistory = [];
+            chatRendered = 0;
+
+            document.getElementById('selfName').textContent = myColor === 'white' ? state.white_name : state.black_name;
+            document.getElementById('opponentName').textContent = myColor === 'white' ? state.black_name : state.white_name;
+
+            document.getElementById('gameOver').classList.remove('active');
+            document.getElementById('rematchBtn').disabled = false;
+            document.getElementById('rematchBtn').textContent = '🔄 Rematch';
+            document.getElementById('rematchStatus').textContent = '';
+
+            applyState(state);
+            startPolling(); // restarts poll + clock ticker (showGameOver stopped them)
+        }
+
+        function showGameOver(result, reason) {
+            const overlay = document.getElementById('gameOver');
+            const text = document.getElementById('gameOverText');
+            const reasonEl = document.getElementById('gameOverReason');
+            let msg, color;
+            const iWon = (myColor === 'white' && result === '1-0') || (myColor === 'black' && result === '0-1');
+            const iLost = (myColor === 'white' && result === '0-1') || (myColor === 'black' && result === '1-0');
+            if (iWon) { msg = 'You Win!'; color = '#4CAF50'; }
+            else if (iLost) { msg = 'You Lose'; color = '#e74c3c'; }
+            else { msg = 'Draw'; color = '#f39c12'; }
+            text.textContent = msg;
+            text.style.color = color;
+            const reasonText = { timeout: 'on time', resignation: 'by resignation', normal: '', draw_agreement: 'by agreement' }[reason] || '';
+            reasonEl.textContent = reasonText ? ('(' + reasonText + ')') : '';
+            overlay.classList.add('active');
+            sessionStorage.removeItem('mp_session');
+            stopPolling();
+        }
+    </script>
+</body>
+</html>
