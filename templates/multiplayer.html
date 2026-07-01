@@ -341,6 +341,9 @@
                 <button class="draw-btn" onclick="offerDraw()">🤝 Draw</button>
                 <button class="undo-btn-mp" onclick="requestUndo()">↩ Undo</button>
             </div>
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; color:#888;">
+                Room: <span id="inGameCode" onclick="copyRoomCode()" style="letter-spacing:3px; font-size:14px; color:#4CAF50; cursor:pointer; font-weight:bold;" title="Click to copy"></span>
+            </div>
         </div>
         <div class="controls-col">
             <div class="move-history">
@@ -504,6 +507,7 @@
                 document.getElementById('lobby').style.display = 'none';
                 document.getElementById('waitingBox').style.display = 'block';
                 document.getElementById('roomCodeDisplay').textContent = roomCode;
+                document.getElementById('inGameCode').textContent = roomCode;
                 startPolling();
             } catch (e) {
                 btn.disabled = false;
@@ -535,6 +539,7 @@
                 }
                 roomCode = code; myColor = data.color; myToken = data.token;
                 sessionStorage.setItem('mp_session', JSON.stringify({ code: roomCode, token: myToken, color: myColor }));
+                document.getElementById('inGameCode').textContent = roomCode;
                 enterGameView();
                 applyState(data);
                 startPolling();
@@ -586,6 +591,7 @@
                     document.getElementById('selfName').textContent = myColor === 'white' ? state.white_name : state.black_name;
                     document.getElementById('opponentName').textContent = myColor === 'white' ? state.black_name : state.white_name;
                 }
+                document.getElementById('inGameCode').textContent = roomCode || '';
                 gameActive = state.started && !state.game_over;
                 applyState(state);
 
@@ -1262,9 +1268,23 @@
 
             if (state.game_over && !specGameOverShown) {
                 specGameOverShown = true;
-                clearInterval(specPollInterval);
-                clearInterval(specClockInterval);
+                clearInterval(specClockInterval); // stop ticking, but keep specPollInterval alive
                 showSpecGameOver(state.result, state.game_over_reason, state.white_name, state.black_name);
+            }
+
+            // Detect rematch: game was over but now it's back to started + not over
+            if (specGameOverShown && !state.game_over && state.started) {
+                specGameOverShown = false;
+                specMoveCount = 0;
+                specLastMove = null;
+                document.getElementById('specGameOver').style.display = 'none';
+                document.getElementById('specMoves').innerHTML = '';
+                document.getElementById('specChatLog').innerHTML = '';
+                specChatRendered = 0;
+                // Restart clock ticker
+                clearInterval(specClockInterval);
+                specClockInterval = setInterval(specTickClock, 250);
+                showToast('Rematch started!');
             }
         }
 
