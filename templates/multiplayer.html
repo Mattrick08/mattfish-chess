@@ -1045,12 +1045,28 @@
 
             // ---- PREMOVE (opponent's turn) ----
             if (!myTurn) {
+                // Clicking the square you're currently building from cancels just that
+                // selection — it no longer nukes the whole queue.
+                if (premoveBuilding === sq) {
+                    premoveBuilding = null;
+                    drawBoard();
+                    return;
+                }
                 if (!premoveBuilding) {
+                    // Clicking the "from" square of an already-queued premove removes just that one
+                    const queuedIdx = premoveQueue.findIndex(pm => pm.from === sq);
+                    if (queuedIdx !== -1) {
+                        premoveQueue.splice(queuedIdx, 1);
+                        drawBoard();
+                        showToast(premoveQueue.length ? premoveQueue.length + ' premove(s) queued' : 'Premove cancelled');
+                        return;
+                    }
                     if (isMyPiece) { premoveBuilding = sq; drawBoard(); }
                     return;
                 }
-                if (premoveBuilding === sq) { premoveBuilding = null; premoveQueue = []; drawBoard(); return; }
-                if (isMyPiece) { premoveBuilding = sq; premoveQueue = []; drawBoard(); return; }
+                // Starting a new premove chain from a different piece — keep whatever's
+                // already queued, just don't complete a move to this square.
+                if (isMyPiece) { premoveBuilding = sq; drawBoard(); return; }
                 const fromSqEl = document.querySelector('[data-square="' + premoveBuilding + '"]');
                 const fp = fromSqEl?.querySelector('img');
                 const isPawn = fp && fp.src.match(/[wb]P/);
