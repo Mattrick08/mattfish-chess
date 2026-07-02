@@ -310,6 +310,7 @@
                     <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="toggleSpecFlip()">🔄 Flip Board</button>
                     <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="location.reload()">🚪 Leave</button>
                 </div>
+                <button style="padding:10px; border:2px solid #9C27B0; background:rgba(156,39,176,0.1); color:white; border-radius:6px; cursor:pointer; width:100%;" onclick="openReview()">📖 Review Game</button>
             </div>
             <div style="width:240px; display:flex; flex-direction:column; gap:12px;">
                 <div style="background:#2e2e2e; border-radius:8px; padding:12px; font-size:13px; color:#aaa; text-align:center;" id="specStatus">Waiting for game to start…</div>
@@ -324,7 +325,10 @@
         <div id="specGameOver" style="display:none; background:#2a2a2a; border:2px solid #555; border-radius:12px; padding:24px 36px; text-align:center;">
             <div id="specGameOverText" style="font-size:28px; font-weight:bold; margin-bottom:8px;"></div>
             <div id="specGameOverReason" style="color:#aaa; font-size:14px; margin-bottom:16px;"></div>
-            <button class="btn-lobby" onclick="location.reload()">🏠 Back to Lobby</button>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn-lobby" onclick="location.reload()">🏠 Back to Lobby</button>
+                <button style="background:#9C27B0; padding:10px 24px; font-size:15px; border:none; border-radius:8px; cursor:pointer; color:white;" onclick="openReview()">📖 Review Game</button>
+            </div>
         </div>
     </div>
 
@@ -1231,9 +1235,10 @@
         let reviewIndex = 0;
 
         async function openReview() {
-            if (!roomCode) return;
+            const code = roomCode || spectateCode;
+            if (!code) return;
             try {
-                const res = await fetch('/api/mp/history/' + roomCode);
+                const res = await fetch('/api/mp/history/' + code);
                 const data = await res.json();
                 if (data.error || !data.moves || data.moves.length === 0) {
                     showToast('No moves to review yet.');
@@ -1321,7 +1326,9 @@
         }
 
         async function fetchMpPGN() {
-            const res = await fetch('/api/mp/pgn/' + roomCode);
+            const code = roomCode || spectateCode;
+            if (!code) return null;
+            const res = await fetch('/api/mp/pgn/' + code);
             const data = await res.json();
             return data.pgn || null;
         }
