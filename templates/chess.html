@@ -145,11 +145,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
+            cursor: grab;
             user-select: none;
             position: relative;
             transition: background 0.1s;
         }
+        .square:active { cursor: grabbing; }
         .square img {
             width: 60px;
             height: 60px;
@@ -1421,6 +1422,120 @@
             }
         }
 
+        // ===== DRAG & DROP + ANIMATION =====
+        let _drag = null; // { fromSq, ghostEl, startX, startY, wasDrag }
+
+        function _ghostify(imgEl, startX, startY) {
+            const size = 62;
+            const g = document.createElement('img');
+            g.src = imgEl.src;
+            g.style.cssText = `position:fixed;width:${size}px;height:${size}px;left:${startX - size/2}px;top:${startY - size/2}px;pointer-events:none;z-index:9999;transform:scale(1.18);filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));opacity:0.95;`;
+            document.body.appendChild(g);
+            return g;
+        }
+
+        function _squareAtPoint(x, y) {
+            const prev = _drag && _drag.ghostEl ? _drag.ghostEl.style.display : null;
+            if (_drag && _drag.ghostEl) _drag.ghostEl.style.display = 'none';
+            const el = document.elementFromPoint(x, y);
+            if (_drag && _drag.ghostEl && prev !== null) _drag.ghostEl.style.display = '';
+            return el?.closest?.('[data-square]')?.dataset?.square || null;
+        }
+
+        function _onPtrMove(e) {
+            if (!_drag) return;
+            const x = e.clientX, y = e.clientY;
+            if (_drag.ghostEl) {
+                const size = 62;
+                _drag.ghostEl.style.left = (x - size/2) + 'px';
+                _drag.ghostEl.style.top  = (y - size/2) + 'px';
+            }
+            if (!_drag.wasDrag) {
+                const dx = x - _drag.startX, dy = y - _drag.startY;
+                if (Math.hypot(dx, dy) > 8) {
+                    _drag.wasDrag = true;
+                    // Create ghost, hide source piece
+                    const fromEl = document.querySelector('[data-square="' + _drag.fromSq + '"]');
+                    const img = fromEl?.querySelector('img');
+                    if (img) {
+                        img.style.opacity = '0';
+                        _drag.ghostEl = _ghostify(img, x, y);
+                    }
+                }
+            }
+        }
+
+        function _onPtrUp(e) {
+            document.removeEventListener('pointermove', _onPtrMove);
+            document.removeEventListener('pointerup', _onPtrUp);
+            if (!_drag) return;
+            const { fromSq, wasDrag, ghostEl } = _drag;
+            if (ghostEl) ghostEl.remove();
+            // Restore opacity of source piece
+            const fromEl = document.querySelector('[data-square="' + fromSq + '"]');
+            if (fromEl) { const img = fromEl.querySelector('img'); if (img) img.style.opacity = ''; }
+            const toSq = wasDrag ? _squareAtPoint(e.clientX, e.clientY) : null;
+            _drag = null;
+            if (wasDrag && toSq && toSq !== fromSq) {
+                _completeDrag(fromSq, toSq);
+            } else if (!wasDrag) {
+                // Treat as click — delegate to existing handleClick
+                const el = document.querySelector('[data-square="' + fromSq + '"]');
+                if (el) handleClick(el);
+            }
+        }
+
+        function _startDrag(e, sq) {
+            e.preventDefault();
+            _drag = { fromSq: sq, ghostEl: null, startX: e.clientX, startY: e.clientY, wasDrag: false };
+            document.addEventListener('pointermove', _onPtrMove);
+            document.addEventListener('pointerup', _onPtrUp);
+        }
+
+        function _completeDrag(fromSq, toSq) {
+            if (isThinking || !gameStarted) return;
+            const isPlayerPiece = (() => {
+                const el = document.querySelector('[data-square="' + fromSq + '"]');
+                const img = el?.querySelector('img');
+                return img && ((playerColor === 'white' && img.src.includes('/w')) || (playerColor === 'black' && img.src.includes('/b')));
+            })();
+            if (!isPlayerPiece) return;
+
+            const match = legalMoves.find(m => m.substring(0,2) === fromSq && m.substring(2,4) === toSq);
+            if (!match) { selectedSquare = null; drawBoard(); return; }
+
+            const fromEl = document.querySelector('[data-square="' + fromSq + '"]');
+            const isPawn = fromEl?.querySelector('img')?.src.match(/[wb]P/);
+            const promoRank = playerColor === 'white' ? '8' : '1';
+            if (isPawn && toSq[1] === promoRank) {
+                selectedSquare = null;
+                pendingPromo = fromSq + toSq;
+                document.getElementById('promoModal').classList.add('active');
+                return;
+            }
+            selectedSquare = null;
+            sendMove(match);
+        }
+
+        // Slide animation for click moves (not drag)
+        function _animateSlide(fromSq, toSq, cb) {
+            const fromEl = document.querySelector('[data-square="' + fromSq + '"]');
+            const toEl   = document.querySelector('[data-square="' + toSq + '"]');
+            const img    = fromEl?.querySelector('img');
+            if (!fromEl || !toEl || !img) { cb && cb(); return; }
+            const fr = fromEl.getBoundingClientRect(), tr = toEl.getBoundingClientRect();
+            const clone = document.createElement('img');
+            clone.src = img.src;
+            clone.style.cssText = `position:fixed;width:56px;height:56px;left:${fr.left + (fr.width-56)/2}px;top:${fr.top + (fr.height-56)/2}px;pointer-events:none;z-index:500;transition:left .14s ease,top .14s ease;`;
+            document.body.appendChild(clone);
+            img.style.visibility = 'hidden';
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                clone.style.left = (tr.left + (tr.width-56)/2) + 'px';
+                clone.style.top  = (tr.top  + (tr.height-56)/2) + 'px';
+            }));
+            setTimeout(() => { clone.remove(); img.style.visibility = ''; cb && cb(); }, 160);
+        }
+
         function createSquare(boardEl, vRow, vCol, squareName, piece, activeColor) {
             const square = document.createElement('div');
             const isLight = (vRow + vCol) % 2 === 0;
@@ -1461,6 +1576,11 @@
                 }
             }
 
+            square.addEventListener('pointerdown', (e) => {
+                // Only start drag/interact for player pieces when it's player's turn
+                if (isThinking || !gameStarted) return;
+                _startDrag(e, squareName);
+            });
             square.addEventListener('click', function() { handleClick(square); });
             boardEl.appendChild(square);
         }
@@ -1501,12 +1621,15 @@
                 const isPawn = fromPiece && (fromPiece.src.includes('wP') || fromPiece.src.includes('bP'));
                 const promoRank = playerColor === 'white' ? '8' : '1';
 
-                // FIX: Always show promotion modal when pawn reaches last rank
                 if (isPawn && sq[1] === promoRank) {
                     pendingPromo = selectedSquare + sq;
                     document.getElementById('promoModal').classList.add('active');
                     return;
                 }
+                // Animate before sending
+                const fromSq = selectedSquare;
+                selectedSquare = null;
+                _animateSlide(fromSq, sq, null);
                 sendMove(matchingMove);
             } else if (isPlayerPiece) {
                 selectedSquare = sq;
