@@ -472,6 +472,12 @@
         let premoveQueue = [];
         let premoveBuilding = null; // the 'from' square currently being selected for next premove
 
+        // ---- opponent move animation tracking ----
+        // uci of a move we just sent ourselves (already animated locally via _animateSlide),
+        // so we can recognize the server echo of it and avoid animating it a second time.
+        let ownMoveUci = null;
+        let boardEverRendered = false; // avoids animating on initial load / resume-on-refresh
+
         // drag state
         let dragEnabled = (localStorage.getItem('dragEnabled') !== 'false');
         let _drag = null; // { fromSq, ghostEl, startX, startY, wasDrag }
@@ -629,14 +635,28 @@
         // ===== GAME STATE =====
         function applyState(state) {
             const wasMyTurn = isMyTurn();
+            const prevLastMoveStr = lastMove ? lastMove.from + lastMove.to : null;
+            const newLastMoveStr = state.last_move || null;
+            const isNewMove = newLastMoveStr && newLastMoveStr !== prevLastMoveStr;
+
+            // Was this new move one we just made ourselves? (already animated locally
+            // in handleClick/_finishDrag/doPromo via _animateSlide, so don't animate again)
+            const isEchoOfOwnMove = isNewMove && ownMoveUci && newLastMoveStr.startsWith(ownMoveUci.substring(0, 4));
+            // Only animate real opponent (or auto-fired premove) moves, and never on first load/resume
+            const shouldAnimateOpponentMove = isNewMove && !isEchoOfOwnMove && boardEverRendered;
+
             currentFEN = state.fen;
             legalMoves = state.legal_moves || [];
             isCheck = state.check || false;
             clocks = { white: state.clocks.white, black: state.clocks.black };
 
-            if (state.last_move && state.last_move !== (lastMove ? lastMove.from + lastMove.to : null)) {
-                lastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
+            let animFrom = null, animTo = null;
+            if (isNewMove) {
+                animFrom = newLastMoveStr.substring(0, 2);
+                animTo = newLastMoveStr.substring(2, 4);
+                lastMove = { from: animFrom, to: animTo };
             }
+            if (isEchoOfOwnMove) ownMoveUci = null;
 
             // Fire the next queued premove if it just became our turn
             const nowMyTurn = isMyTurn();
@@ -646,14 +666,28 @@
                 const uci = pm.from + pm.to + (pm.promo || '');
                 // Validate it's still legal before firing
                 if (legalMoves.includes(uci) || legalMoves.some(m => m.startsWith(pm.from + pm.to))) {
-                    setTimeout(() => sendMove(uci), 30);
+                    // Show the opponent's move that just landed (with animation) before our premove fires
+                    const fireIt = () => { ownMoveUci = uci; setTimeout(() => sendMove(uci), 30); };
+                    if (shouldAnimateOpponentMove) {
+                        _animateOpponentMove(animFrom, animTo, fireIt);
+                    } else {
+                        fireIt();
+                    }
                     return;
                 }
                 // Illegal — cancel rest of the queue too
                 premoveQueue = [];
             }
 
-            drawBoard();
+            const finishRender = () => {
+                drawBoard();
+                boardEverRendered = true;
+            };
+            if (shouldAnimateOpponentMove) {
+                _animateOpponentMove(animFrom, animTo, finishRender);
+            } else {
+                finishRender();
+            }
             updateClockDisplay();
             updateActiveTurnHighlight();
             updateChat(state.chat || []);
@@ -917,6 +951,7 @@
                 return;
             }
             selectedSquare = null;
+            ownMoveUci = match; // mark as ours so the server echo isn't re-animated
             sendMove(match); // no animation for drags
         }
 
@@ -937,6 +972,36 @@
                 clone.style.top  = (tr.top  + (tr.height-size)/2) + 'px';
             }));
             setTimeout(() => { clone.remove(); img.style.visibility = ''; }, 160);
+        }
+
+        // Animates a move made by the opponent (arrives via polling, so the piece needs to
+        // slide from its old square to its new one instead of just popping into place).
+        // Runs against the board as it's currently rendered (pre-move), then calls `after`
+        // once the slide finishes so the caller can redraw the board at the new position.
+        function _animateOpponentMove(fromSq, toSq, after) {
+            const fromEl = document.querySelector('[data-square="' + fromSq + '"]');
+            const toEl = document.querySelector('[data-square="' + toSq + '"]');
+            const img = fromEl?.querySelector('img');
+            if (!fromEl || !toEl || !img) { after(); return; }
+
+            const fr = fromEl.getBoundingClientRect(), tr = toEl.getBoundingClientRect();
+            const size = 50;
+            const clone = document.createElement('img');
+            clone.src = img.src;
+            clone.style.cssText = `position:fixed;width:${size}px;height:${size}px;left:${fr.left+(fr.width-size)/2}px;top:${fr.top+(fr.height-size)/2}px;pointer-events:none;z-index:500;transition:left .18s ease,top .18s ease;`;
+            document.body.appendChild(clone);
+            img.style.visibility = 'hidden';
+
+            // Hide any piece already sitting on the destination square (capture) so it
+            // doesn't show through underneath the sliding clone.
+            const toImg = toEl.querySelector('img');
+            if (toImg) toImg.style.visibility = 'hidden';
+
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                clone.style.left = (tr.left + (tr.width-size)/2) + 'px';
+                clone.style.top  = (tr.top  + (tr.height-size)/2) + 'px';
+            }));
+            setTimeout(() => { clone.remove(); after(); }, 190);
         }
 
         function createSquare(boardEl, vRow, vCol, squareName, piece) {
@@ -1020,6 +1085,7 @@
                 const fromSq = selectedSquare;
                 selectedSquare = null;
                 _animateSlide(fromSq, sq);
+                ownMoveUci = matchingMove; // mark as ours so the server echo isn't re-animated
                 sendMove(matchingMove);
             } else if (isMyPiece) {
                 selectedSquare = sq; drawBoard();
@@ -1030,7 +1096,7 @@
 
         function doPromo(piece) {
             document.getElementById('promoModal').classList.remove('active');
-            if (pendingPromo) { sendMove(pendingPromo + piece); pendingPromo = null; }
+            if (pendingPromo) { ownMoveUci = pendingPromo + piece; sendMove(pendingPromo + piece); pendingPromo = null; }
         }
 
         async function sendMove(move) {
@@ -1044,6 +1110,7 @@
                 });
                 const state = await res.json();
                 if (state.error) {
+                    ownMoveUci = null; // move was rejected, don't let it suppress a future animation
                     showToast(state.error);
                     pollOnce(); // resync — our local board may be stale/wrong
                     return;
@@ -1056,6 +1123,7 @@
                     showGameOver(state.result, state.game_over_reason);
                 }
             } catch (e) {
+                ownMoveUci = null;
                 showToast('Move failed to send — check your connection.');
                 pollOnce();
             }
