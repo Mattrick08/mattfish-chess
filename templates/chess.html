@@ -88,6 +88,19 @@
             border-color: #9C27B0;
             background: rgba(156,39,176,0.3);
         }
+        .drag-btn {
+            border-color: #FF9800;
+            background: rgba(255,152,0,0.1);
+        }
+        .drag-btn:hover {
+            border-color: #FF9800;
+            background: rgba(255,152,0,0.2);
+        }
+        .drag-btn.off {
+            border-color: #555;
+            background: transparent;
+            color: #666;
+        }
         .new-game-btn {
             padding: 15px;
             background: #e74c3c;
@@ -752,6 +765,7 @@
         <button class="undo-btn" id="undoBtn" onclick="undoMove()" disabled>↩ Undo Move</button>
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 Sound On</button>
         <button class="eval-btn" id="evalBtn" onclick="toggleEvalBar()">📊 Eval Bar</button>
+        <button class="drag-btn" id="dragBtn" onclick="toggleDragMode()">✋ Drag: On</button>
         <button class="new-game-btn" onclick="newGame()">New Game</button>
         <button class="undo-btn" onclick="openReview()" style="border-color:#9C27B0; background:rgba(156,39,176,0.1);">📖 Review Game</button>
         <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">🎨 Personalize</button>
@@ -879,6 +893,7 @@
         let isCheck = false;
         let sessionId = null;
         let evalBarEnabled = false;
+        let dragEnabled = (localStorage.getItem('dragEnabled') !== 'false');
 
         // ========== TIME CONTROL ==========
         let timeControl = { minutes: 10, increment: 0 };
@@ -1177,7 +1192,26 @@
             }
         }
 
+        function toggleDragMode() {
+            dragEnabled = !dragEnabled;
+            localStorage.setItem('dragEnabled', dragEnabled ? 'true' : 'false');
+            _applyDragBtnState();
+        }
+
+        function _applyDragBtnState() {
+            const btn = document.getElementById('dragBtn');
+            if (!btn) return;
+            if (dragEnabled) {
+                btn.textContent = '✋ Drag: On';
+                btn.classList.remove('off');
+            } else {
+                btn.textContent = '👆 Click Only';
+                btn.classList.add('off');
+            }
+        }
+
         window.onload = function() {
+            _applyDragBtnState();
             try {
                 if (typeof initThemePanel === 'function') {
                     initThemePanel('themePanelContainer');
@@ -1579,6 +1613,7 @@
             square.addEventListener('pointerdown', (e) => {
                 // Only start drag/interact for player pieces when it's player's turn
                 if (isThinking || !gameStarted) return;
+                if (!dragEnabled) return; // click-only mode: let the native click handler do the move
                 _startDrag(e, squareName);
             });
             square.addEventListener('click', function() { handleClick(square); });
