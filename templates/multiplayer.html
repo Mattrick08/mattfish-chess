@@ -160,6 +160,9 @@
     .draw-btn:hover { background: rgba(243,156,18,0.2); }
     .undo-btn-mp { flex: 1; padding: 10px; border: 2px solid #9C27B0; background: rgba(156,39,176,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
     .undo-btn-mp:hover { background: rgba(156,39,176,0.2); }
+    .drag-btn-mp { flex: 1; padding: 10px; border: 2px solid #FF9800; background: rgba(255,152,0,0.1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .drag-btn-mp:hover { background: rgba(255,152,0,0.2); }
+    .drag-btn-mp.off { border-color: #555; background: transparent; color: #666; }
 
     .move-history { background: #2e2e2e; padding: 12px; border-radius: 8px; max-height: 130px; overflow-y: auto; }
     .moves-list { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
@@ -342,6 +345,9 @@
                 <button class="draw-btn" onclick="offerDraw()">🤝 Draw</button>
                 <button class="undo-btn-mp" onclick="requestUndo()">↩ Undo</button>
             </div>
+            <div class="action-row">
+                <button class="drag-btn-mp" id="dragBtn" onclick="toggleDragMode()">✋ Drag: On</button>
+            </div>
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; color:#888;">
                 Room: <span id="inGameCode" onclick="copyRoomCode()" style="letter-spacing:3px; font-size:14px; color:#4CAF50; cursor:pointer; font-weight:bold;" title="Click to copy"></span>
             </div>
@@ -467,10 +473,12 @@
         let premoveBuilding = null; // the 'from' square currently being selected for next premove
 
         // drag state
+        let dragEnabled = (localStorage.getItem('dragEnabled') !== 'false');
         let _drag = null; // { fromSq, ghostEl, startX, startY, wasDrag }
 
         // ===== RESUME ON REFRESH =====
         window.addEventListener('load', () => {
+            _applyDragBtnState();
             const saved = sessionStorage.getItem('mp_session');
             if (saved) {
                 try {
@@ -858,6 +866,24 @@
             document.addEventListener('pointerup', _onPtrUp);
         }
 
+        function toggleDragMode() {
+            dragEnabled = !dragEnabled;
+            localStorage.setItem('dragEnabled', dragEnabled ? 'true' : 'false');
+            _applyDragBtnState();
+        }
+
+        function _applyDragBtnState() {
+            const btn = document.getElementById('dragBtn');
+            if (!btn) return;
+            if (dragEnabled) {
+                btn.textContent = '✋ Drag: On';
+                btn.classList.remove('off');
+            } else {
+                btn.textContent = '👆 Click Only';
+                btn.classList.add('off');
+            }
+        }
+
         function _finishDrag(fromSq, toSq) {
             if (!gameActive) return;
             const myTurn = isMyTurn();
@@ -940,7 +966,7 @@
                 if (squareName === pm.from) square.classList.add('premove-from');
                 if (squareName === pm.to)   square.classList.add('premove-to');
             }
-            square.addEventListener('pointerdown', (e) => { if (gameActive) _startDrag(e, squareName); });
+            square.addEventListener('pointerdown', (e) => { if (gameActive && dragEnabled) _startDrag(e, squareName); });
             square.addEventListener('click', () => handleClick(square));
             boardEl.appendChild(square);
         }
