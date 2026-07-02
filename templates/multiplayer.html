@@ -978,9 +978,12 @@
         // slide from its old square to its new one instead of just popping into place).
         // Runs against the board as it's currently rendered (pre-move), then calls `after`
         // once the slide finishes so the caller can redraw the board at the new position.
-        function _animateOpponentMove(fromSq, toSq, after) {
-            const fromEl = document.querySelector('[data-square="' + fromSq + '"]');
-            const toEl = document.querySelector('[data-square="' + toSq + '"]');
+        // `root` scopes the [data-square] lookup — needed since the play board and the
+        // spectate board can both exist in the DOM at once.
+        function _animateOpponentMove(fromSq, toSq, after, root) {
+            root = root || document;
+            const fromEl = root.querySelector('[data-square="' + fromSq + '"]');
+            const toEl = root.querySelector('[data-square="' + toSq + '"]');
             const img = fromEl?.querySelector('img');
             if (!fromEl || !toEl || !img) { after(); return; }
 
@@ -1415,6 +1418,7 @@
         let specChatRendered = 0;
         let specGameOverShown = false;
         let specActiveTurn = 'white';
+        let specBoardEverRendered = false; // avoids animating on initial load
 
         async function startSpectate() {
             const btn = document.getElementById('spectateBtn');
@@ -1429,6 +1433,7 @@
                 btn.disabled = false;
                 if (data.error) { errEl.textContent = data.error; return; }
                 spectateCode = code;
+                specBoardEverRendered = false;
                 document.getElementById('lobby').style.display = 'none';
                 document.getElementById('spectateWrap').style.display = 'flex';
                 applySpecState(data);
@@ -1455,8 +1460,16 @@
             specClocks = { white: state.clocks.white, black: state.clocks.black };
             specActiveTurn = (state.fen.split(' ')[1] || 'w') === 'w' ? 'white' : 'black';
 
-            if (state.last_move && (!specLastMove || state.last_move !== specLastMove.from + specLastMove.to)) {
-                specLastMove = { from: state.last_move.substring(0,2), to: state.last_move.substring(2,4) };
+            const prevLastMoveStr = specLastMove ? specLastMove.from + specLastMove.to : null;
+            const newLastMoveStr = state.last_move || null;
+            const isNewMove = newLastMoveStr && newLastMoveStr !== prevLastMoveStr;
+            const shouldAnimate = isNewMove && specBoardEverRendered;
+
+            let animFrom = null, animTo = null;
+            if (isNewMove) {
+                animFrom = newLastMoveStr.substring(0, 2);
+                animTo = newLastMoveStr.substring(2, 4);
+                specLastMove = { from: animFrom, to: animTo };
             }
 
             // Names and clocks
@@ -1474,7 +1487,16 @@
             else if (state.game_over) statusEl.textContent = 'Game over';
             else statusEl.textContent = (specActiveTurn === 'white' ? (state.white_name || 'White') : (state.black_name || 'Black')) + "'s turn";
 
-            drawSpecBoard();
+            const specBoardEl = document.getElementById('specBoard');
+            const finishSpecRender = () => {
+                drawSpecBoard();
+                specBoardEverRendered = true;
+            };
+            if (shouldAnimate) {
+                _animateOpponentMove(animFrom, animTo, finishSpecRender, specBoardEl);
+            } else {
+                finishSpecRender();
+            }
             updateSpecMoves(state.san_moves || []);
             updateSpecChat(state.chat || []);
 
@@ -1489,6 +1511,7 @@
                 specGameOverShown = false;
                 specMoveCount = 0;
                 specLastMove = null;
+                specBoardEverRendered = false;
                 document.getElementById('specGameOver').style.display = 'none';
                 document.getElementById('specMoves').innerHTML = '';
                 document.getElementById('specChatLog').innerHTML = '';
@@ -1542,6 +1565,7 @@
                     const sq = document.createElement('div');
                     const isLight = (vRow + vCol) % 2 === 0;
                     sq.className = 'square ' + (isLight ? 'light' : 'dark');
+                    sq.dataset.square = sqName;
                     if (specLastMove && (sqName === specLastMove.from || sqName === specLastMove.to)) sq.classList.add('last-move');
                     if (piece && PIECE_IMAGES[piece]) {
                         const img = document.createElement('img');
