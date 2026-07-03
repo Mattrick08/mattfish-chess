@@ -302,7 +302,7 @@
 
     <!-- SPECTATE VIEW -->
     <div id="spectateWrap" style="display:none; flex-direction:column; align-items:center; gap:18px; width:100%; max-width:1000px;">
-        <div style="color:#607D8B; font-size:13px;">👁 Spectating — read only</div>
+        <div style="color:#607D8B; font-size:13px;">👁 Spectating — read only <span id="specWatcherCount"></span></div>
         <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
             <div class="board-col">
                 <div class="player-card" id="specBlackCard" style="order:1;">
@@ -376,6 +376,7 @@
             </div>
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; color:#888;">
                 Room: <span id="inGameCode" onclick="copyRoomCode()" style="letter-spacing:3px; font-size:14px; color:#4CAF50; cursor:pointer; font-weight:bold;" title="Click to copy"></span>
+                <span id="watcherCount"></span>
             </div>
         </div>
         <div class="controls-col">
@@ -753,6 +754,8 @@
             legalMoves = state.legal_moves || [];
             isCheck = state.check || false;
             clocks = { white: state.clocks.white, black: state.clocks.black };
+            const watcherEl = document.getElementById('watcherCount');
+            if (watcherEl) watcherEl.textContent = state.spectator_count > 0 ? `· 👁 ${state.spectator_count} watching` : '';
 
             let animFrom = null, animTo = null;
             if (isNewMove) {
@@ -1542,6 +1545,9 @@
         let specGameOverShown = false;
         let specActiveTurn = 'white';
         let specBoardEverRendered = false; // avoids animating on initial load
+        // A per-tab id so the server can tell this spectator apart from others polling
+        // the same room, and count "how many are watching right now".
+        const specSid = (crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now()));
 
         async function startSpectate() {
             const btn = document.getElementById('spectateBtn');
@@ -1551,7 +1557,7 @@
             if (!code) { errEl.textContent = 'Enter a room code.'; return; }
             btn.disabled = true;
             try {
-                const res = await fetch('/api/mp/spectate/' + code);
+                const res = await fetch('/api/mp/spectate/' + code + '?sid=' + encodeURIComponent(specSid));
                 const data = await res.json();
                 btn.disabled = false;
                 if (data.error) { errEl.textContent = data.error; return; }
@@ -1571,7 +1577,7 @@
         async function specPollOnce() {
             if (!spectateCode) return;
             try {
-                const res = await fetch('/api/mp/spectate/' + spectateCode);
+                const res = await fetch('/api/mp/spectate/' + spectateCode + '?sid=' + encodeURIComponent(specSid));
                 const data = await res.json();
                 if (data.error) return;
                 applySpecState(data);
@@ -1609,6 +1615,9 @@
             if (!state.started) statusEl.textContent = '⏳ Waiting for players to join…';
             else if (state.game_over) statusEl.textContent = 'Game over';
             else statusEl.textContent = (specActiveTurn === 'white' ? (state.white_name || 'White') : (state.black_name || 'Black')) + "'s turn";
+
+            document.getElementById('specWatcherCount').textContent =
+                state.spectator_count > 0 ? `· 👁 ${state.spectator_count} watching` : '';
 
             const specBoardEl = document.getElementById('specBoard');
             const finishSpecRender = () => {
