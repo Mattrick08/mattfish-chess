@@ -387,6 +387,15 @@ rooms = {}  # room_code -> room state dict
 
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous chars (no I,O,0,1)
 ROOM_MAX_AGE_SECONDS = 6 * 60 * 60  # cleanup rooms older than 6 hours
+SPECTATOR_TIMEOUT_SECONDS = 8  # a spectator who hasn't polled in this long is considered gone
+
+def prune_spectators(room):
+    """Drop spectator ids that haven't polled recently. Read+mutate."""
+    now = time_module.time()
+    room["spectators"] = {
+        sid: ts for sid, ts in room.get("spectators", {}).items()
+        if now - ts <= SPECTATOR_TIMEOUT_SECONDS
+    }
 
 def generate_room_code():
     for _ in range(50):
@@ -438,6 +447,7 @@ def live_clocks(room):
 
 def room_public_state(room, code):
     board = room["board"]
+    prune_spectators(room)
     return {
         "code": code,
         "fen": board.fen(),
@@ -458,6 +468,7 @@ def room_public_state(room, code):
         "draw_offer": room.get("draw_offer"),
         "undo_offer": room.get("undo_offer"),
         "rematch_votes": list(room.get("rematch_votes") or []),
+        "spectator_count": len(room.get("spectators", {})),
     }
 
 @app.route("/multiplayer")
@@ -497,6 +508,7 @@ def mp_create():
         "undo_offer": None,
         "rematch_votes": set(),
         "created_at": time_module.time(),
+        "spectators": {},  # spectator_id -> last_seen timestamp
     }
     rooms[code]["tokens"][color_pref] = token
     rooms[code]["names"][color_pref] = name
@@ -541,6 +553,11 @@ def mp_spectate(code):
     if err:
         return err
     check_and_apply_timeout(room)
+
+    sid = request.args.get("sid", "").strip()
+    if sid:
+        room.setdefault("spectators", {})[sid] = time_module.time()
+
     state = room_public_state(room, code)
     state["spectating"] = True
 
