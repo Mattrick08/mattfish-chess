@@ -126,14 +126,17 @@
         border-radius: 8px;
         padding: 10px 14px;
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
         width: 100%;
     }
     .player-card.active-turn { box-shadow: 0 0 0 2px #4CAF50; }
     .player-name { font-size: 14px; }
     .player-clock { font-size: 20px; font-weight: bold; font-variant-numeric: tabular-nums; }
     .clock-low { color: #e74c3c; }
+    .player-card-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .captured-tray { display: flex; align-items: center; min-height: 16px; margin-top: 3px; }
+    .captured-icon { width: 16px; height: 16px; margin-right: -6px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+    .captured-diff { margin-left: 9px; font-size: 11px; font-weight: bold; color: #8bc34a; }
 
     #board {
         display: grid;
@@ -303,13 +306,19 @@
         <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
             <div class="board-col">
                 <div class="player-card" id="specBlackCard">
-                    <span class="player-name" id="specBlackName">Black</span>
-                    <span class="player-clock" id="specBlackClock">—</span>
+                    <div class="player-card-row">
+                        <span class="player-name" id="specBlackName">Black</span>
+                        <span class="player-clock" id="specBlackClock">—</span>
+                    </div>
+                    <div class="captured-tray" id="specBlackCapturedTray"></div>
                 </div>
                 <div id="specBoard" style="display:grid; grid-template-columns:repeat(8,58px); grid-template-rows:repeat(8,58px); border:3px solid #555; border-radius:4px;"></div>
                 <div class="player-card" id="specWhiteCard">
-                    <span class="player-name" id="specWhiteName">White</span>
-                    <span class="player-clock" id="specWhiteClock">—</span>
+                    <div class="player-card-row">
+                        <span class="player-name" id="specWhiteName">White</span>
+                        <span class="player-clock" id="specWhiteClock">—</span>
+                    </div>
+                    <div class="captured-tray" id="specWhiteCapturedTray"></div>
                 </div>
                 <div style="display:flex; gap:8px; width:100%;">
                     <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="toggleSpecFlip()">🔄 Flip Board</button>
@@ -342,13 +351,19 @@
     <div class="game-wrap" id="gameWrap">
         <div class="board-col">
             <div class="player-card" id="opponentCard">
-                <span class="player-name" id="opponentName">Opponent</span>
-                <span class="player-clock" id="opponentClock">10:00</span>
+                <div class="player-card-row">
+                    <span class="player-name" id="opponentName">Opponent</span>
+                    <span class="player-clock" id="opponentClock">10:00</span>
+                </div>
+                <div class="captured-tray" id="opponentCapturedTray"></div>
             </div>
             <div id="board"></div>
             <div class="player-card" id="selfCard">
-                <span class="player-name" id="selfName">You</span>
-                <span class="player-clock" id="selfClock">10:00</span>
+                <div class="player-card-row">
+                    <span class="player-name" id="selfName">You</span>
+                    <span class="player-clock" id="selfClock">10:00</span>
+                </div>
+                <div class="captured-tray" id="selfCapturedTray"></div>
             </div>
             <div class="action-row">
                 <button class="resign-btn" onclick="doResign()">🏳 Resign</button>
@@ -516,6 +531,54 @@
             document.querySelectorAll('.coord-toggle-btn').forEach(b => b.textContent = showCoords ? '🔢 Coords: On' : '🔢 Coords: Off');
             if (gameActive) drawBoard();
             if (spectateCode) drawSpecBoard();
+        }
+
+        // ---- captured-pieces tray ----
+        const START_PIECE_COUNTS = { P: 8, N: 2, B: 2, R: 2, Q: 1 };
+        const PIECE_VALUE = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
+
+        // Diffs the FEN against the starting position to work out which pieces are
+        // missing from each side (i.e. captured by the opponent), plus the resulting
+        // material difference. Returns { capturedByWhite, capturedByBlack, diff }
+        // where capturedByWhite are the (black) piece letters White has taken.
+        function computeCaptured(fen) {
+            const counts = {};
+            for (const ch of fen.split(' ')[0]) {
+                if (/[a-zA-Z]/.test(ch)) counts[ch] = (counts[ch] || 0) + 1;
+            }
+            const capturedByWhite = [], capturedByBlack = [];
+            let materialWhite = 0, materialBlack = 0;
+            for (const type of ['Q', 'R', 'B', 'N', 'P']) {
+                const blackMissing = START_PIECE_COUNTS[type] - (counts[type.toLowerCase()] || 0);
+                const whiteMissing = START_PIECE_COUNTS[type] - (counts[type] || 0);
+                for (let i = 0; i < blackMissing; i++) capturedByWhite.push(type.toLowerCase());
+                for (let i = 0; i < whiteMissing; i++) capturedByBlack.push(type);
+                materialWhite += blackMissing * PIECE_VALUE[type];
+                materialBlack += whiteMissing * PIECE_VALUE[type];
+            }
+            return { capturedByWhite, capturedByBlack, diff: materialWhite - materialBlack };
+        }
+
+        function renderCapturedTray(elId, pieces, diffToShow) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.innerHTML = pieces.map(p => `<img src="${PIECE_IMAGES[p]}" class="captured-icon">`).join('');
+            if (diffToShow > 0) el.innerHTML += `<span class="captured-diff">+${diffToShow}</span>`;
+        }
+
+        function updateCapturedTrays(fen, whiteTrayId, blackTrayId) {
+            const { capturedByWhite, capturedByBlack, diff } = computeCaptured(fen);
+            renderCapturedTray(whiteTrayId, capturedByWhite, diff > 0 ? diff : 0);
+            renderCapturedTray(blackTrayId, capturedByBlack, diff < 0 ? -diff : 0);
+        }
+
+        // Player-side variant: maps white/black captures onto self/opponent depending on myColor
+        function updatePlayerCapturedTrays(fen) {
+            const { capturedByWhite, capturedByBlack, diff } = computeCaptured(fen);
+            const selfIsWhite = myColor === 'white';
+            const selfDiff = selfIsWhite ? diff : -diff;
+            renderCapturedTray('selfCapturedTray', selfIsWhite ? capturedByWhite : capturedByBlack, selfDiff > 0 ? selfDiff : 0);
+            renderCapturedTray('opponentCapturedTray', selfIsWhite ? capturedByBlack : capturedByWhite, selfDiff < 0 ? -selfDiff : 0);
         }
 
         // drag state
@@ -722,6 +785,7 @@
 
             const finishRender = () => {
                 drawBoard();
+                updatePlayerCapturedTrays(currentFEN);
                 boardEverRendered = true;
             };
             if (shouldAnimateOpponentMove) {
@@ -1549,6 +1613,7 @@
             const specBoardEl = document.getElementById('specBoard');
             const finishSpecRender = () => {
                 drawSpecBoard();
+                updateCapturedTrays(specFEN, 'specWhiteCapturedTray', 'specBlackCapturedTray');
                 specBoardEverRendered = true;
             };
             if (shouldAnimate) {
