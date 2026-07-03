@@ -147,6 +147,11 @@
     .square img { width: 50px; height: 50px; pointer-events: none; }
     .light { background: #f0d9b5; }
     .dark { background: #b58863; }
+    .coord-rank, .coord-file { position: absolute; font-size: 10px; font-weight: bold; opacity: 0.7; pointer-events: none; line-height: 1; }
+    .coord-rank { top: 2px; left: 3px; }
+    .coord-file { bottom: 2px; right: 3px; }
+    .light .coord-rank, .light .coord-file { color: #b58863; }
+    .dark .coord-rank, .dark .coord-file { color: #f0d9b5; }
     .square:hover { filter: brightness(1.15); }
     .selected { background: #f7ec5f !important; }
     .last-move { box-shadow: inset 0 0 0 4px rgba(255,107,107,0.7); }
@@ -310,6 +315,7 @@
                     <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="toggleSpecFlip()">🔄 Flip Board</button>
                     <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="location.reload()">🚪 Leave</button>
                 </div>
+                <button class="coord-toggle-btn" style="padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer; width:100%;" onclick="toggleCoords()">🔢 Coords: On</button>
                 <button style="padding:10px; border:2px solid #9C27B0; background:rgba(156,39,176,0.1); color:white; border-radius:6px; cursor:pointer; width:100%;" onclick="openReview()">📖 Review Game</button>
             </div>
             <div style="width:240px; display:flex; flex-direction:column; gap:12px;">
@@ -351,6 +357,7 @@
             </div>
             <div class="action-row">
                 <button class="drag-btn-mp" id="dragBtn" onclick="toggleDragMode()">✋ Drag: On</button>
+                <button class="drag-btn-mp coord-toggle-btn" onclick="toggleCoords()">🔢 Coords: On</button>
             </div>
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; color:#888;">
                 Room: <span id="inGameCode" onclick="copyRoomCode()" style="letter-spacing:3px; font-size:14px; color:#4CAF50; cursor:pointer; font-weight:bold;" title="Click to copy"></span>
@@ -482,6 +489,35 @@
         let ownMoveUci = null;
         let boardEverRendered = false; // avoids animating on initial load / resume-on-refresh
 
+        // ---- board coordinates (a-h / 1-8) ----
+        let showCoords = (localStorage.getItem('mfShowCoords') !== 'false'); // default on
+
+        // Adds the small a-h / 1-8 corner labels to a square. `squareName` is already
+        // flip-aware (see drawBoard/drawSpecBoard), so vCol===0 is always the visually
+        // leftmost column and vRow===7 is always the visually bottom row.
+        function addCoordLabels(square, vRow, vCol, squareName) {
+            if (vCol === 0) {
+                const rankLabel = document.createElement('span');
+                rankLabel.className = 'coord-rank';
+                rankLabel.textContent = squareName[1];
+                square.appendChild(rankLabel);
+            }
+            if (vRow === 7) {
+                const fileLabel = document.createElement('span');
+                fileLabel.className = 'coord-file';
+                fileLabel.textContent = squareName[0];
+                square.appendChild(fileLabel);
+            }
+        }
+
+        function toggleCoords() {
+            showCoords = !showCoords;
+            localStorage.setItem('mfShowCoords', showCoords ? 'true' : 'false');
+            document.querySelectorAll('.coord-toggle-btn').forEach(b => b.textContent = showCoords ? '🔢 Coords: On' : '🔢 Coords: Off');
+            if (gameActive) drawBoard();
+            if (spectateCode) drawSpecBoard();
+        }
+
         // drag state
         let dragEnabled = (localStorage.getItem('dragEnabled') !== 'false');
         let _drag = null; // { fromSq, ghostEl, startX, startY, wasDrag }
@@ -489,6 +525,7 @@
         // ===== RESUME ON REFRESH =====
         window.addEventListener('load', () => {
             _applyDragBtnState();
+            document.querySelectorAll('.coord-toggle-btn').forEach(b => b.textContent = showCoords ? '🔢 Coords: On' : '🔢 Coords: Off');
             const saved = sessionStorage.getItem('mp_session');
             if (saved) {
                 try {
@@ -1025,6 +1062,7 @@
                 img.src = PIECE_IMAGES[piece];
                 square.appendChild(img);
             }
+            if (showCoords) addCoordLabels(square, vRow, vCol, squareName);
             if (lastMove && (squareName === lastMove.from || squareName === lastMove.to)) {
                 square.classList.add('last-move');
             }
@@ -1265,6 +1303,20 @@
             t = Math.max(0, Math.min(reviewHistory.length - 1, t));
             showReviewMove(t);
         }
+
+        // Keyboard shortcuts while the review modal is open: ←/→ step one move,
+        // Home/End jump to start/end, Esc closes. Ignored while typing in a field
+        // (e.g. the PGN textarea) so normal text-editing keys still work there.
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('reviewModal').classList.contains('active')) return;
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (e.key === 'ArrowLeft')      { e.preventDefault(); reviewStep(-1); }
+            else if (e.key === 'ArrowRight'){ e.preventDefault(); reviewStep(1); }
+            else if (e.key === 'Home')      { e.preventDefault(); reviewStep(-1000); }
+            else if (e.key === 'End')       { e.preventDefault(); reviewStep(1000); }
+            else if (e.key === 'Escape')    { e.preventDefault(); closeReview(); }
+        });
 
         function showReviewMove(i) {
             reviewIndex = i;
@@ -1579,6 +1631,7 @@
                         img.src = PIECE_IMAGES[piece];
                         sq.appendChild(img);
                     }
+                    if (showCoords) addCoordLabels(sq, vRow, vCol, sqName);
                     el.appendChild(sq);
                 }
             }
