@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>MattFish Chess — Multiplayer</title>
+<script src="/static/theme.js"></script>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -257,11 +258,71 @@
         .game-wrap { flex-direction: column; align-items: center; }
         .controls-col { width: 100%; max-width: 470px; }
     }
+
+    /* ---- Personalize panel (shared with the homepage via /static/theme.js) ---- */
+    .personalize-toggle-btn {
+        display: block;
+        margin: 0 auto 20px auto;
+        padding: 10px 30px;
+        font-size: 16px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .personalize-toggle-btn:hover { background: #c0392b; }
+    .personalize-panel {
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 0 auto 30px auto;
+        max-width: 400px;
+    }
+    .personalize-panel h3 { font-size: 14px; margin-bottom: 12px; text-align: center; }
+    .section-title { font-size: 11px; color: #888; text-transform: uppercase; margin: 10px 0 6px 0; letter-spacing: 0.5px; }
+    .color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 10px; }
+    .color-swatch { width: 100%; aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+    .color-swatch:hover { transform: scale(1.15); border-color: white; z-index: 2; position: relative; }
+    .color-swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #e74c3c; }
+    .custom-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .custom-color-row label { font-size: 11px; color: #aaa; min-width: 70px; }
+    .custom-color-row input[type="color"] { width: 36px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: none; padding: 0; }
+    .custom-color-row input[type="text"] { flex: 1; padding: 5px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #1e1e1e; color: white; width: auto; }
+    .upload-area { border: 2px dashed #555; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
+    .upload-area:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.05); }
+    .upload-area.dragover { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+    .upload-area p { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .upload-area input[type="file"] { display: none; }
+    .upload-btn { padding: 6px 14px; font-size: 12px; background: #444; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .upload-btn:hover { background: #555; }
+    .preview-img { max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 8px; display: none; }
+    .preview-img.visible { display: block; }
+    .remove-img-btn { padding: 4px 10px; font-size: 11px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 6px; display: none; }
+    .remove-img-btn.visible { display: inline-block; }
+    .remove-img-btn:hover { background: #a93226; }
+    .reset-btn { width: 100%; padding: 8px; font-size: 12px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
+    .reset-btn:hover { background: #666; }
+    .bg-image-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: -1;
+        opacity: 0.12;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        pointer-events: none;
+    }
 </style>
 </head>
 <body>
+    <div class="bg-image-overlay" id="bgImageOverlay"></div>
     <a href="/" class="back-link">← Back to Stats</a>
     <h1>♟ MattFish Multiplayer</h1>
+    <button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">🎨 Personalize</button>
+    <div id="themePanelContainer" style="text-align:center;"></div>
 
     <!-- LOBBY -->
     <div class="lobby" id="lobby">
@@ -643,6 +704,9 @@
             document.querySelectorAll('.coord-toggle-btn').forEach(b => b.textContent = showCoords ? '🔢 Coords: On' : '🔢 Coords: Off');
             applyBoardTheme(boardTheme);
             renderThemePickers();
+            try {
+                if (typeof initThemePanel === 'function') initThemePanel('themePanelContainer');
+            } catch (e) { console.log('Theme panel not available:', e); }
             const saved = sessionStorage.getItem('mp_session');
             if (saved) {
                 try {
