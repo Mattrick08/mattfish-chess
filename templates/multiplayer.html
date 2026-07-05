@@ -5,6 +5,10 @@
 <title>MattFish Chess — Multiplayer</title>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+        --board-light: #f0d9b5;
+        --board-dark: #b58863;
+    }
     body {
         background: #1e1e1e;
         color: white;
@@ -138,6 +142,15 @@
     .captured-icon { width: 16px; height: 16px; margin-right: -6px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
     .captured-diff { margin-left: 9px; font-size: 11px; font-weight: bold; color: #8bc34a; }
 
+    .theme-picker { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; width: 100%; }
+    .theme-swatch {
+        width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+        border: 2px solid transparent; overflow: hidden; display: grid;
+        grid-template-columns: 1fr 1fr; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    .theme-swatch:hover { transform: scale(1.08); }
+    .theme-swatch.active { border-color: #4CAF50; }
+
     #board {
         display: grid;
         grid-template-columns: repeat(8, 58px);
@@ -148,13 +161,13 @@
     .square { width: 58px; height: 58px; display: flex; justify-content: center; align-items: center; cursor: grab; user-select: none; position: relative; }
     .square:active { cursor: grabbing; }
     .square img { width: 50px; height: 50px; pointer-events: none; }
-    .light { background: #f0d9b5; }
-    .dark { background: #b58863; }
+    .light { background: var(--board-light); }
+    .dark { background: var(--board-dark); }
     .coord-rank, .coord-file { position: absolute; font-size: 10px; font-weight: bold; opacity: 0.7; pointer-events: none; line-height: 1; }
     .coord-rank { top: 2px; left: 3px; }
     .coord-file { bottom: 2px; right: 3px; }
-    .light .coord-rank, .light .coord-file { color: #b58863; }
-    .dark .coord-rank, .dark .coord-file { color: #f0d9b5; }
+    .light .coord-rank, .light .coord-file { color: var(--board-dark); }
+    .dark .coord-rank, .dark .coord-file { color: var(--board-light); }
     .square:hover { filter: brightness(1.15); }
     .selected { background: #f7ec5f !important; }
     .last-move { box-shadow: inset 0 0 0 4px rgba(255,107,107,0.7); }
@@ -223,8 +236,8 @@
     #reviewBoard { display: grid; grid-template-columns: repeat(8, 48px); grid-template-rows: repeat(8, 48px); border: 3px solid #555; border-radius: 4px; }
     #reviewBoard .sq { width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; }
     #reviewBoard .sq img { width: 40px; height: 40px; pointer-events: none; }
-    #reviewBoard .rl { background: #f0d9b5; }
-    #reviewBoard .rd { background: #b58863; }
+    #reviewBoard .rl { background: var(--board-light); }
+    #reviewBoard .rd { background: var(--board-dark); }
     #reviewBoard .rv-last { box-shadow: inset 0 0 0 3px rgba(255,107,107,0.7); }
     .review-nav-btns { display: flex; gap: 8px; }
     .review-nav-btns button { padding: 7px 12px; border: 2px solid #444; background: transparent; color: white; border-radius: 6px; cursor: pointer; }
@@ -325,7 +338,8 @@
                     <button style="flex:1; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer;" onclick="location.reload()">🚪 Leave</button>
                 </div>
                 <button class="coord-toggle-btn" style="order:5; padding:9px; border:2px solid #607D8B; background:transparent; color:white; border-radius:6px; cursor:pointer; width:100%;" onclick="toggleCoords()">🔢 Coords: On</button>
-                <button style="order:6; padding:10px; border:2px solid #9C27B0; background:rgba(156,39,176,0.1); color:white; border-radius:6px; cursor:pointer; width:100%;" onclick="openReview()">📖 Review Game</button>
+                <div class="theme-picker" style="order:6;"></div>
+                <button style="order:7; padding:10px; border:2px solid #9C27B0; background:rgba(156,39,176,0.1); color:white; border-radius:6px; cursor:pointer; width:100%;" onclick="openReview()">📖 Review Game</button>
             </div>
             <div style="width:240px; display:flex; flex-direction:column; gap:12px;">
                 <div style="background:#2e2e2e; border-radius:8px; padding:12px; font-size:13px; color:#aaa; text-align:center;" id="specStatus">Waiting for game to start…</div>
@@ -374,6 +388,7 @@
                 <button class="drag-btn-mp" id="dragBtn" onclick="toggleDragMode()">✋ Drag: On</button>
                 <button class="drag-btn-mp coord-toggle-btn" onclick="toggleCoords()">🔢 Coords: On</button>
             </div>
+            <div class="theme-picker"></div>
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; color:#888;">
                 Room: <span id="inGameCode" onclick="copyRoomCode()" style="letter-spacing:3px; font-size:14px; color:#4CAF50; cursor:pointer; font-weight:bold;" title="Click to copy"></span>
                 <span id="watcherCount"></span>
@@ -526,6 +541,42 @@
             }
         }
 
+        // ---- board color theme ----
+        const BOARD_THEMES = {
+            classic: { light: '#f0d9b5', dark: '#b58863', label: 'Classic' },
+            green:   { light: '#eeeed2', dark: '#769656', label: 'Green' },
+            blue:    { light: '#dee3e6', dark: '#4b7399', label: 'Blue' },
+            gray:    { light: '#e8e8e8', dark: '#8a8a8a', label: 'Gray' },
+            purple:  { light: '#e6d9f0', dark: '#8e6fb0', label: 'Purple' },
+            coral:   { light: '#f5d7c9', dark: '#c96b4f', label: 'Coral' },
+        };
+        let boardTheme = localStorage.getItem('mfBoardTheme') || 'classic';
+        if (!BOARD_THEMES[boardTheme]) boardTheme = 'classic';
+
+        function applyBoardTheme(themeKey) {
+            const t = BOARD_THEMES[themeKey] || BOARD_THEMES.classic;
+            document.documentElement.style.setProperty('--board-light', t.light);
+            document.documentElement.style.setProperty('--board-dark', t.dark);
+            document.querySelectorAll('.theme-swatch').forEach(el => {
+                el.classList.toggle('active', el.dataset.theme === themeKey);
+            });
+        }
+
+        function setBoardTheme(themeKey) {
+            boardTheme = themeKey;
+            localStorage.setItem('mfBoardTheme', themeKey);
+            applyBoardTheme(themeKey);
+        }
+
+        function renderThemePickers() {
+            const html = Object.entries(BOARD_THEMES).map(([key, t]) =>
+                `<div class="theme-swatch ${key === boardTheme ? 'active' : ''}" data-theme="${key}" title="${t.label}" onclick="setBoardTheme('${key}')">` +
+                `<span style="background:${t.light}"></span><span style="background:${t.dark}"></span>` +
+                `</div>`
+            ).join('');
+            document.querySelectorAll('.theme-picker').forEach(el => el.innerHTML = html);
+        }
+
         function toggleCoords() {
             showCoords = !showCoords;
             localStorage.setItem('mfShowCoords', showCoords ? 'true' : 'false');
@@ -590,6 +641,8 @@
         window.addEventListener('load', () => {
             _applyDragBtnState();
             document.querySelectorAll('.coord-toggle-btn').forEach(b => b.textContent = showCoords ? '🔢 Coords: On' : '🔢 Coords: Off');
+            applyBoardTheme(boardTheme);
+            renderThemePickers();
             const saved = sessionStorage.getItem('mp_session');
             if (saved) {
                 try {
