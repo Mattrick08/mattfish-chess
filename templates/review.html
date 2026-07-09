@@ -8,6 +8,7 @@
 <link rel="icon" href="/static/icon-192.png">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>MattFish — Game Review</title>
+<script src="/static/theme.js"></script>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -330,13 +331,131 @@
         .review-layout { flex-direction: column; align-items: center; }
         .board-column { flex-direction: row; }
     }
+
+    /* ---- Personalize panel (shared with the rest of MattFish via /static/theme.js) ---- */
+    .personalize-toggle-btn {
+        display: block;
+        margin: 0 auto 20px auto;
+        padding: 10px 30px;
+        font-size: 16px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .personalize-toggle-btn:hover { background: #c0392b; }
+    .personalize-panel {
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 0 auto 30px auto;
+        max-width: 400px;
+    }
+    .personalize-panel h3 { font-size: 14px; margin-bottom: 12px; text-align: center; }
+    .section-title {
+        font-size: 11px;
+        color: #888;
+        text-transform: uppercase;
+        margin: 10px 0 6px 0;
+        letter-spacing: 0.5px;
+    }
+    .color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 10px; }
+    .color-swatch {
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: 0.2s;
+    }
+    .color-swatch:hover { transform: scale(1.15); border-color: white; z-index: 2; position: relative; }
+    .color-swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #e74c3c; }
+    .custom-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .custom-color-row label { font-size: 11px; color: #aaa; min-width: 70px; }
+    .custom-color-row input[type="color"] {
+        width: 36px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: none; padding: 0;
+    }
+    .custom-color-row input[type="text"] {
+        flex: 1; padding: 5px 8px; font-size: 12px; border-radius: 4px;
+        border: 1px solid #555; background: #1e1e1e; color: white; width: auto;
+    }
+    .upload-area {
+        border: 2px dashed #555;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.2s;
+        margin-bottom: 10px;
+    }
+    .upload-area:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.05); }
+    .upload-area.dragover { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+    .upload-area p { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .upload-area input[type="file"] { display: none; }
+    .upload-btn {
+        padding: 6px 14px; font-size: 12px; background: #444; color: white; border: none; border-radius: 6px; cursor: pointer;
+    }
+    .upload-btn:hover { background: #555; }
+    .preview-img { max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 8px; display: none; }
+    .preview-img.visible { display: block; }
+    .remove-img-btn {
+        padding: 4px 10px; font-size: 11px; background: #c0392b; color: white; border: none;
+        border-radius: 4px; cursor: pointer; margin-top: 6px; display: none;
+    }
+    .remove-img-btn.visible { display: inline-block; }
+    .remove-img-btn:hover { background: #a93226; }
+    .reset-btn {
+        width: 100%; padding: 8px; font-size: 12px; background: #555; color: white;
+        border: none; border-radius: 6px; cursor: pointer; margin-top: 8px;
+    }
+    .reset-btn:hover { background: #666; }
+    .bg-image-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: -1;
+        opacity: 0.12;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        pointer-events: none;
+    }
+
+    /* ---- Game advantage graph (side panel, chess.com style) ---- */
+    .eval-graph-wrap {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 10px 6px;
+    }
+    .eval-graph-title {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+    #evalGraph {
+        width: 100%;
+        height: 70px;
+        display: block;
+        cursor: pointer;
+        border-radius: 4px;
+        overflow: hidden;
+    }
 </style>
 </head>
 <body>
+<div class="bg-image-overlay" id="bgImageOverlay"></div>
 
 <a href="/" class="back-link">&larr; MattFish home</a>
 <h1>Game Review</h1>
 <div class="subtitle">Paste a PGN and get a real Stockfish-powered breakdown: accuracy, move classifications, best-move hints.</div>
+
+<button id="personalizeToggleBtn" class="personalize-toggle-btn" onclick="togglePersonalizePanel()">&#127912; Personalize</button>
+<div id="themePanelContainer" style="text-align:center;"></div>
 
 <div id="pasteScreen">
     <label for="pgnInput">Paste your PGN</label>
@@ -381,6 +500,11 @@
                 <span class="detail">Starting position</span>
             </div>
 
+            <div class="eval-graph-wrap">
+                <div class="eval-graph-title">Advantage over the game</div>
+                <svg id="evalGraph" viewBox="0 0 340 90" preserveAspectRatio="none"></svg>
+            </div>
+
             <div class="nav-controls">
                 <button class="nav-btn" id="startBtn" title="Start">&laquo;</button>
                 <button class="nav-btn" id="prevBtn" title="Previous">&lsaquo;</button>
@@ -410,6 +534,10 @@ const PIECE_IMAGES = {
 let reviewData = null;   // full response from /api/review/analyze
 let currentIndex = -1;   // -1 = starting position, 0..n-1 = after that ply's move
 let selectedDepth = 14;
+
+if (typeof initThemePanel === 'function') {
+    initThemePanel('themePanelContainer');
+}
 
 document.querySelectorAll('.depth-btn').forEach(btn => {
     btn.onclick = () => {
@@ -488,6 +616,79 @@ function updateEvalBar(evalCp, mate) {
     label.style.color = whitePercent > 50 ? '#222' : '#eee';
 }
 
+// ---- Game advantage graph (white/black eval over the whole game) ----
+function evalToWhitePercent(evalCp, mate) {
+    let whitePercent;
+    if (mate !== null && mate !== undefined) {
+        whitePercent = mate > 0 ? 100 : 0;
+    } else {
+        const cp = evalCp ?? 0;
+        whitePercent = 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+    }
+    return Math.max(0, Math.min(100, whitePercent));
+}
+
+function renderEvalGraph() {
+    const svg = document.getElementById('evalGraph');
+    if (!svg || !reviewData) return;
+    const moves = reviewData.moves;
+    const n = moves.length;
+    const W = 340, H = 90;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    if (n === 0) { svg.innerHTML = ''; return; }
+
+    const points = [{ x: 0, y: H / 2 }]; // starting position, eval 0
+    moves.forEach((m, i) => {
+        const x = ((i + 1) / n) * W;
+        const whitePercent = evalToWhitePercent(m.eval_cp, m.mate);
+        const y = H * (1 - whitePercent / 100);
+        points.push({ x, y });
+    });
+
+    let topPath = `M0,0 L0,${points[0].y.toFixed(2)} `;
+    points.forEach(p => topPath += `L${p.x.toFixed(2)},${p.y.toFixed(2)} `);
+    topPath += `L${W},0 Z`;
+
+    let botPath = `M0,${H} L0,${points[0].y.toFixed(2)} `;
+    points.forEach(p => botPath += `L${p.x.toFixed(2)},${p.y.toFixed(2)} `);
+    botPath += `L${W},${H} Z`;
+
+    let lineD = `M${points[0].x.toFixed(2)},${points[0].y.toFixed(2)} `;
+    points.slice(1).forEach(p => lineD += `L${p.x.toFixed(2)},${p.y.toFixed(2)} `);
+
+    svg.innerHTML = `
+        <path d="${topPath}" fill="#eeeeee"></path>
+        <path d="${botPath}" fill="#161616"></path>
+        <line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" stroke="rgba(255,255,255,0.15)" stroke-width="1"></line>
+        <path d="${lineD}" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1"></path>
+        <line id="evalGraphCursor" x1="0" y1="0" x2="0" y2="${H}" stroke="#e74c3c" stroke-width="2" style="display:none;"></line>
+    `;
+
+    const themeAccent = (typeof getTheme === 'function') ? getTheme().accentColor : null;
+    const cursor = document.getElementById('evalGraphCursor');
+    if (cursor && themeAccent) cursor.setAttribute('stroke', themeAccent);
+
+    svg.onclick = (e) => {
+        const rect = svg.getBoundingClientRect();
+        const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const idx = Math.round(relX * n) - 1; // -1 = starting position
+        goToPly(Math.max(-1, Math.min(n - 1, idx)));
+    };
+}
+
+function updateEvalGraphCursor() {
+    const cursor = document.getElementById('evalGraphCursor');
+    if (!cursor || !reviewData) return;
+    const n = reviewData.moves.length;
+    if (n === 0) return;
+    const W = 340;
+    const x = currentIndex === -1 ? 0 : ((currentIndex + 1) / n) * W;
+    cursor.setAttribute('x1', x.toFixed(2));
+    cursor.setAttribute('x2', x.toFixed(2));
+    cursor.style.display = 'block';
+}
+
 function renderMoveList() {
     const list = document.getElementById('moveList');
     list.innerHTML = '';
@@ -557,6 +758,7 @@ function render() {
 
     drawBoard(fen, lastMoveSquares);
     updateEvalBar(evalCp, mate);
+    updateEvalGraphCursor();
 
     const infoBox = document.getElementById('currentMoveInfo');
     if (currentIndex === -1) {
@@ -634,6 +836,7 @@ document.getElementById('analyzeBtn').onclick = async () => {
         document.getElementById('resultBadge').textContent = data.result;
 
         renderMoveList();
+        renderEvalGraph();
         render();
 
         document.getElementById('pasteScreen').style.display = 'none';
