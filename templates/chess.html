@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e1e1e">
+    <link rel="icon" href="/static/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>MattFish Chess</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1993,6 +1997,13 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        }
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
         }
     </script>
 </body>
