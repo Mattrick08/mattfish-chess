@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 import secrets
 import time as time_module
 import chess
@@ -14,6 +14,19 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 # ========== CHESS GAME (vs Engine) ==========
 games = {}
+
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory("static", "manifest.json")
+
+@app.route("/sw.js")
+def service_worker():
+    response = send_from_directory("static", "sw.js")
+    # Serving from /sw.js (root) rather than /static/sw.js lets it control the whole site,
+    # not just the /static/ path.
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 @app.route("/")
 def index():
