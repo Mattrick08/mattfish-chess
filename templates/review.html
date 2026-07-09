@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e1e1e">
+<link rel="icon" href="/static/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<title>MattFish — Game Review</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+        --board-light: #f0d9b5;
+        --board-dark: #b58863;
+        --bg: #1e1e1e;
+        --panel: #262626;
+        --panel-light: #2f2f2f;
+        --border: #3a3a3a;
+        --text-dim: #9a9a9a;
+        --best: #3ba55c;
+        --excellent: #6fbf73;
+        --good: #4a90d9;
+        --book: #8a7a5c;
+        --inaccuracy: #d9b23b;
+        --mistake: #e08a3b;
+        --blunder: #e0453b;
+    }
+    body {
+        background: var(--bg);
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        min-height: 100vh;
+        padding: 20px;
+    }
+    a.back-link {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 14px;
+        display: inline-block;
+        margin-bottom: 14px;
+    }
+    a.back-link:hover { color: white; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
+
+    /* ---- Paste screen ---- */
+    #pasteScreen {
+        max-width: 640px;
+        margin: 40px auto;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+    }
+    #pasteScreen label {
+        display: block;
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-bottom: 8px;
+        letter-spacing: 0.03em;
+    }
+    #pgnInput {
+        width: 100%;
+        min-height: 160px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: white;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        padding: 14px;
+        resize: vertical;
+        outline: none;
+    }
+    #pgnInput:focus { border-color: var(--good); }
+
+    .depth-row {
+        display: flex;
+        gap: 8px;
+        margin: 16px 0;
+    }
+    .depth-btn {
+        flex: 1;
+        padding: 10px;
+        background: var(--panel-light);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s;
+    }
+    .depth-btn.active { background: var(--good); border-color: var(--good); color: white; }
+
+    #analyzeBtn {
+        width: 100%;
+        padding: 14px;
+        background: var(--best);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+    }
+    #analyzeBtn:hover { opacity: 0.9; }
+    #analyzeBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #errorMsg {
+        color: var(--blunder);
+        font-size: 13px;
+        margin-top: 12px;
+        display: none;
+    }
+
+    #loadingRow {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+        color: var(--text-dim);
+        font-size: 13px;
+    }
+    .spinner {
+        width: 16px; height: 16px;
+        border: 2px solid var(--border);
+        border-top-color: var(--good);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Review screen ---- */
+    #reviewScreen { display: none; }
+
+    .accuracy-bar {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        max-width: 900px;
+        margin: 0 auto 20px;
+        padding: 16px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }
+    .accuracy-side { text-align: center; }
+    .accuracy-side .name { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+    .accuracy-side .pct { font-size: 28px; font-weight: 700; }
+    .accuracy-side.white .pct { color: #f0f0f0; }
+    .accuracy-side.black .pct { color: #c9c9c9; }
+    .result-badge {
+        align-self: center;
+        font-size: 13px;
+        color: var(--text-dim);
+        padding: 6px 14px;
+        background: var(--panel-light);
+        border-radius: 100px;
+    }
+
+    .review-layout {
+        display: flex;
+        gap: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .board-column { display: flex; gap: 10px; }
+
+    .eval-bar-wrap {
+        width: 22px;
+        height: 480px;
+        background: #111;
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid var(--border);
+    }
+    .eval-bar-white {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        background: #eee;
+        transition: height 0.25s ease;
+    }
+    .eval-bar-label {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-weight: 700;
+        color: #333;
+        white-space: nowrap;
+    }
+
+    #board {
+        width: 480px;
+        height: 480px;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+    }
+    .square { position: relative; display: flex; align-items: center; justify-content: center; }
+    .square.light { background: var(--board-light); }
+    .square.dark { background: var(--board-dark); }
+    .square.highlight-from { box-shadow: inset 0 0 0 9999px rgba(255, 214, 51, 0.35); }
+    .square.highlight-to { box-shadow: inset 0 0 0 9999px rgba(255, 214, 51, 0.5); }
+    .square img { width: 82%; height: 82%; object-fit: contain; pointer-events: none; }
+
+    .side-panel {
+        width: 340px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .current-move-info {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        min-height: 64px;
+    }
+    .current-move-info .badge {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 100px;
+        color: #111;
+        margin-bottom: 6px;
+    }
+    .current-move-info .detail { font-size: 13px; color: var(--text-dim); }
+    .current-move-info .best-hint { font-size: 12px; color: var(--best); margin-top: 4px; }
+
+    .badge.Best { background: var(--best); color: white; }
+    .badge.Excellent { background: var(--excellent); color: #06210b; }
+    .badge.Good { background: var(--good); color: white; }
+    .badge.Book { background: var(--book); color: white; }
+    .badge.Inaccuracy { background: var(--inaccuracy); color: #241c00; }
+    .badge.Mistake { background: var(--mistake); color: #240f00; }
+    .badge.Blunder { background: var(--blunder); color: white; }
+
+    .move-list {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        flex: 1;
+        overflow-y: auto;
+        max-height: 340px;
+        padding: 6px;
+    }
+    .move-row {
+        display: grid;
+        grid-template-columns: 32px 1fr 1fr;
+        gap: 4px;
+        align-items: center;
+        padding: 3px 4px;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+    .move-row .num { color: var(--text-dim); font-size: 12px; }
+    .move-cell {
+        padding: 5px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        transition: background 0.1s;
+    }
+    .move-cell:hover { background: var(--panel-light); }
+    .move-cell.active { background: var(--good); }
+    .move-cell .dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .dot.Best { background: var(--best); }
+    .dot.Excellent { background: var(--excellent); }
+    .dot.Good { background: var(--good); }
+    .dot.Book { background: var(--book); }
+    .dot.Inaccuracy { background: var(--inaccuracy); }
+    .dot.Mistake { background: var(--mistake); }
+    .dot.Blunder { background: var(--blunder); }
+
+    .nav-controls {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+    .nav-btn {
+        padding: 10px 16px;
+        background: var(--panel-light);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    .nav-btn:hover { background: var(--good); }
+    .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; background: var(--panel-light); }
+
+    .new-review-btn {
+        text-align: center;
+        margin-top: 20px;
+    }
+    .new-review-btn button {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        padding: 8px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .new-review-btn button:hover { color: white; border-color: white; }
+
+    @media (max-width: 860px) {
+        #board { width: 90vw; height: 90vw; max-width: 420px; max-height: 420px; }
+        .eval-bar-wrap { height: 90vw; max-height: 420px; }
+        .side-panel { width: 100%; max-width: 420px; }
+        .review-layout { flex-direction: column; align-items: center; }
+        .board-column { flex-direction: row; }
+    }
+</style>
+</head>
+<body>
+
+<a href="/" class="back-link">&larr; MattFish home</a>
+<h1>Game Review</h1>
+<div class="subtitle">Paste a PGN and get a real Stockfish-powered breakdown: accuracy, move classifications, best-move hints.</div>
+
+<div id="pasteScreen">
+    <label for="pgnInput">Paste your PGN</label>
+    <textarea id="pgnInput" placeholder="1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ..."></textarea>
+
+    <label style="margin-top:16px;">Analysis depth</label>
+    <div class="depth-row">
+        <button class="depth-btn" data-depth="10">Fast</button>
+        <button class="depth-btn active" data-depth="14">Normal</button>
+        <button class="depth-btn" data-depth="18">Precise</button>
+    </div>
+
+    <button id="analyzeBtn">Analyze game</button>
+    <div id="loadingRow"><div class="spinner"></div><span id="loadingText">Analyzing position by position…</span></div>
+    <div id="errorMsg"></div>
+</div>
+
+<div id="reviewScreen">
+    <div class="accuracy-bar">
+        <div class="accuracy-side white">
+            <div class="name" id="whiteName">White</div>
+            <div class="pct" id="whiteAcc">--%</div>
+        </div>
+        <div class="result-badge" id="resultBadge">*</div>
+        <div class="accuracy-side black">
+            <div class="name" id="blackName">Black</div>
+            <div class="pct" id="blackAcc">--%</div>
+        </div>
+    </div>
+
+    <div class="review-layout">
+        <div class="board-column">
+            <div class="eval-bar-wrap">
+                <div class="eval-bar-white" id="evalBarWhite" style="height:50%;"></div>
+                <div class="eval-bar-label" id="evalBarLabel" style="bottom:2px;">0.0</div>
+            </div>
+            <div id="board"></div>
+        </div>
+
+        <div class="side-panel">
+            <div class="current-move-info" id="currentMoveInfo">
+                <span class="detail">Starting position</span>
+            </div>
+
+            <div class="nav-controls">
+                <button class="nav-btn" id="startBtn" title="Start">&laquo;</button>
+                <button class="nav-btn" id="prevBtn" title="Previous">&lsaquo;</button>
+                <button class="nav-btn" id="nextBtn" title="Next">&rsaquo;</button>
+                <button class="nav-btn" id="endBtn" title="End">&raquo;</button>
+            </div>
+
+            <div class="move-list" id="moveList"></div>
+        </div>
+    </div>
+
+    <div class="new-review-btn">
+        <button id="newReviewBtn">Analyze another game</button>
+    </div>
+</div>
+
+<script>
+const PIECE_IMAGES = {
+    'P': '/static/pieces/wP (1).png', 'N': '/static/pieces/wN (1).png',
+    'B': '/static/pieces/wB (1).png', 'R': '/static/pieces/wR (1).png',
+    'Q': '/static/pieces/wQ (1).png', 'K': '/static/pieces/wK (1).png',
+    'p': '/static/pieces/bP (1).png', 'n': '/static/pieces/bN (1).png',
+    'b': '/static/pieces/bB (1).png', 'r': '/static/pieces/bR (1).png',
+    'q': '/static/pieces/bQ (1).png', 'k': '/static/pieces/bK (1).png'
+};
+
+let reviewData = null;   // full response from /api/review/analyze
+let currentIndex = -1;   // -1 = starting position, 0..n-1 = after that ply's move
+let selectedDepth = 14;
+
+document.querySelectorAll('.depth-btn').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.depth-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedDepth = parseInt(btn.dataset.depth);
+    };
+});
+
+function fenToGrid(fen) {
+    const rows = fen.split(' ')[0].split('/');
+    const grid = [];
+    for (const row of rows) {
+        const r = [];
+        for (const ch of row) {
+            if (ch >= '1' && ch <= '8') {
+                for (let i = 0; i < parseInt(ch); i++) r.push(null);
+            } else {
+                r.push(ch);
+            }
+        }
+        grid.push(r);
+    }
+    return grid;
+}
+
+function drawBoard(fen, lastMoveSquares) {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    const grid = fenToGrid(fen);
+
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const square = document.createElement('div');
+            const isLight = (row + col) % 2 === 0;
+            square.className = 'square ' + (isLight ? 'light' : 'dark');
+            const squareName = 'abcdefgh'[col] + (8 - row);
+
+            if (lastMoveSquares) {
+                if (squareName === lastMoveSquares.from) square.classList.add('highlight-from');
+                if (squareName === lastMoveSquares.to) square.classList.add('highlight-to');
+            }
+
+            const piece = grid[row][col];
+            if (piece && PIECE_IMAGES[piece]) {
+                const img = document.createElement('img');
+                img.src = PIECE_IMAGES[piece];
+                img.alt = piece;
+                square.appendChild(img);
+            }
+            board.appendChild(square);
+        }
+    }
+}
+
+function updateEvalBar(evalCp, mate) {
+    let whitePercent;
+    if (mate !== null && mate !== undefined) {
+        whitePercent = mate > 0 ? 100 : 0;
+    } else {
+        const cp = evalCp ?? 0;
+        // same sigmoid used server-side, for a smooth non-linear bar
+        whitePercent = 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+    }
+    whitePercent = Math.max(2, Math.min(98, whitePercent));
+    document.getElementById('evalBarWhite').style.height = whitePercent + '%';
+
+    const label = document.getElementById('evalBarLabel');
+    if (mate !== null && mate !== undefined) {
+        label.textContent = 'M' + Math.abs(mate);
+    } else {
+        label.textContent = ((evalCp ?? 0) / 100).toFixed(1);
+    }
+    label.style.bottom = whitePercent > 12 ? '2px' : 'auto';
+    label.style.top = whitePercent > 12 ? 'auto' : '2px';
+    label.style.color = whitePercent > 50 ? '#222' : '#eee';
+}
+
+function renderMoveList() {
+    const list = document.getElementById('moveList');
+    list.innerHTML = '';
+    const moves = reviewData.moves;
+
+    for (let i = 0; i < moves.length; i += 2) {
+        const row = document.createElement('div');
+        row.className = 'move-row';
+
+        const num = document.createElement('div');
+        num.className = 'num';
+        num.textContent = (i / 2 + 1) + '.';
+        row.appendChild(num);
+
+        row.appendChild(makeMoveCell(moves[i]));
+        row.appendChild(moves[i + 1] ? makeMoveCell(moves[i + 1]) : document.createElement('div'));
+
+        list.appendChild(row);
+    }
+}
+
+function makeMoveCell(moveData) {
+    const cell = document.createElement('div');
+    cell.className = 'move-cell';
+    cell.dataset.ply = moveData.ply;
+
+    const dot = document.createElement('span');
+    dot.className = 'dot ' + moveData.classification;
+
+    const label = document.createElement('span');
+    label.textContent = moveData.move_san;
+
+    cell.appendChild(label);
+    cell.appendChild(dot);
+    cell.onclick = () => goToPly(moveData.ply);
+    return cell;
+}
+
+function formatEval(m) {
+    if (m.mate !== null && m.mate !== undefined) {
+        return (m.mate > 0 ? 'Mate in ' + m.mate : 'Mate in ' + Math.abs(m.mate) + ' (Black)');
+    }
+    return ((m.eval_cp ?? 0) / 100).toFixed(2);
+}
+
+function goToPly(ply) {
+    currentIndex = ply;
+    render();
+}
+
+function render() {
+    const moves = reviewData.moves;
+
+    let fen, lastMoveSquares, evalCp, mate;
+    if (currentIndex === -1) {
+        fen = reviewData.starting_fen;
+        lastMoveSquares = null;
+        evalCp = 0;
+        mate = null;
+    } else {
+        const m = moves[currentIndex];
+        fen = m.fen;
+        lastMoveSquares = { from: m.move_uci.slice(0, 2), to: m.move_uci.slice(2, 4) };
+        evalCp = m.eval_cp;
+        mate = m.mate;
+    }
+
+    drawBoard(fen, lastMoveSquares);
+    updateEvalBar(evalCp, mate);
+
+    const infoBox = document.getElementById('currentMoveInfo');
+    if (currentIndex === -1) {
+        infoBox.innerHTML = '<span class="detail">Starting position</span>';
+    } else {
+        const m = moves[currentIndex];
+        const moverLabel = m.mover === 'white' ? 'White' : 'Black';
+        let html = `<span class="badge ${m.classification}">${m.classification}</span><br>`;
+        html += `<span class="detail">${moverLabel} played <strong>${m.move_san}</strong> · eval ${formatEval(m)}</span>`;
+        if (m.classification !== 'Best' && m.classification !== 'Book' && m.best_move_uci) {
+            html += `<div class="best-hint">Engine preferred: ${m.best_move_uci}</div>`;
+        }
+        infoBox.innerHTML = html;
+    }
+
+    document.querySelectorAll('.move-cell').forEach(c => c.classList.remove('active'));
+    if (currentIndex >= 0) {
+        const activeCell = document.querySelector(`.move-cell[data-ply="${currentIndex}"]`);
+        if (activeCell) {
+            activeCell.classList.add('active');
+            activeCell.scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    document.getElementById('startBtn').disabled = currentIndex === -1;
+    document.getElementById('prevBtn').disabled = currentIndex === -1;
+    document.getElementById('nextBtn').disabled = currentIndex === moves.length - 1;
+    document.getElementById('endBtn').disabled = currentIndex === moves.length - 1;
+}
+
+document.getElementById('startBtn').onclick = () => { currentIndex = -1; render(); };
+document.getElementById('prevBtn').onclick = () => { if (currentIndex > -1) { currentIndex--; render(); } };
+document.getElementById('nextBtn').onclick = () => { if (currentIndex < reviewData.moves.length - 1) { currentIndex++; render(); } };
+document.getElementById('endBtn').onclick = () => { currentIndex = reviewData.moves.length - 1; render(); };
+
+document.addEventListener('keydown', (e) => {
+    if (document.getElementById('reviewScreen').style.display !== 'block') return;
+    if (e.key === 'ArrowLeft') document.getElementById('prevBtn').click();
+    if (e.key === 'ArrowRight') document.getElementById('nextBtn').click();
+});
+
+document.getElementById('analyzeBtn').onclick = async () => {
+    const pgn = document.getElementById('pgnInput').value.trim();
+    const errorMsg = document.getElementById('errorMsg');
+    errorMsg.style.display = 'none';
+
+    if (!pgn) {
+        errorMsg.textContent = 'Paste a PGN first.';
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('loadingRow').style.display = 'flex';
+
+    try {
+        const res = await fetch('/api/review/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pgn, depth: selectedDepth })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Analysis failed.');
+        }
+
+        reviewData = data;
+        currentIndex = -1;
+
+        document.getElementById('whiteName').textContent = data.white_name;
+        document.getElementById('blackName').textContent = data.black_name;
+        document.getElementById('whiteAcc').textContent = (data.white_accuracy ?? '--') + '%';
+        document.getElementById('blackAcc').textContent = (data.black_accuracy ?? '--') + '%';
+        document.getElementById('resultBadge').textContent = data.result;
+
+        renderMoveList();
+        render();
+
+        document.getElementById('pasteScreen').style.display = 'none';
+        document.getElementById('reviewScreen').style.display = 'block';
+    } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.style.display = 'block';
+    } finally {
+        document.getElementById('analyzeBtn').disabled = false;
+        document.getElementById('loadingRow').style.display = 'none';
+    }
+};
+
+document.getElementById('newReviewBtn').onclick = () => {
+    document.getElementById('reviewScreen').style.display = 'none';
+    document.getElementById('pasteScreen').style.display = 'block';
+    document.getElementById('pgnInput').value = '';
+    reviewData = null;
+    currentIndex = -1;
+};
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
+</script>
+</body>
+</html>
