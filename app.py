@@ -8,6 +8,7 @@ import requests
 import chess.pgn
 import io
 from collections import defaultdict
+from analysis_engine import analyze_pgn
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
@@ -27,6 +28,37 @@ def service_worker():
     response.headers["Service-Worker-Allowed"] = "/"
     response.headers["Cache-Control"] = "no-cache"
     return response
+
+@app.route("/review")
+def review_page():
+    return render_template("review.html")
+
+@app.route("/api/review/analyze", methods=["POST"])
+def review_analyze():
+    data = request.get_json() or {}
+    pgn_text = (data.get("pgn") or "").strip()
+    depth = data.get("depth")
+
+    if not pgn_text:
+        return jsonify({"error": "Paste a PGN first."}), 400
+
+    try:
+        depth = int(depth) if depth else None
+        if depth is not None:
+            depth = max(8, min(20, depth))
+    except (TypeError, ValueError):
+        depth = None
+
+    try:
+        result = analyze_pgn(pgn_text, depth=depth)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": f"Analysis failed: {e}"}), 500
+
+    return jsonify(result)
 
 @app.route("/")
 def index():
