@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e1e1e">
+    <link rel="icon" href="/static/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>MattFish Chess — Multiplayer</title>
 <script src="/static/theme.js"></script>
 <style>
@@ -1894,6 +1898,13 @@
             overlay.classList.add('active');
             sessionStorage.removeItem('mp_session');
             stopPolling();
+        }
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
         }
     </script>
 </body>
