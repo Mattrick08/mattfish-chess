@@ -97,7 +97,10 @@ function applyThemeToPage() {
     });
 
     var cardBg = lightenColor(theme.bgColor, 8);
-    document.querySelectorAll('.stat-card, .chart-section, .pie-card, .openings-section, .personalize-panel, #status, .move-history').forEach(function(el) {
+    document.querySelectorAll(
+        '.stat-card, .chart-section, .pie-card, .openings-section, .personalize-panel, #status, .move-history, ' +
+        '.accuracy-bar, .current-move-info, .move-list, .eval-graph-wrap, #pasteScreen'
+    ).forEach(function(el) {
         el.style.backgroundColor = cardBg;
     });
 
