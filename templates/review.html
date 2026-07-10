@@ -702,14 +702,88 @@ function hashPgnText(text) {
     return h;
 }
 
+// Walk PGN movetext the same way the server's mainline parser does (mainline
+// moves only, variations in parentheses skipped) and pull out any {comment}
+// text, keyed by the ply it follows. A comment before the first move is
+// keyed to -1, matching the app's "note on starting position" convention.
+function parsePgnMoveNotes(pgnText) {
+    const notes = {};
+    if (!pgnText) return notes;
+
+    // Drop the header block ([Tag "Value"] lines) so header text can't be
+    // mistaken for movetext.
+    const body = pgnText.replace(/^\s*(\[[^\]]*\]\s*)+/, '');
+
+    function appendNote(ply, text) {
+        text = text.trim();
+        if (!text) return;
+        notes[ply] = notes[ply] ? notes[ply] + ' ' + text : text;
+    }
+
+    let ply = -1;
+    let parenDepth = 0;
+    let i = 0;
+    const n = body.length;
+
+    while (i < n) {
+        const ch = body[i];
+
+        if (ch === '{') {
+            let j = body.indexOf('}', i + 1);
+            if (j === -1) j = n;
+            if (parenDepth === 0) appendNote(ply, body.slice(i + 1, j));
+            i = j + 1;
+            continue;
+        }
+        if (ch === '(') { parenDepth++; i++; continue; }
+        if (ch === ')') { parenDepth = Math.max(0, parenDepth - 1); i++; continue; }
+        if (parenDepth > 0) { i++; continue; }
+        if (/\s/.test(ch)) { i++; continue; }
+
+        // ';' begins a comment that runs to end of line
+        if (ch === ';') {
+            let j = body.indexOf('\n', i + 1);
+            if (j === -1) j = n;
+            appendNote(ply, body.slice(i + 1, j));
+            i = j + 1;
+            continue;
+        }
+
+        let j = i;
+        while (j < n && !/[\s{}();]/.test(body[j])) j++;
+        let token = body.slice(i, j);
+        i = j;
+        if (!token) continue;
+
+        if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(token)) break;      // result
+        if (/^\d+\.(\.\.)?$/.test(token)) continue;              // bare move number
+        if (/^\$\d+$/.test(token)) continue;                     // NAG
+
+        const glued = token.match(/^\d+\.(\.\.)?(.+)$/);          // e.g. "12.e4"
+        if (glued) token = glued[2];
+        if (!token || /^\$\d+$/.test(token)) continue;
+
+        ply++;
+    }
+
+    return notes;
+}
+
 function loadNotesForGame(pgnText) {
     notesStorageKey = 'mfReviewNotes_' + hashPgnText(pgnText);
+    let saved = {};
     try {
         const raw = localStorage.getItem(notesStorageKey);
-        moveNotes = raw ? JSON.parse(raw) : {};
+        saved = raw ? JSON.parse(raw) : {};
     } catch (e) {
-        moveNotes = {};
+        saved = {};
     }
+    // Notes embedded in the PGN (e.g. an annotated version you imported)
+    // seed the notes; anything you've already edited/saved for this exact
+    // game text takes precedence over the imported text.
+    const imported = parsePgnMoveNotes(pgnText);
+    moveNotes = Object.assign({}, imported, saved);
+    persistNotes();
 }
 
 function persistNotes() {
