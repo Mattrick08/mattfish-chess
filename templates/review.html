@@ -1203,6 +1203,9 @@ document.getElementById('analyzeBtn').onclick = async () => {
 
     document.getElementById('analyzeBtn').disabled = true;
     document.getElementById('loadingRow').style.display = 'flex';
+    document.getElementById('loadingText').textContent = selectedDepth >= 18
+        ? 'Analyzing position by position… Precise mode digs deeper, so this can take a bit longer.'
+        : 'Analyzing position by position…';
 
     try {
         const res = await fetch('/api/review/analyze', {
