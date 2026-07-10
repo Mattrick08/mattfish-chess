@@ -170,7 +170,8 @@
         justify-content: center;
     }
 
-    .board-column { display: flex; gap: 10px; }
+    .board-column { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .board-row { display: flex; gap: 10px; }
 
     .eval-bar-wrap {
         width: 22px;
@@ -265,6 +266,63 @@
     .current-move-info .detail { font-size: 13px; color: var(--text-dim); }
     .current-move-info .best-hint { font-size: 12px; color: var(--best); margin-top: 4px; }
 
+    .move-notes-wrap {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px 12px;
+    }
+    .move-notes-wrap .label {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+    .move-notes-wrap textarea {
+        width: 100%;
+        resize: vertical;
+        min-height: 56px;
+        background: var(--panel-light);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: white;
+        font-family: inherit;
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    .move-notes-wrap textarea:focus { outline: none; border-color: var(--good); }
+    .move-notes-wrap .saved-hint {
+        font-size: 11px;
+        color: var(--best);
+        margin-top: 4px;
+        height: 14px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .move-notes-wrap .saved-hint.show { opacity: 1; }
+
+    .move-cell .note-flag {
+        font-size: 10px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    .export-row { text-align: center; }
+    .export-row button {
+        width: 100%;
+        background: var(--panel-light);
+        border: 1px solid var(--border);
+        color: white;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .export-row button:hover { background: var(--good); }
+
+    .swipe-hint { display: none; text-align: center; font-size: 11px; color: var(--text-dim); }
+
     .badge.Best { background: var(--best); color: white; }
     .badge.Excellent { background: var(--excellent); color: #06210b; }
     .badge.Good { background: var(--good); color: white; }
@@ -354,7 +412,8 @@
         .eval-bar-wrap { height: 90vw; max-height: 420px; }
         .side-panel { width: 100%; max-width: 420px; }
         .review-layout { flex-direction: column; align-items: center; }
-        .board-column { flex-direction: row; }
+        .board-row { flex-direction: row; }
+        .swipe-hint { display: block; margin-top: 6px; }
     }
 
     /* ---- Personalize panel (shared with the rest of MattFish via /static/theme.js) ---- */
@@ -518,16 +577,25 @@
 
     <div class="review-layout">
         <div class="board-column">
-            <div class="eval-bar-wrap">
-                <div class="eval-bar-white" id="evalBarWhite" style="height:50%;"></div>
-                <div class="eval-bar-label" id="evalBarLabel" style="bottom:2px;">0.0</div>
+            <div class="board-row">
+                <div class="eval-bar-wrap">
+                    <div class="eval-bar-white" id="evalBarWhite" style="height:50%;"></div>
+                    <div class="eval-bar-label" id="evalBarLabel" style="bottom:2px;">0.0</div>
+                </div>
+                <div id="board"></div>
             </div>
-            <div id="board"></div>
+            <div class="swipe-hint">&larr; Swipe the board to go to prev/next move &rarr;</div>
         </div>
 
         <div class="side-panel">
             <div class="current-move-info" id="currentMoveInfo">
                 <span class="detail">Starting position</span>
+            </div>
+
+            <div class="move-notes-wrap">
+                <div class="label">Note for this move</div>
+                <textarea id="moveNoteInput" placeholder="Add your own comment for this move…"></textarea>
+                <div class="saved-hint" id="noteSavedHint">Saved</div>
             </div>
 
             <div class="eval-graph-wrap">
@@ -543,6 +611,10 @@
             </div>
 
             <div class="move-list" id="moveList"></div>
+
+            <div class="export-row">
+                <button id="exportPgnBtn">&#128190; Export annotated PGN</button>
+            </div>
         </div>
     </div>
 
@@ -564,6 +636,187 @@ const PIECE_IMAGES = {
 let reviewData = null;   // full response from /api/review/analyze
 let currentIndex = -1;   // -1 = starting position, 0..n-1 = after that ply's move
 let selectedDepth = 14;
+
+// ---- per-move annotations (notes), persisted per-game in localStorage ----
+let moveNotes = {};       // { [ply]: "note text" }, -1 = note on starting position
+let notesStorageKey = null;
+
+function hashPgnText(text) {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) {
+        h = (Math.imul(31, h) + text.charCodeAt(i)) | 0;
+    }
+    return h;
+}
+
+function loadNotesForGame(pgnText) {
+    notesStorageKey = 'mfReviewNotes_' + hashPgnText(pgnText);
+    try {
+        const raw = localStorage.getItem(notesStorageKey);
+        moveNotes = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+        moveNotes = {};
+    }
+}
+
+function persistNotes() {
+    if (!notesStorageKey) return;
+    try {
+        localStorage.setItem(notesStorageKey, JSON.stringify(moveNotes));
+    } catch (e) { /* storage unavailable, ignore */ }
+}
+
+function updateNoteFlag(ply) {
+    const cell = document.querySelector(`.move-cell[data-ply="${ply}"]`);
+    if (!cell) return;
+    let flag = cell.querySelector('.note-flag');
+    const hasNote = !!(moveNotes[ply] && moveNotes[ply].trim());
+    if (hasNote && !flag) {
+        flag = document.createElement('span');
+        flag.className = 'note-flag';
+        flag.textContent = '\u{1F4DD}';
+        cell.insertBefore(flag, cell.querySelector('.dot'));
+    } else if (!hasNote && flag) {
+        flag.remove();
+    }
+}
+
+const moveNoteInput = document.getElementById('moveNoteInput');
+const noteSavedHint = document.getElementById('noteSavedHint');
+let noteSaveTimer = null;
+
+if (moveNoteInput) {
+    moveNoteInput.addEventListener('input', () => {
+        const text = moveNoteInput.value;
+        if (text.trim()) {
+            moveNotes[currentIndex] = text;
+        } else {
+            delete moveNotes[currentIndex];
+        }
+        persistNotes();
+        updateNoteFlag(currentIndex);
+        if (noteSavedHint) {
+            noteSavedHint.classList.add('show');
+            clearTimeout(noteSaveTimer);
+            noteSaveTimer = setTimeout(() => noteSavedHint.classList.remove('show'), 1200);
+        }
+    });
+}
+
+// ---- annotated PGN export ----
+function classificationNag(classification) {
+    switch (classification) {
+        case 'Blunder': return '??';
+        case 'Mistake': return '?';
+        case 'Inaccuracy': return '?!';
+        case 'Excellent': return '!';
+        default: return '';
+    }
+}
+
+function wrapPgnBody(text, width = 78) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    words.forEach(w => {
+        if (line && (line + ' ' + w).length > width) {
+            lines.push(line);
+            line = w;
+        } else {
+            line = line ? line + ' ' + w : w;
+        }
+    });
+    if (line) lines.push(line);
+    return lines.join('\n');
+}
+
+function buildAnnotatedPgn() {
+    const moves = reviewData.moves;
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '.');
+
+    let out = '';
+    out += `[Event "MattFish Game Review"]\n`;
+    out += `[Site "MattFish"]\n`;
+    out += `[Date "${today}"]\n`;
+    out += `[White "${reviewData.white_name || 'White'}"]\n`;
+    out += `[Black "${reviewData.black_name || 'Black'}"]\n`;
+    out += `[Result "${reviewData.result || '*'}"]\n\n`;
+
+    let body = '';
+    moves.forEach(m => {
+        if (m.mover === 'white') {
+            body += m.move_number + '. ';
+        } else if (body === '') {
+            body += m.move_number + '... ';
+        }
+        body += m.move_san + classificationNag(m.classification) + ' ';
+
+        const tags = [];
+        if (m.classification && !['Best', 'Book', 'Good'].includes(m.classification)) {
+            tags.push(m.classification);
+        }
+        const note = moveNotes[m.ply];
+        if (note && note.trim()) tags.push(note.trim());
+        if (tags.length) body += '{' + tags.join(' \u2014 ') + '} ';
+    });
+
+    const startNote = moveNotes[-1];
+    if (startNote && startNote.trim()) {
+        body = '{' + startNote.trim() + '} ' + body;
+    }
+
+    body += (reviewData.result || '*');
+    out += wrapPgnBody(body.trim()) + '\n';
+    return out;
+}
+
+document.getElementById('exportPgnBtn').addEventListener('click', () => {
+    if (!reviewData) return;
+    const pgnText = buildAnnotatedPgn();
+    const blob = new Blob([pgnText], { type: 'application/x-chess-pgn' });
+    const url = URL.createObjectURL(blob);
+    const safeName = `${reviewData.white_name || 'white'}_vs_${reviewData.black_name || 'black'}`
+        .replace(/[^a-z0-9_-]+/gi, '_');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mattfish_review_${safeName}.pgn`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+});
+
+// ---- mobile swipe navigation (swipe the board left/right to step through moves) ----
+(function setupSwipeNav() {
+    const boardEl = document.getElementById('board');
+    if (!boardEl) return;
+    let startX = null, startY = null, startTime = 0;
+
+    boardEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+    }, { passive: true });
+
+    boardEl.addEventListener('touchend', (e) => {
+        if (startX === null) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const dt = Date.now() - startTime;
+        startX = null;
+
+        const isHorizontalSwipe = Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 600;
+        if (!isHorizontalSwipe || !reviewData) return;
+
+        if (dx < 0) {
+            document.getElementById('nextBtn').click();
+        } else {
+            document.getElementById('prevBtn').click();
+        }
+    });
+})();
 
 if (typeof initThemePanel === 'function') {
     initThemePanel('themePanelContainer');
@@ -791,6 +1044,12 @@ function makeMoveCell(moveData) {
     label.textContent = moveData.move_san;
 
     cell.appendChild(label);
+    if (moveNotes[moveData.ply] && moveNotes[moveData.ply].trim()) {
+        const flag = document.createElement('span');
+        flag.className = 'note-flag';
+        flag.textContent = '\u{1F4DD}';
+        cell.appendChild(flag);
+    }
     cell.appendChild(dot);
     cell.onclick = () => goToPly(moveData.ply);
     return cell;
@@ -856,6 +1115,9 @@ function render() {
     document.getElementById('prevBtn').disabled = currentIndex === -1;
     document.getElementById('nextBtn').disabled = currentIndex === moves.length - 1;
     document.getElementById('endBtn').disabled = currentIndex === moves.length - 1;
+
+    const noteInput = document.getElementById('moveNoteInput');
+    if (noteInput) noteInput.value = moveNotes[currentIndex] || '';
 }
 
 document.getElementById('startBtn').onclick = () => { currentIndex = -1; render(); };
@@ -897,6 +1159,7 @@ document.getElementById('analyzeBtn').onclick = async () => {
 
         reviewData = data;
         currentIndex = -1;
+        loadNotesForGame(pgn);
 
         document.getElementById('whiteName').textContent = data.white_name;
         document.getElementById('blackName').textContent = data.black_name;
@@ -925,6 +1188,9 @@ document.getElementById('newReviewBtn').onclick = () => {
     document.getElementById('pgnInput').value = '';
     reviewData = null;
     currentIndex = -1;
+    moveNotes = {};
+    notesStorageKey = null;
+    if (moveNoteInput) moveNoteInput.value = '';
 };
 
 if ('serviceWorker' in navigator) {
