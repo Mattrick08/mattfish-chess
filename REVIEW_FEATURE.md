@@ -32,12 +32,20 @@ it just also grabs the Stockfish binary into `bin/stockfish/` right after.
 
 ## How the numbers are computed
 - **Evaluation**: every position in the game is scored once by Stockfish
-  (depth 10/14/18 depending on what you pick — Fast/Normal/Precise).
-- **Move classification**: centipawn loss between the position before and
-  after each move (from the mover's perspective). Thresholds: Best (matches
-  engine's top choice) · Book (small loss in the first 5 moves) · Excellent
-  (<20cp) · Good (<50cp) · Inaccuracy (<100cp) · Mistake (<200cp) · Blunder
-  (200cp+).
+  (depth 10/14/18 depending on what you pick — Fast/Normal/Precise), running
+  with multiple threads and a bigger hash table for stronger, faster search.
+- **Move classification**: based on the *drop in win probability* caused by
+  the move (the same approach Lichess's own classifier uses), not raw
+  centipawn loss. Raw-cp thresholds mis-tag moves in already-decided
+  positions — going from +900cp to +700cp barely changes who's winning, so
+  it isn't really a blunder even though the cp swing looks large. Win% drop
+  scales correctly regardless of how lopsided the position already is.
+  Thresholds: Best (matches engine's top choice) · Book (small loss in the
+  first 5 moves) · Excellent (<2% win-prob drop) · Good (<5%) · Inaccuracy
+  (<10%) · Mistake (<20%) · Blunder (20%+). There's also a mate-aware
+  override: letting a forced mate slip away entirely, or mating slower than
+  the best line, is always flagged (win% saturates near 0/100 once a mate is
+  on the board, which would otherwise hide a real error).
 - **Accuracy %**: uses the same win%-based formula Lichess publishes
   (centipawn → win probability via a logistic curve, then accuracy from the
   drop in win probability per move), averaged per side. It's a simplified
@@ -46,17 +54,21 @@ it just also grabs the Stockfish binary into `bin/stockfish/` right after.
   claimed to be bit-for-bit identical to lichess.org's own number.
 
 ## Performance notes
-- Depth 14 (default) takes roughly 0.1–0.4s per position on typical server
-  hardware, so a 40-move game (~80 plies) usually finishes in 10–25 seconds.
-  Depth 18 ("Precise") is noticeably slower; use it for shorter games.
-- The engine process is a single long-lived subprocess reused across
-  requests (not restarted every time), which matches the `gunicorn -w 1`
-  setup already in your `Procfile`. If you ever scale to multiple workers,
-  each worker will start its own Stockfish process — that's fine, no shared
-  state needed.
-- If a review ever times out on Render's free tier (which has a limited
-  request timeout), lower `REVIEW_DEPTH` via an environment variable:
-  Render → Environment → add `REVIEW_DEPTH=10`.
+- The engine gets extra threads (up to 4, capped by the host's CPU count)
+  and a 128MB hash table on startup, instead of Stockfish's slow defaults of
+  1 thread / 16MB — this alone meaningfully speeds up deeper searches.
+- Every review has a total wall-clock time budget (`REVIEW_TIME_BUDGET_SECONDS`,
+  default 150s), split evenly across every position that needs scoring. Short
+  games get generous time per position (searches usually finish well before
+  the cap anyway); long games automatically get a smaller per-position slice
+  so the whole review still lands inside the budget instead of timing out
+  the HTTP request. This is what makes "Precise" (depth 18) reliably finish
+  instead of occasionally blowing past gunicorn's `--timeout` on long games.
+  The `Procfile` timeout has been bumped to 200s to give this room to breathe.
+- If a review ever still feels too slow for your hosting plan, lower
+  `REVIEW_DEPTH` and/or `REVIEW_TIME_BUDGET_SECONDS` via environment
+  variables: Render → Environment → add `REVIEW_DEPTH=10` or
+  `REVIEW_TIME_BUDGET_SECONDS=90`.
 
 ## Testing locally
 ```
