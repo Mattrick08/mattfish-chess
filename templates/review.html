@@ -76,6 +76,49 @@
     }
     #pgnInput:focus { border-color: var(--good); }
 
+    /* ---- Import file panel ---- */
+    .import-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 14px 0;
+        color: var(--text-dim);
+        font-size: 12px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+    .import-divider::before,
+    .import-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+    .import-panel {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    #importFileBtn {
+        padding: 10px 16px;
+        background: var(--panel-light);
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s;
+    }
+    #importFileBtn:hover { border-color: var(--good); color: white; }
+    #importFileBtn.dragover { border-color: var(--good); color: white; background: rgba(74,144,217,0.12); }
+    #importFileStatus {
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+    #importFileStatus.ok { color: var(--best); }
+    #importFileStatus.err { color: var(--blunder); }
+
     .depth-row {
         display: flex;
         gap: 8px;
@@ -548,6 +591,13 @@
     <label for="pgnInput">Paste your PGN</label>
     <textarea id="pgnInput" placeholder="1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ..."></textarea>
 
+    <div class="import-divider">or</div>
+    <div class="import-panel">
+        <button type="button" id="importFileBtn">&#128193; Import file (.pgn, .txt, .pdf)</button>
+        <input type="file" id="importFileInput" accept=".pgn,.txt,.pdf,application/pdf,text/plain" style="display:none;">
+        <span id="importFileStatus"></span>
+    </div>
+
     <label style="margin-top:16px;">Analysis depth</label>
     <div class="depth-row">
         <button class="depth-btn" data-depth="10">Fast</button>
@@ -870,6 +920,99 @@ document.querySelectorAll('.depth-btn').forEach(btn => {
         btn.classList.add('active');
         selectedDepth = parseInt(btn.dataset.depth);
     };
+});
+
+/* ---- Import PGN / annotated PGN from a file (.pgn, .txt, .pdf) ---- */
+let pdfjsLoadPromise = null;
+function loadPdfJs() {
+    if (pdfjsLoadPromise) return pdfjsLoadPromise;
+    pdfjsLoadPromise = new Promise((resolve, reject) => {
+        if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            resolve(window.pdfjsLib);
+        };
+        script.onerror = () => reject(new Error('Could not load the PDF reader.'));
+        document.head.appendChild(script);
+    });
+    return pdfjsLoadPromise;
+}
+
+async function extractTextFromPdf(file) {
+    const pdfjsLib = await loadPdfJs();
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        // Join items with a space, and add a newline between pages so movetext
+        // that wraps across a page break doesn't get glued together badly.
+        text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text.trim();
+}
+
+function readTextFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read that file.'));
+        reader.readAsText(file);
+    });
+}
+
+function setImportStatus(msg, kind) {
+    const el = document.getElementById('importFileStatus');
+    el.textContent = msg;
+    el.className = kind || '';
+}
+
+async function handleImportedFile(file) {
+    if (!file) return;
+    setImportStatus('Reading ' + file.name + '…', '');
+    try {
+        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+        const text = isPdf ? await extractTextFromPdf(file) : await readTextFile(file);
+
+        if (!text || !text.trim()) {
+            throw new Error('No text found in that file.');
+        }
+
+        document.getElementById('pgnInput').value = text.trim();
+
+        // Loose sanity check: does this look like it contains PGN movetext?
+        const looksLikePgn = /\[\s*Event\s*"/i.test(text) || /\b1\.\s*[a-hKQRBNO]/.test(text);
+        if (isPdf && !looksLikePgn) {
+            setImportStatus('Imported ' + file.name + ' — double-check the text below, PDF extraction can be imperfect.', 'err');
+        } else {
+            setImportStatus('Imported ' + file.name + ' ✓', 'ok');
+        }
+    } catch (err) {
+        setImportStatus(err.message || 'Could not import that file.', 'err');
+    }
+}
+
+const importFileBtn = document.getElementById('importFileBtn');
+const importFileInput = document.getElementById('importFileInput');
+importFileBtn.onclick = () => importFileInput.click();
+importFileInput.onchange = () => handleImportedFile(importFileInput.files[0]);
+
+// Optional: drag-and-drop a file straight onto the import button
+importFileBtn.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    importFileBtn.classList.add('dragover');
+});
+importFileBtn.addEventListener('dragleave', () => importFileBtn.classList.remove('dragover'));
+importFileBtn.addEventListener('drop', (e) => {
+    e.preventDefault();
+    importFileBtn.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleImportedFile(e.dataTransfer.files[0]);
+    }
 });
 
 function fenToGrid(fen) {
@@ -1248,6 +1391,8 @@ document.getElementById('newReviewBtn').onclick = () => {
     document.getElementById('reviewScreen').style.display = 'none';
     document.getElementById('pasteScreen').style.display = 'block';
     document.getElementById('pgnInput').value = '';
+    setImportStatus('', '');
+    document.getElementById('importFileInput').value = '';
     reviewData = null;
     currentIndex = -1;
     moveNotes = {};
