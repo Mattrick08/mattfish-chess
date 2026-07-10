@@ -715,9 +715,20 @@ function parsePgnMoveNotes(pgnText) {
     const body = pgnText.replace(/^\s*(\[[^\]]*\]\s*)+/, '');
 
     function appendNote(ply, text) {
-        text = text.trim();
+        text = extractNoteFromComment(text);
         if (!text) return;
         notes[ply] = notes[ply] ? notes[ply] + ' ' + text : text;
+    }
+
+    // A raw PGN comment often looks like "Blunder — missed the fork on d5"
+    // (classification tag, then a dash, then the actual note) or is just a
+    // bare tag like "Best" with no note at all. Only the text after the
+    // first dash counts as a real note; a comment with no dash is treated
+    // as a qualifier only and produces no note.
+    function extractNoteFromComment(raw) {
+        const m = raw.match(/\s[—–-]\s/);
+        if (!m) return '';
+        return raw.slice(m.index + m[0].length).trim();
     }
 
     let ply = -1;
