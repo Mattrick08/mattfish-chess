@@ -1062,6 +1062,24 @@ function formatEval(m) {
     return ((m.eval_cp ?? 0) / 100).toFixed(2);
 }
 
+function scrollMoveListToCell(cell) {
+    // Scroll only the move-list's internal scrollbar so the active move stays
+    // visible in the list, without ever moving the page/board (scrollIntoView
+    // can bubble up and scroll the whole viewport, which is what we want to avoid).
+    const row = cell.closest('.move-row');
+    const list = document.getElementById('moveList');
+    if (!row || !list) return;
+
+    const rowTop = row.offsetTop;
+    const rowBottom = rowTop + row.offsetHeight;
+
+    if (rowTop < list.scrollTop) {
+        list.scrollTop = rowTop;
+    } else if (rowBottom > list.scrollTop + list.clientHeight) {
+        list.scrollTop = rowBottom - list.clientHeight;
+    }
+}
+
 function goToPly(ply) {
     currentIndex = ply;
     render();
@@ -1107,7 +1125,7 @@ function render() {
         const activeCell = document.querySelector(`.move-cell[data-ply="${currentIndex}"]`);
         if (activeCell) {
             activeCell.classList.add('active');
-            activeCell.scrollIntoView({ block: 'nearest' });
+            scrollMoveListToCell(activeCell);
         }
     }
 
