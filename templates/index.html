@@ -225,6 +225,153 @@
             font-size: 14px;
             margin-top: 10px;
         }
+
+        .h2h-section {
+            max-width: 900px;
+            margin: 0 auto 40px auto;
+            background-color: #2e2e2e;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .h2h-section h2 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #4CAF50;
+        }
+
+        .h2h-inputs {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .h2h-inputs input {
+            width: 220px;
+        }
+
+        .h2h-vs {
+            font-weight: bold;
+            color: #888;
+        }
+
+        .h2h-error {
+            text-align: center;
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .h2h-summary {
+            display: none;
+        }
+
+        .h2h-players {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .h2h-player {
+            text-align: center;
+        }
+
+        .h2h-player img,
+        .h2h-player .h2h-avatar-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto 8px auto;
+            background-color: #1e1e1e;
+        }
+
+        .h2h-player .h2h-avatar-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .h2h-player .name {
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .h2h-player .wins {
+            font-size: 26px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 4px;
+        }
+
+        .h2h-draws {
+            text-align: center;
+        }
+
+        .h2h-draws .count {
+            font-size: 22px;
+            font-weight: bold;
+            color: #aaa;
+        }
+
+        .h2h-draws .label {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .h2h-bar {
+            display: flex;
+            height: 22px;
+            border-radius: 6px;
+            overflow: hidden;
+            max-width: 500px;
+            margin: 0 auto 20px auto;
+        }
+
+        .h2h-bar-segment.win1 { background-color: #4CAF50; }
+        .h2h-bar-segment.draw { background-color: #777; }
+        .h2h-bar-segment.win2 { background-color: #e74c3c; }
+
+        .h2h-total {
+            text-align: center;
+            color: #ccc;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .h2h-games-table {
+            display: none;
+        }
+
+        .outcome-pill {
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .outcome-pill.win { background-color: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .outcome-pill.loss { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .outcome-pill.draw { background-color: rgba(150, 150, 150, 0.2); color: #ccc; }
+
+        .h2h-games-table a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+
+        .h2h-games-table a:hover {
+            text-decoration: underline;
+        }
     </style>
 <base target="_blank">
 <base target="_blank">
@@ -514,6 +661,60 @@
     </table>
 </div>
 
+<div class="h2h-section">
+    <h2>Head-to-Head</h2>
+    <div class="h2h-inputs">
+        <input type="text" id="h2h-user1" placeholder="First username">
+        <span class="h2h-vs">vs</span>
+        <input type="text" id="h2h-user2" placeholder="Second username">
+        <button onclick="loadHeadToHead()">Compare</button>
+    </div>
+    <div class="buttons" style="justify-content: center; margin-bottom: 10px;">
+        <button class="period-btn h2h-period-btn active" onclick="setH2hPeriod(3, this)">Last 3 months</button>
+        <button class="period-btn h2h-period-btn" onclick="setH2hPeriod(6, this)">Last 6 months</button>
+        <button class="period-btn h2h-period-btn" onclick="setH2hPeriod(12, this)">Last year</button>
+        <button class="period-btn h2h-period-btn" onclick="setH2hPeriod(999, this)">All time</button>
+    </div>
+    <p class="loading" id="h2h-loading" style="display:none;">Loading head-to-head record...</p>
+    <p class="h2h-error" id="h2h-error"></p>
+
+    <div class="h2h-summary" id="h2h-summary">
+        <div class="h2h-players">
+            <div class="h2h-player">
+                <div id="h2h-avatar1-placeholder" class="h2h-avatar-placeholder">?</div>
+                <img id="h2h-avatar1" style="display:none" src="" alt="">
+                <div class="name" id="h2h-name1"></div>
+                <div class="wins" id="h2h-wins1"></div>
+            </div>
+            <div class="h2h-draws">
+                <div class="count" id="h2h-draws-count"></div>
+                <div class="label">Draws</div>
+            </div>
+            <div class="h2h-player">
+                <div id="h2h-avatar2-placeholder" class="h2h-avatar-placeholder">?</div>
+                <img id="h2h-avatar2" style="display:none" src="" alt="">
+                <div class="name" id="h2h-name2"></div>
+                <div class="wins" id="h2h-wins2"></div>
+            </div>
+        </div>
+        <div class="h2h-bar" id="h2h-bar"></div>
+        <div class="h2h-total" id="h2h-total"></div>
+
+        <table class="h2h-games-table" id="h2h-games-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time Control</th>
+                    <th id="h2h-color-header">Color</th>
+                    <th>Result</th>
+                    <th>Game</th>
+                </tr>
+            </thead>
+            <tbody id="h2h-games-body"></tbody>
+        </table>
+    </div>
+</div>
+
 <script>
     let currentPeriod = 3;
     let ratingChart = null;
@@ -677,6 +878,117 @@
                 </tr>
             `;
         });
+    }
+
+    let h2hPeriod = 3;
+
+    function setH2hPeriod(months, btn) {
+        h2hPeriod = months;
+        document.querySelectorAll(".h2h-period-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+    }
+
+    function setH2hAvatar(prefix, url, fallbackLetter) {
+        const placeholder = document.getElementById(`${prefix}-placeholder`);
+        const img = document.getElementById(prefix);
+        if (url) {
+            placeholder.style.display = "none";
+            img.src = url;
+            img.style.display = "block";
+        } else {
+            img.style.display = "none";
+            placeholder.style.display = "flex";
+            placeholder.textContent = fallbackLetter.toUpperCase();
+        }
+    }
+
+    async function loadHeadToHead() {
+        const user1 = document.getElementById("h2h-user1").value.trim();
+        const user2 = document.getElementById("h2h-user2").value.trim();
+        const errorEl = document.getElementById("h2h-error");
+        const loadingEl = document.getElementById("h2h-loading");
+        const summaryEl = document.getElementById("h2h-summary");
+        const gamesTable = document.getElementById("h2h-games-table");
+
+        errorEl.style.display = "none";
+        summaryEl.style.display = "none";
+        gamesTable.style.display = "none";
+
+        if (!user1 || !user2) {
+            errorEl.textContent = "Enter both usernames.";
+            errorEl.style.display = "block";
+            return;
+        }
+
+        loadingEl.style.display = "block";
+
+        try {
+            const response = await fetch(`/api/h2h/${encodeURIComponent(user1)}/${encodeURIComponent(user2)}/${h2hPeriod}`);
+            const data = await response.json();
+
+            loadingEl.style.display = "none";
+
+            if (!response.ok || data.error) {
+                errorEl.textContent = data.error || "Something went wrong.";
+                errorEl.style.display = "block";
+                return;
+            }
+
+            document.getElementById("h2h-name1").textContent = data.user1;
+            document.getElementById("h2h-name2").textContent = data.user2;
+            document.getElementById("h2h-wins1").textContent = data.user1_wins;
+            document.getElementById("h2h-wins2").textContent = data.user2_wins;
+            document.getElementById("h2h-draws-count").textContent = data.draws;
+            document.getElementById("h2h-color-header").textContent = `${data.user1}'s Color`;
+
+            setH2hAvatar("h2h-avatar1", data.user1_avatar, data.user1[0] || "?");
+            setH2hAvatar("h2h-avatar2", data.user2_avatar, data.user2[0] || "?");
+
+            const total = data.total_games;
+            const bar = document.getElementById("h2h-bar");
+            bar.innerHTML = "";
+            if (total > 0) {
+                const pct1 = (data.user1_wins / total) * 100;
+                const pctDraw = (data.draws / total) * 100;
+                const pct2 = (data.user2_wins / total) * 100;
+                bar.innerHTML = `
+                    <div class="h2h-bar-segment win1" style="width:${pct1}%"></div>
+                    <div class="h2h-bar-segment draw" style="width:${pctDraw}%"></div>
+                    <div class="h2h-bar-segment win2" style="width:${pct2}%"></div>
+                `;
+                document.getElementById("h2h-total").textContent =
+                    `${total} game${total === 1 ? "" : "s"} played (last ${h2hPeriod >= 999 ? "all time" : h2hPeriod + " months"})`;
+            } else {
+                document.getElementById("h2h-total").textContent =
+                    `No games found between these players in this period.`;
+            }
+
+            const tbody = document.getElementById("h2h-games-body");
+            tbody.innerHTML = "";
+            if (data.games.length > 0) {
+                gamesTable.style.display = "table";
+                data.games.forEach(g => {
+                    const date = new Date(g.end_time * 1000).toLocaleDateString();
+                    const outcomeLabel = g.outcome === "win" ? "Win" : (g.outcome === "loss" ? "Loss" : "Draw");
+                    const timeControlLabel = g.time_class ? g.time_class.charAt(0).toUpperCase() + g.time_class.slice(1) : "";
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${timeControlLabel}</td>
+                            <td>${g.u1_color === "white" ? "White" : "Black"}</td>
+                            <td><span class="outcome-pill ${g.outcome}">${outcomeLabel}</span></td>
+                            <td>${g.url ? `<a href="${g.url}" target="_blank">View</a>` : "-"}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            summaryEl.style.display = "block";
+        } catch (e) {
+            loadingEl.style.display = "none";
+            errorEl.textContent = "Could not load head-to-head data. Please try again.";
+            errorEl.style.display = "block";
+        }
     }
 </script>
 
