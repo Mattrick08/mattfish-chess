@@ -427,6 +427,118 @@ def get_openings(username, months):
 
     return jsonify(openings_list)
 
+# ========== HEAD-TO-HEAD LOOKUP ==========
+@app.route("/api/h2h/<user1>/<user2>/<int:months>")
+def head_to_head(user1, user2, months):
+    u1 = user1.strip()
+    u2 = user2.strip()
+
+    if not u1 or not u2:
+        return jsonify({"error": "Both usernames are required."}), 400
+    if u1.lower() == u2.lower():
+        return jsonify({"error": "Enter two different usernames."}), 400
+
+    def get_avatar(username):
+        try:
+            profile_response = requests.get(f"https://api.chess.com/pub/player/{username}", headers=headers)
+            if profile_response.status_code == 200:
+                return profile_response.json().get("avatar")
+        except requests.RequestException:
+            pass
+        return None
+
+    archives_url = f"https://api.chess.com/pub/player/{u1}/games/archives"
+    try:
+        archives_response = requests.get(archives_url, headers=headers)
+    except requests.RequestException:
+        return jsonify({"error": "Could not reach Chess.com."}), 502
+
+    if archives_response.status_code != 200:
+        return jsonify({"error": f"Could not find Chess.com player '{u1}'."}), 404
+
+    archives_data = archives_response.json()
+    archives = archives_data.get("archives", [])[-months:]
+
+    u1_wins = 0
+    u2_wins = 0
+    draws = 0
+    recent_games = []
+    u2_found = False
+
+    for archive in archives:
+        try:
+            games_response = requests.get(archive, headers=headers)
+        except requests.RequestException:
+            continue
+        if games_response.status_code != 200:
+            continue
+        games_data = games_response.json()
+
+        for game in games_data.get("games", []):
+            white = game.get("white", {})
+            black = game.get("black", {})
+            white_name = white.get("username", "")
+            black_name = black.get("username", "")
+
+            if white_name.lower() == u1.lower() and black_name.lower() == u2.lower():
+                u1_color, u2_color = "white", "black"
+                u1_data, u2_data = white, black
+            elif white_name.lower() == u2.lower() and black_name.lower() == u1.lower():
+                u1_color, u2_color = "black", "white"
+                u1_data, u2_data = black, white
+            else:
+                continue
+
+            u2_found = True
+            u1_result = u1_data.get("result", "")
+            u2_result = u2_data.get("result", "")
+
+            if u1_result == "win":
+                u1_wins += 1
+                outcome = "win"
+            elif u2_result == "win":
+                u2_wins += 1
+                outcome = "loss"
+            else:
+                draws += 1
+                outcome = "draw"
+
+            recent_games.append({
+                "url": game.get("url", ""),
+                "end_time": game.get("end_time", 0),
+                "time_class": game.get("time_class", ""),
+                "time_control": game.get("time_control", ""),
+                "rules": game.get("rules", "chess"),
+                "u1_color": u1_color,
+                "u1_rating": u1_data.get("rating"),
+                "u2_rating": u2_data.get("rating"),
+                "outcome": outcome,
+            })
+
+    if not u2_found:
+        # Confirm whether user2 even exists, to give a clearer error message
+        try:
+            check = requests.get(f"https://api.chess.com/pub/player/{u2}", headers=headers)
+            if check.status_code != 200:
+                return jsonify({"error": f"Could not find Chess.com player '{u2}'."}), 404
+        except requests.RequestException:
+            pass
+
+    recent_games.sort(key=lambda g: g["end_time"], reverse=True)
+    total = u1_wins + u2_wins + draws
+
+    return jsonify({
+        "user1": u1,
+        "user2": u2,
+        "user1_avatar": get_avatar(u1),
+        "user2_avatar": get_avatar(u2),
+        "total_games": total,
+        "user1_wins": u1_wins,
+        "user2_wins": u2_wins,
+        "draws": draws,
+        "games": recent_games[:25]
+    })
+
 # ========== MULTIPLAYER (polling-based, no websockets) ==========
 rooms = {}  # room_code -> room state dict
 
